@@ -503,7 +503,8 @@ class ProductController extends Controller
                                 'assembly_materials.serial',
                                 'assembly_materials.product_unit as am_product_unit',
                                 'materials.code as material_code',
-                                'materials.name as material_name'
+                                'materials.name as material_name',
+                                'materials.unit as material_unit'
                             );
                         
                         $sql = $query->toSql();
@@ -546,6 +547,7 @@ class ProductController extends Controller
                                     'material_id' => $material->material_id,
                                     'material_code' => $material->material_code,
                                     'material_name' => $material->material_name,
+                                    'material_unit' => $material->material_unit ?? '',
                                     'quantity' => 0,
                                     'serials' => [] // Lưu tất cả serials thay vì chỉ một serial
                                 ];
@@ -573,6 +575,7 @@ class ProductController extends Controller
                                     'material_id' => $material['material_id'],
                                     'material_code' => $material['material_code'],
                                     'material_name' => $material['material_name'],
+                                    'material_unit' => $material['material_unit'] ?? '',
                                     'serial' => $serialValue,
                                     'index' => $i + 1
                                 ];
@@ -619,7 +622,8 @@ class ProductController extends Controller
                             'product_materials.material_id',
                             'product_materials.quantity',
                             'materials.code as material_code',
-                            'materials.name as material_name'
+                            'materials.name as material_name',
+                            'materials.unit as material_unit'
                         )
                         ->get();
                     
@@ -630,6 +634,7 @@ class ProductController extends Controller
                                 'material_id' => $material->material_id,
                                 'material_code' => $material->material_code,
                                 'material_name' => $material->material_name,
+                                'material_unit' => $material->material_unit ?? '',
                                 'serial' => '', // Không có serial từ product_materials
                                 'index' => $i + 1
                             ];

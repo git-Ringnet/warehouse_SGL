@@ -628,9 +628,7 @@
                         </div>
                     </div>
                 @endif
-
                 <!-- Empty state message is now handled by JavaScript -->
-
                 <!-- Phần chọn sản phẩm và hiển thị items đã chọn -->
                 @if (true)
                     <!-- Always show, but enable/disable based on status -->
@@ -816,15 +814,6 @@
             <div class="mb-4">
                 <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng
                     bên dưới:</p>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                    <div class="flex items-center">
-                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
-                        <div class="text-sm text-blue-700">
-                            <strong>Lưu ý:</strong> Serial chính trong modal này là serial mới được đổi tên từ bảng device_codes và sẽ được hiển thị ở giao diện chính. 
-                            Nếu không có Serial chính trong database, giao diện chính sẽ hiển thị serial hiện tại đã chọn.
-                        </div>
-                    </div>
-                </div>
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full border border-gray-200">
@@ -895,7 +884,6 @@
             </div>
         </div>
     </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             function activateProjectReceiver(source) {
@@ -917,48 +905,99 @@
             // Xử lý tải mẫu Excel từ modal
             document.getElementById('download-template').addEventListener('click', function() {
                 const tbody = document.getElementById('device-code-tbody');
-                const rows = tbody.querySelectorAll('tr');
-                let templateData = [];
-                let currentProduct = null;
+                const rows = tbody.querySelectorAll('tr[data-product-id]');
 
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td, th, input, select');
-                    if (cells.length) {
-                        // Lấy tên thiết bị từ cột đầu tiên
-                        const productName = row.querySelector('td:first-child, th:first-child')?.textContent?.trim();
-                        if (productName && !productName.includes('RDO-')) {
-                            currentProduct = {
-                                name: productName,
-                                serials: [],
-                                materials: [] // Changed to match backend expectation
-                            };
-                            templateData.push(currentProduct);
-                        }
-                        
-                        if (currentProduct) {
-                            // Lấy các serial và thông tin khác
-                            const serialMain = row.querySelector('input[name*="serial_main"]')?.value || '';
-                            const materialName = row.querySelector('td:nth-child(3)')?.textContent?.trim();
+                let lastProductName = '';
+                const templateData = Array.from(rows).map(row => {
+                    const productId = row.getAttribute('data-product-id');
+                    const productRowIndex = row.getAttribute('data-row-index');
+                    const productNameInput = row.querySelector('input[name*="_product_info"]');
+                    if (productNameInput && productNameInput.value) {
+                        lastProductName = productNameInput.value;
+                    }
+                    const productName = lastProductName;
 
-                            if (serialMain) {
-                                currentProduct.serials = [serialMain]; // Use array with single value as expected by backend
-                            }
-                            
-                            if (materialName && materialName.includes('RDO-')) {
-                                // Extract code and name from material format "RDO-XXX - Name"
-                                const [code, ...nameParts] = materialName.split(' - ');
-                                const name = nameParts.join(' - ');
-                                
-                                currentProduct.materials.push({
-                                    code: code,
-                                    name: name
-                                });
+                    const serialMainInput = row.querySelector('input[name*="serial_main"]');
+                    let serialMain = '';
+                    let serialMainPlaceholder = '';
+                    if (serialMainInput) {
+                        serialMain = serialMainInput.value ? serialMainInput.value.trim() : '';
+                        serialMainPlaceholder = serialMainInput.getAttribute('placeholder') || '';
+                        if (!serialMain) {
+                            const originalSerial = serialMainInput.getAttribute('data-original-serial');
+                            if (originalSerial) {
+                                serialMain = originalSerial.trim();
                             }
                         }
                     }
+
+                    const serialSimInput = row.querySelector('input[name*="serial_sim"]');
+                    const serialSim = serialSimInput ? serialSimInput.value.trim() : '';
+                    const accessCodeInput = row.querySelector('input[name*="access_code"]');
+                    const accessCode = accessCodeInput ? accessCodeInput.value.trim() : '';
+                    const iotIdInput = row.querySelector('input[name*="iot_id"]');
+                    const iotId = iotIdInput ? iotIdInput.value.trim() : '';
+                    const mac4gInput = row.querySelector('input[name*="mac_4g"]');
+                    const mac4g = mac4gInput ? mac4gInput.value.trim() : '';
+                    const noteInput = row.querySelector('input[name*="note"]');
+                    const note = noteInput ? noteInput.value.trim() : '';
+
+                    const materialInputs = row.querySelectorAll('input[name*="serial_components"]:not([data-consolidate-hidden="true"])');
+                    const materials = Array.from(materialInputs).map(input => {
+                        const serialValue = input.value.trim();
+                        const placeholder = input.getAttribute('placeholder') || '';
+                        const parentDiv = input.closest('div.mb-1');
+                        const labelElement = parentDiv ? parentDiv.querySelector('label.text-xs') : null;
+                        const labelText = labelElement ? labelElement.textContent.trim() : '';
+
+                        let code = '';
+                        let name = '';
+                        if (labelText) {
+                            const match = labelText.match(/^([A-Z0-9-]+)\s*-\s*(.+)$/);
+                            if (match) {
+                                code = match[1].trim();
+                                name = match[2].trim();
+                            } else {
+                                name = labelText;
+                            }
+                        }
+
+                        return {
+                            code,
+                            label: labelText,
+                            serial: serialValue,
+                            placeholder,
+                        };
+                    });
+
+                    if (!productName) {
+                        return null;
+                    }
+
+                    return {
+                        product_id: productId,
+                        product_row_index: productRowIndex,
+                        product_name: productName,
+                        serial_main: serialMain,
+                        serial_main_placeholder: serialMainPlaceholder,
+                        serial_sim: serialSim,
+                        access_code: accessCode,
+                        iot_id: iotId,
+                        mac_4g: mac4g,
+                        note,
+                        materials,
+                    };
+                }).filter(Boolean)
+                .sort((a, b) => {
+                    if (a.product_id === b.product_id) {
+                        return (parseInt(a.product_row_index ?? 0, 10) - parseInt(b.product_row_index ?? 0, 10));
+                    }
+                    return (String(a.product_id)).localeCompare(String(b.product_id));
                 });
 
-                // Gửi dữ liệu đến server để tạo Excel
+                console.log('Template data to send:', templateData);
+                console.log('Number of rows:', templateData.length);
+
                 fetch('{{ route("device-codes.template") }}', {
                     method: 'POST',
                     headers: {
@@ -1234,7 +1273,6 @@
                     }, 100);
                 }
             })();
-
             // Initialize employee search (company representative)
             (function initRepSearch(){
                 const search = document.getElementById('company_representative_search');
@@ -1250,7 +1288,6 @@
                     }
                 });
             })();
-
             // Initialize warranty combined search (projects + rentals filled later)
             (function initWarrantySearch(){
                 const search = document.getElementById('warranty_receiver_search');
@@ -1323,7 +1360,6 @@
 
             // Kick off rentals population
             populateRentalSearchOptions();
-
             // Load available items from API
             async function loadAvailableItems() {
                 try {
@@ -1346,7 +1382,6 @@
                     console.error('Error loading available items:', error);
                 }
             }
-
             // Trước khi submit: đảm bảo field project_receiver đúng theo loại hình
             const formEl = document.querySelector('form');
             if (formEl) {
@@ -1762,7 +1797,6 @@
                     }
                 }
             }
-
             // Hàm load danh sách hợp đồng cho thuê
             async function loadRentals() {
                 try {
@@ -1834,7 +1868,6 @@
                     console.error('Error loading rentals:', error);
                 }
             }
-
             // Xử lý thay đổi loại hình xuất kho trong edit form
             const dispatchTypeSelect = document.getElementById('dispatch_type');
             const dispatchDetailSelect = document.getElementById('dispatch_detail');
@@ -1975,7 +2008,7 @@
                         const rentalHidden2 = document.getElementById('rental_project_receiver');
                         if (rentalHidden2) rentalHidden2.remove();
 
-                            // Load rentals cho dropdown bảo hành
+                            // Load rentals for dropdown bảo hành
                             loadRentals();
 
                             warrantyReceiverInput.addEventListener('change', function() {
@@ -2133,14 +2166,12 @@
             @endif
 
             const __DISPATCH_IS_APPROVED__ = '{{ $dispatch->status }}' === 'approved';
-
             // Hàm load available serial numbers cho tất cả serial selects
             async function loadAvailableSerials() {
                 // Cho phép chạy song song theo từng select, tránh chặn bởi cờ toàn cục
                 window.isLoadingSerials = false;
                 
                 const serialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
-
                 for (const select of serialSelects) {
                     // Chống gọi chồng lấp gây lặp option
                     if (select.getAttribute('data-loading-serials') === 'true') {
@@ -2446,7 +2477,6 @@
                     });
                 }
             }
-
             // Hàm thêm sản phẩm hợp đồng
             function addContractProduct(productId) {
                 const selectedType = 'product'; // Default type for contract products
@@ -2488,7 +2518,6 @@
                     resolveMissingAssemblyForAll();
                 }, 100);
             }
-
             // Hàm thêm thiết bị dự phòng
             function addBackupProduct(productId) {
                 const selectedType = 'product'; // Default type for backup products
@@ -2615,7 +2644,6 @@
                     if (backupTable) backupTable.classList.remove('hidden');
                 }
             }
-
             // Hàm tạo serial inputs theo quantity giống trang create
             function generateSerialInputs(quantity, category, productId, index) {
                 let inputs = '';
@@ -2884,7 +2912,6 @@
                     console.warn('enforceSelectedSerials error:', e);
                 }
             }
-
             // Hàm hiển thị bảng sản phẩm hợp đồng giống trang create
             function renderContractProductTable() {
                 const contractProductList = document.querySelector('#contract-product-table tbody');
@@ -3117,7 +3144,6 @@
                     });
                 });
             }
-
             // Hàm hiển thị bảng thiết bị dự phòng giống trang create
             function renderBackupProductTable() {
                 const backupProductList = document.querySelector('#backup-product-table tbody');
@@ -3527,7 +3553,6 @@
                     }
                 });
             });
-
             // Hàm cập nhật serial inputs khi quantity thay đổi
             function updateSerialInputs(quantityInput, category) {
                 const newQuantity = parseInt(quantityInput.value);
@@ -3588,7 +3613,6 @@
                 // Load available serials for the new selects
                 loadAvailableSerials();
             }
-
             // Hàm kiểm tra tồn kho tổng hợp cho trang edit
             async function validateEditStock() {
                 const stockErrors = [];
@@ -4087,7 +4111,6 @@
                     }, 200);
                 });
             }
-
             if (updateBackupDeviceCodesBtn) {
                 updateBackupDeviceCodesBtn.addEventListener('click', function() {
                     console.log('Update Backup Device Codes button clicked');
@@ -4140,7 +4163,6 @@
                     disableAllSync();
                 });
             }
-
             // Xử lý nút đồng bộ serial numbers từ device_codes sang dispatch_items
             if (syncSerialNumbersBtn) {
                 syncSerialNumbersBtn.addEventListener('click', async function() {
@@ -4192,7 +4214,6 @@
                     }
                 });
             }
-
             // Hàm load dữ liệu mã thiết bị từ database
             async function loadDeviceCodesFromDatabase(type) {
                 console.log('loadDeviceCodesFromDatabase called with type:', type, 'dispatch_id:', dispatchId);
@@ -4480,10 +4501,8 @@
                 // Nếu productData là array (fallback), trả về array đó
                 return Array.isArray(productData) ? productData : [];
             }
-
             // Concurrency-safe cursor để phân bổ vật tư theo dòng N/A, tránh lặp lại cùng bộ vật tư
             window.__materialsCursorByProduct = window.__materialsCursorByProduct || {};
-
             // Helper: lấy materials cho 1 dòng theo ưu tiên: theo cặp assembly_id:product_unit -> serial -> theo index
             function getMaterialsForRow(productId, serial, rowIndex, assemblyIdForRow, productUnitForRow) {
                 // Ưu tiên lấy từ type hiện tại nếu có
@@ -4568,7 +4587,7 @@
                 }
 
                 // 1) Tra theo serial (kể cả rỗng)
-                let materials = getProductMaterialsCountBySerial(productId, serial);
+                let materials = getProductMaterialsCountBySerial(parseInt(productId, 10) || 0, serial);
                 if (Array.isArray(materials) && materials.length > 0) return materials;
 
                 // 2) Thử các key đặc biệt mà backend có thể cung cấp cho N/A theo index
@@ -4755,7 +4774,6 @@
                     }
                 });
             }
-
             // Hàm hiển thị bảng mã thiết bị với dữ liệu từ database
             function renderDeviceCodeTable(deviceCodes, type) {
                 const tbody = document.getElementById('device-code-tbody');
@@ -4795,7 +4813,6 @@
                         groupedDeviceCodes[product.id] = [];
                     }
                 });
-
                 // Render từng nhóm product
                 Object.keys(groupedDeviceCodes).forEach(productId => {
                     const productDeviceCodes = groupedDeviceCodes[productId];
@@ -4986,37 +5003,119 @@
                                 }
                             }
 
-                            componentSerialsHtml = templateMaterials.map((material, j) => {
+                            // Định nghĩa các đơn vị cần gộp serial
+                            const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                            const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
+                            const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
+                            const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
+                            const consolidateUnits = [...lengthUnits, ...weightUnits, ...areaUnits, ...volumeUnits];
+
+                            // Nhóm vật tư theo material_id và unit để gộp serial
+                            const groupedMaterials = {};
+                            templateMaterials.forEach((material, j) => {
+                                const materialUnit = (material.material_unit || '').trim();
+                                const shouldConsolidate = materialUnit && consolidateUnits.includes(materialUnit);
+                                const groupKey = shouldConsolidate ? `${material.material_id}_${materialUnit}` : `${material.material_id}_${j}`;
+                                
+                                if (!groupedMaterials[groupKey]) {
+                                    groupedMaterials[groupKey] = {
+                                        material: material,
+                                        indices: [],
+                                        shouldConsolidate: shouldConsolidate
+                                    };
+                                }
+                                groupedMaterials[groupKey].indices.push(j);
+                            });
+
+                            // Render theo nhóm đã gộp
+                            componentSerialsHtml = Object.values(groupedMaterials).map((group, groupIndex) => {
+                                const material = group.material;
+                                const shouldConsolidate = group.shouldConsolidate;
+                                const materialUnit = (material.material_unit || '').trim();
+                                
+                                // Lấy serial value - nếu gộp thì lấy từ renamedComponentSerials đầu tiên hoặc tất cả serials gộp lại
                                 let serialValue = '';
                                 const isNAProduct = !originalSerialValue || String(originalSerialValue).trim() === '';
+                                
                                 if (!isNAProduct) {
-                                    // 1) Dùng serial đổi tên nếu có
-                                    if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
-                                        serialValue = renamedComponentSerials[j];
+                                    if (shouldConsolidate) {
+                                        // Gộp serial: lấy tất cả serials của các vật tư cùng loại và gộp lại
+                                        const consolidatedSerials = [];
+                                        group.indices.forEach(j => {
+                                            if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
+                                                consolidatedSerials.push(renamedComponentSerials[j]);
+                                            } else {
+                                                // Tìm material tương ứng với index j trong templateMaterials
+                                                const mat = templateMaterials[j];
+                                                if (mat && mat.serial && mat.serial !== 'null') {
+                                                    const parts = String(mat.serial)
+                                                        .split(/[\s,;|\/]+/)
+                                                        .map(s => s.trim())
+                                                        .filter(Boolean);
+                                                    const partIndex = (parseInt(mat.index, 10) || (j + 1)) - 1;
+                                                    const part = parts[partIndex] || parts[0] || '';
+                                                    if (part) consolidatedSerials.push(part);
+                                                }
+                                            }
+                                        });
+                                        serialValue = consolidatedSerials.join(', ');
                                     } else {
-                                        // 2) Fallback: tách serial gốc theo nhiều ký tự phân tách
-                                        if (material.serial && material.serial !== 'null') {
-                                            const parts = String(material.serial)
-                                                .split(/[\s,;|\/]+/)
-                                                .map(s => s.trim())
-                                                .filter(Boolean);
-                                            const partIndex = (parseInt(material.index, 10) || (j + 1)) - 1;
-                                            serialValue = parts[partIndex] || parts[0] || '';
+                                        // Không gộp: lấy serial theo index đầu tiên trong nhóm
+                                        const j = group.indices[0];
+                                        if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
+                                            serialValue = renamedComponentSerials[j];
+                                        } else {
+                                            const mat = templateMaterials[j];
+                                            if (mat && mat.serial && mat.serial !== 'null') {
+                                                const parts = String(mat.serial)
+                                                    .split(/[\s,;|\/]+/)
+                                                    .map(s => s.trim())
+                                                    .filter(Boolean);
+                                                const partIndex = (parseInt(mat.index, 10) || (j + 1)) - 1;
+                                                serialValue = parts[partIndex] || parts[0] || '';
+                                            }
                                         }
                                     }
                                 }
-                                const prefillAttr = serialValue && !(Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) ? 'data-prefill="1"' : '';
+
+                                // Tạo input name - dùng index đầu tiên trong nhóm
+                                const firstIndex = group.indices[0];
+                                const inputName = `${type}_serial_components[${productId}][${i}][${firstIndex}]`;
+                                
+                                // Tạo label - nếu gộp thì hiển thị số lượng, nếu không thì hiển thị index
+                                const labelText = shouldConsolidate
+                                    ? `${material.material_code} - ${material.material_name} (${group.indices.length} ${materialUnit})`
+                                    : `${material.material_code} - ${material.material_name} (${material.index})`;
+
+                                const prefillAttr = serialValue && !(Array.isArray(renamedComponentSerials) && renamedComponentSerials[firstIndex]) ? 'data-prefill="1"' : '';
+                                
+                                // Nếu gộp, thêm data attribute để biết đây là serial gộp và các indices cần gán
+                                const consolidateAttr = shouldConsolidate ? `data-consolidate="true" data-material-indices="${group.indices.join(',')}"` : '';
+                                
+                                // Nếu gộp, tạo các input ẩn cho các indices còn lại để đảm bảo cấu trúc đúng khi lưu
+                                let hiddenInputs = '';
+                                if (shouldConsolidate && group.indices.length > 1) {
+                                    // Tạo input ẩn cho các indices còn lại (từ index thứ 2 trở đi)
+                                    for (let idx = 1; idx < group.indices.length; idx++) {
+                                        const hiddenIndex = group.indices[idx];
+                                        hiddenInputs += `<input type="hidden" name="${type}_serial_components[${productId}][${i}][${hiddenIndex}]" value="" data-consolidate-hidden="true" data-consolidate-source="${firstIndex}">`;
+                                    }
+                                }
+                                
                                 return `
                                 <div class="mb-1">
-                                    <label class="text-xs text-gray-600 mb-1">${material.material_code} - ${material.material_name} (${material.index})</label>
+                                    <label class="text-xs text-gray-600 mb-1">${labelText}</label>
                                     <input type="text" 
-                                        name="${type}_serial_components[${productId}][${i}][${j}]" 
-                                        placeholder="Seri vật tư"
+                                        name="${inputName}" 
+                                        placeholder="Seri vật tư${shouldConsolidate ? ' (gộp, cách nhau bằng dấu phẩy)' : ''}"
                                         value="${serialValue}"
                                         ${prefillAttr}
+                                        ${consolidateAttr}
                                         data-material-id="${material.material_id}"
                                         data-material-index="${material.index}"
+                                        data-material-unit="${materialUnit}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                    ${hiddenInputs}
                                 </div>
                             `;
                             }).join('');
@@ -5112,7 +5211,6 @@
                     disableAllSync();
                 });
             }
-
             // Lưu thông tin mã thiết bị
             if (saveDeviceCodesBtn) {
                 saveDeviceCodesBtn.addEventListener('click', async function() {
@@ -5150,16 +5248,80 @@
                             }
 
                             // Get component serials - giữ lại thứ tự và bao gồm cả giá trị trống
+                            // Lấy cả input visible và hidden (cho consolidated serials)
                             const componentSerialInputs = row.querySelectorAll(
-                                'input[name*="serial_components"]');
-                            const componentSerials = Array.from(componentSerialInputs)
-                                .map(input => {
-                                    const value = input.value.trim();
-                                    // Chỉ loại bỏ giá trị '[' (invalid), giữ lại chuỗi trống
-                                    return value === '[' ? '' : value;
-                                });
+                                'input[name*="serial_components"]:not([data-consolidate-hidden="true"])');
+                            
+                            // Lấy số lượng vật tư thực tế từ templateMaterials (nếu có) hoặc từ max index
+                            let expectedMaterialCount = 0;
+                            const productIdAttr = row.getAttribute('data-product-id');
+                            const currentType = getCurrentModalType();
+                            if (productIdAttr) {
+                                // Thử lấy từ templateMaterials đã cache
+                                const templateMaterials = window.__materialsTemplateByProduct?.[productIdAttr];
+                                if (Array.isArray(templateMaterials) && templateMaterials.length > 0) {
+                                    expectedMaterialCount = templateMaterials.length;
+                                }
+                            }
+                            
+                            // Tạo map để lưu serial theo index thực tế của material
+                            const componentSerialsMap = new Map();
+                            
+                            // Xử lý các input visible (bao gồm cả consolidated)
+                            Array.from(componentSerialInputs).forEach(input => {
+                                const value = input.value.trim();
+                                // Chỉ loại bỏ giá trị '[' (invalid), giữ lại chuỗi trống
+                                const cleanValue = value === '[' ? '' : value;
+                                
+                                // Lấy index từ name attribute: serial_components[productId][rowIndex][materialIndex]
+                                const nameMatch = input.name.match(/\[(\d+)\]\[(\d+)\]\[(\d+)\]/);
+                                if (nameMatch) {
+                                    const materialIndex = parseInt(nameMatch[3], 10);
+                                    
+                                    // Kiểm tra xem có phải serial gộp không
+                                    const isConsolidated = input.getAttribute('data-consolidate') === 'true';
+                                    const materialIndicesAttr = input.getAttribute('data-material-indices');
+                                    
+                                    if (isConsolidated && materialIndicesAttr) {
+                                        // Nếu là serial gộp, tách ra và gán cho từng index
+                                        const indices = materialIndicesAttr.split(',').map(i => parseInt(i.trim(), 10));
+                                        // Tách serial gộp theo dấu phẩy hoặc khoảng trắng
+                                        const serials = cleanValue ? cleanValue.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
+                                        
+                                        indices.forEach((idx, idxPos) => {
+                                            // Gán serial tương ứng với index, nếu không có thì để trống
+                                            componentSerialsMap.set(idx, serials[idxPos] || '');
+                                        });
+                                    } else {
+                                        // Không gộp: gán trực tiếp
+                                        componentSerialsMap.set(materialIndex, cleanValue);
+                                    }
+                                }
+                            });
+                            
+                            // Xác định số lượng phần tử cần tạo
+                            // Ưu tiên dùng expectedMaterialCount, nếu không có thì dùng maxIndex từ map
+                            let maxIndex = -1;
+                            if (expectedMaterialCount > 0) {
+                                maxIndex = expectedMaterialCount - 1;
+                            } else if (componentSerialsMap.size > 0) {
+                                maxIndex = Math.max(...Array.from(componentSerialsMap.keys()));
+                            }
+                            
+                            // Chuyển map thành array theo thứ tự index từ 0 đến max
+                            const componentSerials = [];
+                            for (let i = 0; i <= maxIndex; i++) {
+                                componentSerials.push(componentSerialsMap.get(i) || '');
+                            }
+
+                            // Loại bỏ các phần tử rỗng ở cuối mảng để giảm kích thước JSON
+                            // Nhưng vẫn giữ các phần tử rỗng ở giữa (vì chúng có thể đại diện cho vật tư không có serial)
+                            while (componentSerials.length > 0 && componentSerials[componentSerials.length - 1] === '') {
+                                componentSerials.pop();
+                            }
 
                             // Convert componentSerials to JSON string for database storage
+                            // Chỉ lưu nếu có ít nhất một phần tử
                             const componentSerialsJson = componentSerials.length > 0 ? JSON.stringify(componentSerials) : null;
 
                             // Get other fields
@@ -5330,7 +5492,7 @@
                             importDeviceCodesBtn.innerHTML =
                                 '<i class="fas fa-spinner fa-spin mr-2"></i> Đang import...';
 
-                            const response = await fetch('/api/device-codes/import', {
+                            const response = await fetch('/device-codes/import', {
                                 method: 'POST',
                                 body: formData,
                                 headers: {
@@ -5345,92 +5507,213 @@
                                 throw new Error(result.message || 'Lỗi khi import file');
                             }
 
+                            console.log('Import result:', result);
+
                             // Get all rows in the table
                             const tbody = document.getElementById('device-code-tbody');
-                            const rows = tbody.querySelectorAll('tr');
+                            if (!tbody) {
+                                throw new Error('Không tìm thấy bảng device codes');
+                            }
 
-                            // Clear all input values in existing rows first
-                            rows.forEach(row => {
-                                const inputs = row.querySelectorAll('input');
-                                inputs.forEach(input => {
-                                    if (!input.name.includes(
-                                            'product_info'
-                                        )) { // Don't clear product info
-                                        input.value = '';
+                            // Get all rows with their product_id and serial_main info
+                            const allRows = Array.from(tbody.querySelectorAll('tr[data-product-id]'));
+                            console.log('Total rows in modal:', allRows.length);
+
+                            // Build a map of serial_main -> rows for quick lookup
+                            // (multiple rows might have the same serial_main if there are duplicates)
+                            const serialToRowsMap = new Map();
+                            const unmatchedRows = [];
+
+                            allRows.forEach(row => {
+                                const serialMainInput = row.querySelector('input[name*="serial_main"]');
+                                if (serialMainInput) {
+                                    const currentValue = serialMainInput.value.trim();
+                                    const originalSerial = serialMainInput.getAttribute('data-original-serial') || '';
+                                    
+                                    // Map by current value
+                                    if (currentValue) {
+                                        if (!serialToRowsMap.has(currentValue)) {
+                                            serialToRowsMap.set(currentValue, []);
+                                        }
+                                        serialToRowsMap.get(currentValue).push(row);
                                     }
-                                });
+                                    // Map by original serial
+                                    if (originalSerial && originalSerial !== currentValue) {
+                                        if (!serialToRowsMap.has(originalSerial)) {
+                                            serialToRowsMap.set(originalSerial, []);
+                                        }
+                                        serialToRowsMap.get(originalSerial).push(row);
+                                    }
+                                    
+                                    // If no serial yet, add to unmatched list
+                                    if (!currentValue && !originalSerial) {
+                                        unmatchedRows.push(row);
+                                    }
+                                } else {
+                                    unmatchedRows.push(row);
+                                }
                             });
+
+                            // Track which rows have been matched
+                            const matchedRows = new Set();
+                            let unmatchedIndex = 0;
 
                             // Update rows with imported data
                             if (result.data && result.data.length > 0) {
-                                result.data.forEach(item => {
-                                    // Find matching row by product ID
-                                    const row = tbody.querySelector(
-                                        `tr[data-product-id="${item.product_id}"]`);
-                                    if (row) {
-                                        // Update fields with imported data
-                                        const serialMainInput = row.querySelector(
-                                            `input[name*="serial_main"]`);
+                                console.log('Importing', result.data.length, 'items');
+                                console.log('Available rows:', allRows.length);
+                                console.log('Unmatched rows:', unmatchedRows.length);
+                                
+                                result.data.forEach((item, itemIndex) => {
+                                    const serialMain = (item.serial_main || '').trim();
+                                    console.log(`Processing item ${itemIndex}: serial_main="${serialMain}", serial_components="${item.serial_components}"`);
+                                    
+                                    let matchedRow = null;
+
+                                    // Strategy 1: Find row by serial_main (exact match)
+                                    if (serialMain && serialToRowsMap.has(serialMain)) {
+                                        const candidateRows = serialToRowsMap.get(serialMain);
+                                        // Find first unmatched row with this serial
+                                        for (const candidateRow of candidateRows) {
+                                            if (!matchedRows.has(candidateRow)) {
+                                                matchedRow = candidateRow;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    // Strategy 2: Use first unmatched row (for new serials or empty serial_main rows)
+                                    if (!matchedRow && unmatchedIndex < unmatchedRows.length) {
+                                        matchedRow = unmatchedRows[unmatchedIndex];
+                                        unmatchedIndex++;
+                                    }
+
+                                    // Strategy 3: If still no match, find any unmatched row (fallback)
+                                    if (!matchedRow) {
+                                        for (const row of allRows) {
+                                            if (!matchedRows.has(row)) {
+                                                matchedRow = row;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (matchedRow) {
+                                        matchedRows.add(matchedRow);
+                                        console.log(`Matched row for serial_main="${serialMain}"`);
+                                        
+                                        // Update serial_main
+                                        const serialMainInput = matchedRow.querySelector('input[name*="serial_main"]');
                                         if (serialMainInput) {
-                                            serialMainInput.value = item.serial_main ||
-                                                '';
+                                            if (serialMain) {
+                                                serialMainInput.value = serialMain;
+                                                console.log(`Updated serial_main to: ${serialMain}`);
+                                            }
+                                        } else {
+                                            console.warn('Could not find serial_main input in matched row');
                                         }
 
                                         // Update component serials
-                                        if (item.serial_components && item.serial_components !== 'null' && item.serial_components !== '[]') {
+                                        if (item.serial_components && item.serial_components !== 'null' && item.serial_components !== '[]' && item.serial_components !== '') {
                                             let componentSerials = [];
                                             
                                             // Parse serial_components nếu là string
                                             if (typeof item.serial_components === 'string') {
                                                 try {
-                                                    // Xử lý double-encoded JSON: "[\"1\",\"2\",\"3\"]" -> ["1","2","3"]
-                                                    let jsonString = item.serial_components;
-                                                    
-                                                    // Nếu có escape characters, decode 2 lần
-                                                    if (jsonString.includes('\\"')) {
-                                                        // Parse lần đầu để lấy JSON string
-                                                        const firstParse = JSON.parse(jsonString);
-                                                        // Parse lần thứ 2 để lấy array
-                                                        componentSerials = JSON.parse(firstParse);
-                                                    } else {
-                                                        // Parse trực tiếp nếu không có escape characters
-                                                        componentSerials = JSON.parse(jsonString);
-                                                    }
+                                                    componentSerials = JSON.parse(item.serial_components);
+                                                    console.log(`Parsed serial_components:`, componentSerials);
                                                 } catch (e) {
-                                                    console.error('Error parsing serial_components during import:', e);
+                                                    console.error('Error parsing serial_components during import:', e, 'Raw value:', item.serial_components);
                                                     componentSerials = [];
                                                 }
                                             } else if (Array.isArray(item.serial_components)) {
                                                 componentSerials = item.serial_components;
                                             }
                                             
-                                            if (componentSerials.length > 0) {
-                                                const componentInputs = row
-                                                    .querySelectorAll(
-                                                        `input[name*="serial_components"]`);
-                                                if (componentInputs.length > 0) {
-                                                    componentSerials.forEach((serial, index) => {
-                                                        if (componentInputs[index]) {
-                                                            componentInputs[index].value = serial;
-                                                        }
-                                                    });
+                                            console.log(`Component serials to fill:`, componentSerials);
+                                            
+                                            // Get all component inputs (including consolidated ones)
+                                            const componentInputs = Array.from(matchedRow.querySelectorAll('input[name*="serial_components"]:not([data-consolidate-hidden="true"])'));
+                                            console.log(`Found ${componentInputs.length} component inputs`);
+                                            
+                                            if (componentSerials.length > 0 && componentInputs.length > 0) {
+                                                // When importing, fill each serial into separate input fields
+                                                // Don't consolidate during import - each serial goes to its own input
+                                                
+                                                // Get all inputs sorted by their material index
+                                                const inputsWithIndex = componentInputs.map(input => {
+                                                    // Extract material index from name: serial_components[productId][rowIndex][materialIndex]
+                                                    const nameMatch = input.name.match(/\[(\d+)\]\[(\d+)\]\[(\d+)\]/);
+                                                    const materialIndex = nameMatch ? parseInt(nameMatch[3], 10) : -1;
+                                                    
+                                                    // Check if this is a consolidated input
+                                                    const isConsolidated = input.getAttribute('data-consolidate') === 'true';
+                                                    const materialIndices = input.getAttribute('data-material-indices');
+                                                    
+                                                    return {
+                                                        input,
+                                                        materialIndex,
+                                                        isConsolidated,
+                                                        materialIndices: materialIndices ? materialIndices.split(',').map(i => parseInt(i.trim(), 10)) : []
+                                                    };
+                                                });
+                                                
+                                                // Sort by material index to ensure correct order
+                                                inputsWithIndex.sort((a, b) => {
+                                                    // If both have material indices, use the first one
+                                                    const aFirstIndex = a.materialIndices.length > 0 ? a.materialIndices[0] : a.materialIndex;
+                                                    const bFirstIndex = b.materialIndices.length > 0 ? b.materialIndices[0] : b.materialIndex;
+                                                    return aFirstIndex - bFirstIndex;
+                                                });
+                                                
+                                                // Fill each serial into its corresponding input
+                                                componentSerials.forEach((serial, idx) => {
+                                                    if (idx < inputsWithIndex.length) {
+                                                        const inputInfo = inputsWithIndex[idx];
+                                                        console.log(`Filling input[${idx}] (materialIndex: ${inputInfo.materialIndex}) with serial: ${serial}`);
+                                                        
+                                                        // If this is a consolidated input, we still fill it with just this one serial
+                                                        // The user can manually combine them later if needed
+                                                        inputInfo.input.value = serial || '';
+                                                    }
+                                                });
+                                                
+                                                // Clear any remaining inputs that weren't filled
+                                                for (let i = componentSerials.length; i < inputsWithIndex.length; i++) {
+                                                    inputsWithIndex[i].input.value = '';
                                                 }
+                                            } else if (componentSerials.length === 0) {
+                                                // Clear all component inputs if no serials
+                                                componentInputs.forEach(input => {
+                                                    input.value = '';
+                                                });
                                             }
                                         }
 
                                         // Update other fields
-                                        const fields = ['serial_sim', 'access_code',
-                                            'iot_id', 'mac_4g', 'note'
-                                        ];
+                                        const fields = ['serial_sim', 'access_code', 'iot_id', 'mac_4g', 'note'];
                                         fields.forEach(field => {
-                                            const input = row.querySelector(
-                                                `input[name*="${field}"]`);
+                                            const input = matchedRow.querySelector(`input[name*="${field}"]`);
                                             if (input) {
-                                                input.value = item[field] || '';
+                                                const value = item[field] || '';
+                                                input.value = value;
+                                                if (value) {
+                                                    console.log(`Updated ${field} to: ${value}`);
+                                                }
+                                            } else {
+                                                console.warn(`Could not find input for field: ${field}`);
                                             }
                                         });
+                                        
+                                        console.log('Successfully updated row for serial_main:', serialMain);
+                                    } else {
+                                        console.warn(`Could not find matching row for item:`, item);
                                     }
                                 });
+                                
+                                console.log(`Import completed. Matched ${matchedRows.size} rows out of ${result.data.length} items`);
+                            } else {
+                                console.warn('No data to import');
                             }
 
                             alert('Import dữ liệu thành công!');
@@ -5546,7 +5829,6 @@
                 syncEnabled = false;
                 syncRequested = false;
             }
-
             // Đồng bộ từ giao diện chính sang modal
             function syncFromMainToModal(type) {
                 // KIỂM TRA GLOBAL SYNC CONTROL TRƯỚC
@@ -5594,7 +5876,6 @@
                 
                 // Chỉ sync với serial numbers của loại tương ứng
                 const mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${type}"]`);
-                
                 
                 // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
                 if (mainSerialSelects.length === 0) {
@@ -5680,7 +5961,6 @@
                     }
                 });
             }
-
             // Hàm refresh giao diện chính để hiển thị serial mới
             function refreshMainInterface() {
                 const currentType = getCurrentModalType();

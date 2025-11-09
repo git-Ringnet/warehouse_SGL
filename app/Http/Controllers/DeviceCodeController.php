@@ -13,31 +13,139 @@ use Illuminate\Support\Facades\Log;
 
 class DeviceCodeController extends Controller
 {
-    public function downloadTemplate()
+    public function downloadTemplate(Request $request)
     {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
 
-        // Set headers
-        $headers = ['Serial chính', 'Serial vật tư', 'Serial SIM', 'Mã truy cập', 'ID IoT', 'MAC 4G', 'Chú thích'];
-        $sheet->fromArray([$headers], NULL, 'A1');
+            // Set headers
+            $headers = ['Mã - Tên thiết bị', 'Serial chính', 'Serial vật tư', 'Serial SIM', 'Mã truy cập', 'ID IoT', 'MAC 4G', 'Chú thích'];
+            $sheet->fromArray([$headers], NULL, 'A1');
 
-        // Style headers
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-        foreach(range('A','G') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+            // Style headers
+            $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+            $sheet->getStyle('A1:H1')->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('E9ECEF');
+            
+            foreach(range('A','H') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Nếu có dữ liệu từ request, thêm vào template
+            $modalData = $request->input('modal_data', []);
+            $row = 2;
+            
+            if (!empty($modalData) && is_array($modalData)) {
+                $groupedRows = [];
+
+                foreach ($modalData as $rowData) {
+                    $key = $rowData['product_id'] ?? $rowData['product_name'] ?? uniqid('product_', true);
+                    if (!isset($groupedRows[$key])) {
+                        $groupedRows[$key] = [
+                            'product_name' => $rowData['product_name'] ?? '',
+                            'rows' => []
+                        ];
+                    }
+                    $groupedRows[$key]['rows'][] = $rowData;
+                }
+
+                foreach ($groupedRows as &$group) {
+                    usort($group['rows'], function ($a, $b) {
+                        return (int)($a['product_row_index'] ?? 0) <=> (int)($b['product_row_index'] ?? 0);
+                    });
+                }
+                unset($group);
+
+                foreach ($groupedRows as $group) {
+                    $productName = $group['product_name'];
+                    $startRow = $row;
+
+                    foreach ($group['rows'] as $rowData) {
+                        $serialMain = $rowData['serial_main'] ?? '';
+                        $serialMainPlaceholder = $rowData['serial_main_placeholder'] ?? '';
+                        $serialSim = $rowData['serial_sim'] ?? '';
+                        $accessCode = $rowData['access_code'] ?? '';
+                        $iotId = $rowData['iot_id'] ?? '';
+                        $mac4g = $rowData['mac_4g'] ?? '';
+                        $note = $rowData['note'] ?? '';
+                        $materials = $rowData['materials'] ?? [];
+
+                        $effectiveSerialMain = $serialMain !== '' ? $serialMain : $serialMainPlaceholder;
+
+                        // Always output one row per material (even if serials are empty) to match modal structure
+                        if (!empty($materials)) {
+                            $isFirstMaterialRow = true;
+                            foreach ($materials as $material) {
+                                $materialSerial = $material['serial'] ?? '';
+
+                                $sheet->fromArray([[
+                                    '',
+                                    $isFirstMaterialRow ? $effectiveSerialMain : '',
+                                    $materialSerial,
+                                    $isFirstMaterialRow ? $serialSim : '',
+                                    $isFirstMaterialRow ? $accessCode : '',
+                                    $isFirstMaterialRow ? $iotId : '',
+                                    $isFirstMaterialRow ? $mac4g : '',
+                                    $isFirstMaterialRow ? $note : ''
+                                ]], NULL, 'A' . $row);
+
+                                if ($isFirstMaterialRow) {
+                                    $sheet->getCell('B' . $row)->setValueExplicit($effectiveSerialMain, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                                }
+
+                                $isFirstMaterialRow = false;
+                                $row++;
+                            }
+                        } else {
+                            // No materials, still output one row for the serial
+                            $sheet->fromArray([[
+                                '',
+                                $effectiveSerialMain,
+                                '',
+                                $serialSim,
+                                $accessCode,
+                                $iotId,
+                                $mac4g,
+                                $note
+                            ]], NULL, 'A' . $row);
+                            $sheet->getCell('B' . $row)->setValueExplicit($effectiveSerialMain, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                            $row++;
+                        }
+                    }
+
+                    $endRow = $row - 1;
+                    if ($startRow <= $endRow) {
+                        $sheet->setCellValue('A' . $startRow, $productName);
+                        if ($endRow > $startRow) {
+                            $sheet->mergeCells('A' . $startRow . ':A' . $endRow);
+                        }
+                        $sheet->getStyle('A' . $startRow . ':A' . $endRow)
+                            ->getAlignment()
+                            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
+                    }
+                }
+            }
+
+            // Create the file
+            $writer = new Xlsx($spreadsheet);
+            $filename = 'template_device_codes.xlsx';
+            
+            return response()->streamDownload(function() use ($writer) {
+                $writer->save('php://output');
+            }, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error generating device codes template: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo file template: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Create the file
-        $writer = new Xlsx($spreadsheet);
-        $filename = 'device_codes_template.xlsx';
-        
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-        
-        $writer->save('php://output');
-        exit;
     }
 
     public function import(Request $request)
@@ -53,26 +161,89 @@ class DeviceCodeController extends Controller
             $rows = $sheet->toArray();
 
             // Remove header row
-            array_shift($rows);
+            if (!empty($rows)) array_shift($rows);
 
-            $data = [];
+            // New template columns:
+            // A: Mã - Tên thiết bị (ignored for import)
+            // B: Serial chính
+            // C: Serial vật tư
+            // D: Serial SIM
+            // E: Mã truy cập
+            // F: ID IoT
+            // G: MAC 4G
+            // H: Chú thích
+
+            $grouped = [];
+            $lastSerialMain = null; // Track last non-empty serial_main
+            
             foreach ($rows as $row) {
-                if (!empty($row[0])) { // Chỉ xử lý các dòng có serial chính
-                    $data[] = [
-                        'serial_main' => $row[0],
-                        'serial_components' => $row[1],
-                        'serial_sim' => $row[2],
-                        'access_code' => $row[3],
-                        'iot_id' => $row[4],
-                        'mac_4g' => $row[5],
-                        'note' => $row[6]
+                $serialMain = isset($row[1]) ? trim((string)$row[1]) : '';
+                $materialSerial = isset($row[2]) ? trim((string)$row[2]) : '';
+                $serialSim = isset($row[3]) ? trim((string)$row[3]) : '';
+                $accessCode = isset($row[4]) ? trim((string)$row[4]) : '';
+                $iotId = isset($row[5]) ? trim((string)$row[5]) : '';
+                $mac4g = isset($row[6]) ? trim((string)$row[6]) : '';
+                $note = isset($row[7]) ? trim((string)$row[7]) : '';
+
+                // If serial_main is empty but we have a material_serial, use the last serial_main
+                // This handles the case where Excel has merged cells or empty cells for the same serial_main
+                if ($serialMain === '' && $lastSerialMain !== null) {
+                    $serialMain = $lastSerialMain;
+                }
+
+                // Skip rows with no serial_main and no material_serial
+                if ($serialMain === '') {
+                    continue;
+                }
+
+                // Update lastSerialMain when we encounter a new serial_main
+                if ($serialMain !== '' && $serialMain !== $lastSerialMain) {
+                    $lastSerialMain = $serialMain;
+                }
+
+                if (!isset($grouped[$serialMain])) {
+                    $grouped[$serialMain] = [
+                        'serial_main' => $serialMain,
+                        'serial_components' => [],
+                        'serial_sim' => $serialSim,
+                        'access_code' => $accessCode,
+                        'iot_id' => $iotId,
+                        'mac_4g' => $mac4g,
+                        'note' => $note,
                     ];
                 }
+
+                // Preserve a slot for each material row (even when empty),
+                // to support consolidated length/weight materials
+                $grouped[$serialMain]['serial_components'][] = $materialSerial;
             }
+
+            $data = array_values(array_map(function ($item) {
+                // Frontend expects serial_components as JSON string
+                $components = isset($item['serial_components']) && is_array($item['serial_components'])
+                    ? array_values($item['serial_components'])
+                    : [];
+                $item['serial_components'] = json_encode($components);
+                return $item;
+            }, $grouped));
+
+            // Log for debugging
+            Log::info('Device code import data', [
+                'count' => count($data),
+                'data' => $data,
+                'sample_serial_components' => array_map(function($item) {
+                    return [
+                        'serial_main' => $item['serial_main'] ?? '',
+                        'serial_components_count' => count(json_decode($item['serial_components'] ?? '[]', true) ?: []),
+                        'serial_components' => $item['serial_components'] ?? ''
+                    ];
+                }, array_slice($data, 0, 3))
+            ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
+                'deviceCodes' => $data
             ]);
 
         } catch (\Exception $e) {

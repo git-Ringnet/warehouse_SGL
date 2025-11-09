@@ -71,7 +71,7 @@ class SyncAssemblyAndDispatchUnits extends Command
         // Group dispatch_items by product_id to calculate product_unit globally
         $items = DB::table('dispatch_items')
             ->where('item_type', 'product')
-            ->select('id', 'item_id', 'quantity', 'assembly_id', 'product_unit', 'serial_numbers', 'dispatch_id', 'category')
+            ->select('id', 'item_id', 'quantity', 'assembly_id', 'product_unit', 'serial_numbers', 'dispatch_id', 'category', 'warehouse_id')
             ->orderBy('item_id')
             ->orderBy('id')
             ->get();
@@ -79,12 +79,14 @@ class SyncAssemblyAndDispatchUnits extends Command
         // Group by dispatch_id and product_id to calculate product_unit per dispatch
         // Bỏ qua assembly_id cũ vì có thể bị sai, tìm lại từ assembly_products
         $groupedItems = $items->groupBy(function($item) {
-            return $item->dispatch_id . '_' . $item->item_id;
+            return $item->dispatch_id . '_' . $item->item_id . '_' . ($item->warehouse_id ?? '');
         });
 
         foreach ($groupedItems as $groupKey => $groupItems) {
-            // Extract product_id from group key "dispatch_id_product_id"
-            $productId = (int) explode('_', $groupKey)[1];
+            // Extract product_id and warehouse_id from group key "dispatch_id_product_id_warehouseId"
+            $parts = explode('_', $groupKey);
+            $productId = (int) ($parts[1] ?? 0);
+            $warehouseId = isset($parts[2]) && $parts[2] !== '' ? (int)$parts[2] : null;
             
             // Collect all serials from all dispatch_items in this group
             $allSerials = [];
@@ -106,7 +108,8 @@ class SyncAssemblyAndDispatchUnits extends Command
             [$assemblyIdStr, $productUnitStr] = $this->computeAssemblyMapping(
                 $productId,
                 $allSerials,
-                $totalQuantity
+                $totalQuantity,
+                $warehouseId
             );
             
             // Convert strings back to arrays
@@ -153,7 +156,7 @@ class SyncAssemblyAndDispatchUnits extends Command
      * Compute assembly_id and product_unit strings for a product based on serials and availability.
      * Mirrors controller logic for N/A distribution.
      */
-    private function computeAssemblyMapping(int $productId, array $serialNumbers, int $quantity): array
+    private function computeAssemblyMapping(int $productId, array $serialNumbers, int $quantity, ?int $warehouseId): array
     {
         $assemblyIds = [];
         $productUnits = [];
@@ -226,106 +229,47 @@ class SyncAssemblyAndDispatchUnits extends Command
         // 2) Fill remaining N/A based on available assemblies without serials
         $naQuantity = $quantity - count($assemblyIds);
         if ($naQuantity > 0) {
-            // Lấy danh sách assembly cho sản phẩm này KHÔNG có serial
+            // Lấy danh sách assembly cho sản phẩm này có slot N/A còn lại và thuộc kho nhận theo Testing
             $availableAssemblies = AssemblyProduct::where('product_id', $productId)
-                ->where(function ($q) {
-                    $q->whereNull('serials')
-                      ->orWhere('serials', '=','')
-                      ->orWhere('serials','=','N/A')
-                      ->orWhere('serials','=','NA');
-                })
                 ->orderBy('assembly_id')
-                ->get();
+                ->get()
+                ->filter(function($ap) use ($productId, $warehouseId) {
+                    // Chỉ nhận assembly có NA capacity > 0 tại đúng kho
+                    return $this->getNaCapacityForAssemblyProductCmd((int)$ap->assembly_id, (int)$productId, $warehouseId, true) > 0;
+                })
+                ->sortBy(function($ap) {
+                    // Ưu tiên assembly không có serial
+                    $hasSerials = $ap->serials && $ap->serials !== '' && $ap->serials !== 'N/A' && $ap->serials !== 'NA';
+                    return $hasSerials ? 1 : 0;
+                })
+                ->values();
 
-            // Tính sức chứa (số slot N/A) cho từng assembly dựa trên product_unit
-            $assemblyCapacity = [];
-            foreach ($availableAssemblies as $a) {
-                $cap = 1;
-                $pu = $a->product_unit;
-                if (is_string($pu)) {
-                    $decoded = json_decode($pu, true);
-                    if (is_array($decoded)) $cap = max(1, count($decoded));
-                    else $cap = 1;
-                } elseif (is_array($pu)) {
-                    $cap = max(1, count($pu));
-                } elseif (is_numeric($pu)) {
-                    $cap = 1; // single slot
-                }
-                $assemblyCapacity[(int)$a->assembly_id] = $cap;
-            }
-
-            // Trừ đi các slot đã sử dụng ở những phiếu đã duyệt (approved)
-            if (!empty($assemblyCapacity)) {
-                $approvedItems = DB::table('dispatch_items')
-                    ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
-                    ->where('dispatch_items.item_type', 'product')
-                    ->where('dispatch_items.item_id', $productId)
-                    ->where('dispatches.status', 'approved')
-                    ->whereNotNull('dispatch_items.assembly_id')
-                    ->select('dispatch_items.assembly_id')
-                    ->get();
-
-                foreach ($approvedItems as $it) {
-                    $ids = array_filter(array_map('trim', explode(',', (string)$it->assembly_id)), function($v){return $v !== '';});
-                    foreach ($ids as $idStr) {
-                        $aid = (int)$idStr;
-                        if (isset($assemblyCapacity[$aid]) && $assemblyCapacity[$aid] > 0) {
-                            $assemblyCapacity[$aid] -= 1; // tiêu thụ 1 slot cho mỗi lần xuất
-                        }
-                    }
-                }
-            }
-
-            // Slot còn lại cho từng assembly (không âm)
-            $assemblyRemaining = [];
-            foreach ($assemblyCapacity as $aid => $cap) {
-                $assemblyRemaining[$aid] = max(0, $cap);
-            }
-
-            // Tính max product_unit hiện tại để bắt đầu từ đó cho N/A
             $maxUnit = !empty($productUnits) ? max($productUnits) : -1;
-            
-            // Lần lượt phân bổ N/A vào các assembly còn slot
-            $assemblyOrder = array_keys($assemblyRemaining);
-            $orderIndex = 0;
+            $index = 0;
             for ($i = 0; $i < $naQuantity; $i++) {
-                // Tìm assembly còn slot
-                $chosenAid = null;
-                for ($t = 0; $t < count($assemblyOrder); $t++) {
-                    $idx = ($orderIndex + $t) % (count($assemblyOrder) ?: 1);
-                    $aid = $assemblyOrder[$idx] ?? null;
-                    if ($aid !== null && ($assemblyRemaining[$aid] ?? 0) > 0) {
-                        $chosenAid = $aid; $orderIndex = $idx; break;
-                    }
-                }
-
-                if ($chosenAid === null) {
-                    // Không còn slot ở bất kỳ assembly nào
+                if ($index >= $availableAssemblies->count()) {
                     $assemblyIds[] = null;
                     $productUnits[] = ++$maxUnit;
                     continue;
                 }
-
-                // Lấy product_unit mặc định theo assembly (nếu có mảng, lấy phần tử đầu)
-                $naUnit = ++$maxUnit;
-                $assembly = $availableAssemblies->firstWhere('assembly_id', $chosenAid);
-                if ($assembly && $assembly->product_unit !== null) {
-                    $pu = $assembly->product_unit;
-                    if (is_string($pu)) {
-                        $decoded = json_decode($pu, true);
-                        if (is_array($decoded) && !empty($decoded)) $naUnit = (int)$decoded[0];
-                        else $naUnit = (int)$pu;
-                    } elseif (is_array($pu) && !empty($pu)) {
-                        $naUnit = (int)$pu[0];
-                    } else {
-                        $naUnit = (int)$pu;
-                    }
+                $ap = $availableAssemblies[$index];
+                $aid = (int)$ap->assembly_id;
+                // Lấy unit đầu tiên hoặc 0
+                $unit = 0;
+                $pu = $ap->product_unit;
+                if (is_string($pu)) {
+                    $decoded = json_decode($pu, true);
+                    if (is_array($decoded) && isset($decoded[0])) { $unit = (int)$decoded[0]; }
+                    elseif ($pu !== '') { $unit = (int)$pu; }
+                } elseif (is_array($pu) && isset($pu[0])) {
+                    $unit = (int)$pu[0];
+                } elseif ($pu !== null) {
+                    $unit = (int)$pu;
                 }
 
-                $assemblyIds[] = $chosenAid;
-                $productUnits[] = $naUnit;
-                $assemblyRemaining[$chosenAid] = max(0, ($assemblyRemaining[$chosenAid] ?? 0) - 1);
-                $orderIndex++;
+                $assemblyIds[] = $aid;
+                $productUnits[] = $unit;
+                $index++;
             }
         }
 
@@ -334,6 +278,86 @@ class SyncAssemblyAndDispatchUnits extends Command
         $productUnitStr = implode(',', array_map(fn($v) => $v !== null ? $v : 0, $productUnits));
 
         return [$assemblyIdStr, $productUnitStr];
+    }
+
+    private function countUsedNaUnitsCmd(int $assemblyId, int $productId): int
+    {
+        $approvedItems = DB::table('dispatch_items as di')
+            ->join('dispatches as d', 'd.id', '=', 'di.dispatch_id')
+            ->where('di.assembly_id', $assemblyId)
+            ->where('di.item_type', 'product')
+            ->where('di.item_id', $productId)
+            ->where('d.status', 'approved')
+            ->select('di.quantity', 'di.serial_numbers')
+            ->get();
+        $used = 0;
+        foreach ($approvedItems as $di) {
+            $qty = (int)($di->quantity ?? 0);
+            $serials = [];
+            if (is_string($di->serial_numbers) && $di->serial_numbers !== '') {
+                $decoded = json_decode($di->serial_numbers, true);
+                if (is_array($decoded)) { $serials = $decoded; }
+            }
+            $realSerialCount = 0;
+            foreach ($serials as $s) {
+                $s = is_string($s) ? trim($s) : '';
+                if ($s === '' || strtoupper($s) === 'N/A' || strtoupper($s) === 'NA' || strpos($s, 'N/A-') === 0) { continue; }
+                $realSerialCount++;
+            }
+            $used += max(0, $qty - $realSerialCount);
+        }
+        return $used;
+    }
+
+    private function getNaCapacityForAssemblyProductCmd(int $assemblyId, int $productId, ?int $warehouseId, bool $requireProductSpecific = true): int
+    {
+        if ($warehouseId) {
+            $existsProductSpecific = DB::table('testings as t')
+                ->join('testing_items as ti', 'ti.testing_id', '=', 't.id')
+                ->where('t.assembly_id', $assemblyId)
+                ->whereIn('t.status', ['completed', 'approved', 'received'])
+                ->where('t.success_warehouse_id', $warehouseId)
+                ->whereIn('ti.item_type', ['finished_product', 'product'])
+                ->where('ti.product_id', $productId)
+                ->exists();
+
+            if (!$existsProductSpecific) {
+                if ($requireProductSpecific) { return 0; }
+                $existsAny = DB::table('testings as t')
+                    ->where('t.assembly_id', $assemblyId)
+                    ->whereIn('t.status', ['completed', 'approved', 'received'])
+                    ->where('t.success_warehouse_id', $warehouseId)
+                    ->exists();
+                if (!$existsAny) { return 0; }
+            }
+        }
+
+        $ap = AssemblyProduct::where('assembly_id', $assemblyId)
+            ->where('product_id', $productId)
+            ->first();
+        if (!$ap) { return 0; }
+
+        $units = [];
+        if (is_string($ap->product_unit)) {
+            $decoded = json_decode($ap->product_unit, true);
+            if (is_array($decoded)) { $units = $decoded; }
+            elseif ($ap->product_unit !== '') { $units = [$ap->product_unit]; }
+        } elseif (is_array($ap->product_unit)) {
+            $units = $ap->product_unit;
+        } elseif ($ap->product_unit !== null) {
+            $units = [$ap->product_unit];
+        }
+        $unitsCount = count($units);
+
+        $serialCount = 0;
+        if ($ap->serials && $ap->serials !== 'N/A' && $ap->serials !== 'NA') {
+            $parts = preg_split('/[\s,;|\/]+/', (string)$ap->serials, -1, PREG_SPLIT_NO_EMPTY);
+            $serialCount = is_array($parts) ? count($parts) : 1;
+        }
+
+        $baseCapacity = $unitsCount > 0 ? max(0, $unitsCount - $serialCount) : ($serialCount > 0 ? 0 : 1);
+        $used = $this->countUsedNaUnitsCmd($assemblyId, $productId);
+        return max(0, $baseCapacity - $used);
     }
 
     private function countSerialsString(?string $serials): int

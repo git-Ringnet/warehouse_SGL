@@ -735,7 +735,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         ->name('assemblies.create-testing')
         ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.create');
     // Device code Excel routes
-    Route::get('/device-codes/template', [DeviceCodeController::class, 'downloadTemplate'])->name('device-codes.template');
+    Route::match(['get', 'post'], '/device-codes/template', [DeviceCodeController::class, 'downloadTemplate'])->name('device-codes.template');
     Route::post('/device-codes/import', [DeviceCodeController::class, 'import'])->name('device-codes.import');
     Route::post('/device-codes', [DeviceCodeController::class, 'store'])->name('device-codes.store');
     Route::put('/device-codes/{id}', [DeviceCodeController::class, 'update'])->name('device-codes.update');

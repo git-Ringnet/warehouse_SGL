@@ -558,39 +558,16 @@ class DispatchController extends Controller
                             
                             // Lấy các assembly_id có sẵn cho product_id này
                             // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A
-                            $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
+                            $warehouseIdForItem = $item['warehouse_id'] ?? null;
+                            $productIdForItem = (int)$item['item_id'];
+                            $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $productIdForItem)
                                 ->orderBy('assembly_id')
                                 ->get()
-                                ->filter(function($assembly) {
-                                    // Chỉ giữ assemblies không có serial hoặc có slot N/A còn trống
-                                    $hasSerials = $assembly->serials && 
-                                                 $assembly->serials !== '' && 
-                                                 $assembly->serials !== 'N/A' && 
-                                                 $assembly->serials !== 'NA';
-                                    
-                                    if (!$hasSerials) {
-                                        // Assembly không có serial, luôn dùng được cho N/A
-                                        return true;
-                                    }
-                                    
-                                    // Assembly có serial, kiểm tra xem có product_unit nào còn trống cho N/A không
-                                    $productUnitValue = $assembly->product_unit;
-                                    $assemblyProductUnits = [];
-                                    if (is_string($productUnitValue)) {
-                                        $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                                    } elseif (is_array($productUnitValue)) {
-                                        $assemblyProductUnits = $productUnitValue;
-                                    } else if ($productUnitValue !== null) {
-                                        $assemblyProductUnits = [$productUnitValue];
-                                    }
-                                    
-                                    // Đếm số serial trong assembly
-                                    $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
-                                    $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                                    $assemblySerialCount = is_array($parts) ? count($parts) : 1;
-                                    
-                                    // Nếu số product_unit > số serial, có slot N/A còn trống
-                                    return count($assemblyProductUnits) > $assemblySerialCount;
+                                ->filter(function($assembly) use ($warehouseIdForItem, $productIdForItem) {
+                                    // Chỉ nhận assembly có sức chứa N/A còn lại ở đúng kho xuất theo bản ghi testing
+                                    $capacity = $this->getNaCapacityForAssemblyProduct((int)$assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
+                                    if ($capacity <= 0) { return false; }
+                                    return true;
                                 })
                                 ->sortBy(function($assembly) {
                                     // Ưu tiên assemblies không có serial trước
@@ -715,10 +692,22 @@ class DispatchController extends Controller
                         foreach ($request->items as $otherItem) {
                             if ($otherItem['item_type'] === 'product' && 
                                 $otherItem['item_id'] == $item['item_id'] && 
-                                !empty($otherItem['serial_numbers']) && 
-                                !in_array('N/A', $otherItem['serial_numbers']) && 
-                                !in_array('NA', $otherItem['serial_numbers'])) {
-                                $usedSerialCount += count($otherItem['serial_numbers']);
+                                !empty($otherItem['serial_numbers'])) {
+                                
+                                // Normalize serial_numbers to array
+                                $otherSerialNumbers = [];
+                                if (is_string($otherItem['serial_numbers'])) {
+                                    $decoded = json_decode($otherItem['serial_numbers'], true);
+                                    $otherSerialNumbers = is_array($decoded) ? $decoded : [];
+                                } elseif (is_array($otherItem['serial_numbers'])) {
+                                    $otherSerialNumbers = $otherItem['serial_numbers'];
+                                }
+                                
+                                if (!empty($otherSerialNumbers) && 
+                                    !in_array('N/A', $otherSerialNumbers) && 
+                                    !in_array('NA', $otherSerialNumbers)) {
+                                    $usedSerialCount += count($otherSerialNumbers);
+                                }
                             }
                         }
                         
@@ -821,110 +810,13 @@ class DispatchController extends Controller
                         // QUAN TRỌNG: Chỉ lấy assemblies thuộc kho xuất (warehouse_id của item)
                         $warehouseId = $item['warehouse_id'] ?? null;
                         $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
-                            ->with('assembly') // Eager load Assembly để kiểm tra warehouse
+                            ->with('assembly')
                             ->orderBy('assembly_id')
                             ->get()
-                            ->filter(function($assemblyProduct) use ($approvedPairs, $warehouseId) {
-                                // Kiểm tra warehouse: assembly phải thuộc kho xuất
-                                // QUAN TRỌNG: 
-                                // - target_warehouse_id là kho nhập thành phẩm (nếu có)
-                                // - warehouse_id là kho xuất vật tư
-                                // - Nếu không có target_warehouse_id, kiểm tra warehouse_materials để xem thành phẩm đang ở kho nào
-                                if ($warehouseId) {
-                                    $assembly = $assemblyProduct->assembly;
-                                    if (!$assembly) {
-                                        return false; // Không có assembly, bỏ qua
-                                    }
-                                    
-                                    $assemblyWarehouseId = null;
-                                    
-                                    // Ưu tiên: kiểm tra target_warehouse_id (nếu có)
-                                    if ($assembly->target_warehouse_id) {
-                                        $assemblyWarehouseId = $assembly->target_warehouse_id;
-                                    } else {
-                                        // Nếu không có target_warehouse_id, kiểm tra qua testing record
-                                        // để xem thành phẩm từ assembly này đã được lưu vào kho nào
-                                        $testing = DB::table('testings')
-                                            ->where('assembly_id', $assembly->id)
-                                            ->where('status', 'completed')
-                                            ->where('is_inventory_updated', true)
-                                            ->where('success_warehouse_id', $warehouseId)
-                                            ->first();
-                                        
-                                        if ($testing) {
-                                            // Assembly này đã được kiểm thử và lưu vào kho xuất này, cho phép
-                                            $assemblyWarehouseId = $warehouseId;
-                                        } else {
-                                            // Không tìm thấy testing record hoặc không khớp kho, bỏ qua
-                                            return false;
-                                        }
-                                    }
-                                    
-                                    if (!$assemblyWarehouseId || $assemblyWarehouseId != $warehouseId) {
-                                        return false; // Assembly không thuộc kho xuất, bỏ qua
-                                    }
-                                }
-                                
-                                // Chỉ giữ assemblies không có serial hoặc có slot N/A còn trống
-                                $hasSerials = $assemblyProduct->serials && 
-                                             $assemblyProduct->serials !== '' && 
-                                             $assemblyProduct->serials !== 'N/A' && 
-                                             $assemblyProduct->serials !== 'NA';
-                                
-                                if (!$hasSerials) {
-                                    // Assembly không có serial, kiểm tra xem có product_unit nào chưa được dùng trong phiếu đã duyệt không
-                                    $productUnitValue = $assemblyProduct->product_unit;
-                                    $assemblyProductUnits = [];
-                                    if (is_string($productUnitValue)) {
-                                        $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                                    } elseif (is_array($productUnitValue)) {
-                                        $assemblyProductUnits = $productUnitValue;
-                                    } else if ($productUnitValue !== null) {
-                                        $assemblyProductUnits = [$productUnitValue];
-                                    }
-                                    
-                                    // Kiểm tra xem có ít nhất một product_unit chưa được dùng trong approvedPairs không
-                                    $assemblyId = (string) $assemblyProduct->assembly_id;
-                                    foreach ($assemblyProductUnits as $unit) {
-                                        $key = $assemblyId . ':' . (int) $unit;
-                                        if (!isset($approvedPairs[$key])) {
-                                            return true; // Có ít nhất một slot chưa được dùng
-                                        }
-                                    }
-                                    return false; // Tất cả slot đã được dùng
-                                }
-                                
-                                // Assembly có serial, kiểm tra xem có product_unit nào còn trống cho N/A không
-                                $productUnitValue = $assemblyProduct->product_unit;
-                                $assemblyProductUnits = [];
-                                if (is_string($productUnitValue)) {
-                                    $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                                } elseif (is_array($productUnitValue)) {
-                                    $assemblyProductUnits = $productUnitValue;
-                                } else if ($productUnitValue !== null) {
-                                    $assemblyProductUnits = [$productUnitValue];
-                                }
-                                
-                                // Đếm số serial trong assembly
-                                $assemblySerialsStr = is_string($assemblyProduct->serials) ? $assemblyProduct->serials : '';
-                                $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                                $assemblySerialCount = is_array($parts) ? count($parts) : 1;
-                                
-                                // Nếu số product_unit > số serial, có slot N/A còn trống
-                                if (count($assemblyProductUnits) <= $assemblySerialCount) {
-                                    return false; // Không có slot N/A
-                                }
-                                
-                                // Kiểm tra xem có ít nhất một slot N/A chưa được dùng trong approvedPairs không
-                                $assemblyId = (string) $assemblyProduct->assembly_id;
-                                for ($i = $assemblySerialCount; $i < count($assemblyProductUnits); $i++) {
-                                    $unit = (int) $assemblyProductUnits[$i];
-                                    $key = $assemblyId . ':' . $unit;
-                                    if (!isset($approvedPairs[$key])) {
-                                        return true; // Có ít nhất một slot N/A chưa được dùng
-                                    }
-                                }
-                                return false; // Tất cả slot N/A đã được dùng
+                            ->filter(function($assemblyProduct) use ($warehouseId, $item) {
+                                // Sức chứa NA thực sự còn lại theo Testing nhập kho đúng kho xuất
+                                $capacity = $this->getNaCapacityForAssemblyProduct((int)$assemblyProduct->assembly_id, (int)$item['item_id'], $warehouseId, true);
+                                return $capacity > 0;
                             })
                             ->sortBy(function($assemblyProduct) {
                                 // Ưu tiên assemblies không có serial trước
@@ -1648,39 +1540,14 @@ class DispatchController extends Controller
                     
                     // Lấy các assembly_id có sẵn cho product_id này
                     // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A
-                    $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
+                    $warehouseIdForItem = $item['warehouse_id'] ?? null;
+                    $productIdForItem = (int)$item['item_id'];
+                    $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $productIdForItem)
                         ->orderBy('assembly_id')
                         ->get()
-                        ->filter(function($assembly) {
-                            // Chỉ giữ assemblies không có serial hoặc có slot N/A còn trống
-                            $hasSerials = $assembly->serials && 
-                                         $assembly->serials !== '' && 
-                                         $assembly->serials !== 'N/A' && 
-                                         $assembly->serials !== 'NA';
-                            
-                            if (!$hasSerials) {
-                                // Assembly không có serial, luôn dùng được cho N/A
-                                return true;
-                            }
-                            
-                            // Assembly có serial, kiểm tra xem có product_unit nào còn trống cho N/A không
-                            $productUnitValue = $assembly->product_unit;
-                            $assemblyProductUnits = [];
-                            if (is_string($productUnitValue)) {
-                                $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                            } elseif (is_array($productUnitValue)) {
-                                $assemblyProductUnits = $productUnitValue;
-                            } else if ($productUnitValue !== null) {
-                                $assemblyProductUnits = [$productUnitValue];
-                            }
-                            
-                            // Đếm số serial trong assembly
-                            $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
-                            $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                            $assemblySerialCount = is_array($parts) ? count($parts) : 1;
-                            
-                            // Nếu số product_unit > số serial, có slot N/A còn trống
-                            return count($assemblyProductUnits) > $assemblySerialCount;
+                        ->filter(function($assembly) use ($warehouseIdForItem, $productIdForItem) {
+                            $capacity = $this->getNaCapacityForAssemblyProduct((int)$assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
+                            return $capacity > 0;
                         })
                         ->sortBy(function($assembly) {
                             // Ưu tiên assemblies không có serial trước
@@ -1776,10 +1643,22 @@ class DispatchController extends Controller
                 foreach ($allItems as $otherItem) {
                     if ($otherItem['item_type'] === 'product' && 
                         $otherItem['item_id'] == $item['item_id'] && 
-                        !empty($otherItem['serial_numbers']) && 
-                        !in_array('N/A', $otherItem['serial_numbers']) && 
-                        !in_array('NA', $otherItem['serial_numbers'])) {
-                        $usedSerialCount += count($otherItem['serial_numbers']);
+                        !empty($otherItem['serial_numbers'])) {
+                        
+                        // Normalize serial_numbers to array
+                        $otherSerialNumbers = [];
+                        if (is_string($otherItem['serial_numbers'])) {
+                            $decoded = json_decode($otherItem['serial_numbers'], true);
+                            $otherSerialNumbers = is_array($decoded) ? $decoded : [];
+                        } elseif (is_array($otherItem['serial_numbers'])) {
+                            $otherSerialNumbers = $otherItem['serial_numbers'];
+                        }
+                        
+                        if (!empty($otherSerialNumbers) && 
+                            !in_array('N/A', $otherSerialNumbers) && 
+                            !in_array('NA', $otherSerialNumbers)) {
+                            $usedSerialCount += count($otherSerialNumbers);
+                        }
                     }
                 }
                 
@@ -1885,107 +1764,9 @@ class DispatchController extends Controller
                     ->with('assembly') // Eager load Assembly để kiểm tra warehouse
                     ->orderBy('assembly_id')
                     ->get()
-                    ->filter(function($assemblyProduct) use ($approvedPairs, $warehouseId) {
-                        // Kiểm tra warehouse: assembly phải thuộc kho xuất
-                        // QUAN TRỌNG: 
-                        // - target_warehouse_id là kho nhập thành phẩm (nếu có)
-                        // - warehouse_id là kho xuất vật tư
-                        // - Nếu không có target_warehouse_id, kiểm tra warehouse_materials để xem thành phẩm đang ở kho nào
-                        if ($warehouseId) {
-                            $assembly = $assemblyProduct->assembly;
-                            if (!$assembly) {
-                                return false; // Không có assembly, bỏ qua
-                            }
-                            
-                            $assemblyWarehouseId = null;
-                            
-                            // Ưu tiên: kiểm tra target_warehouse_id (nếu có)
-                            if ($assembly->target_warehouse_id) {
-                                $assemblyWarehouseId = $assembly->target_warehouse_id;
-                            } else {
-                                // Nếu không có target_warehouse_id, kiểm tra qua testing record
-                                // để xem thành phẩm từ assembly này đã được lưu vào kho nào
-                                $testing = DB::table('testings')
-                                    ->where('assembly_id', $assembly->id)
-                                    ->where('status', 'completed')
-                                    ->where('is_inventory_updated', true)
-                                    ->where('success_warehouse_id', $warehouseId)
-                                    ->first();
-                                
-                                if ($testing) {
-                                    // Assembly này đã được kiểm thử và lưu vào kho xuất này, cho phép
-                                    $assemblyWarehouseId = $warehouseId;
-                                } else {
-                                    // Không tìm thấy testing record hoặc không khớp kho, bỏ qua
-                                    return false;
-                                }
-                            }
-                            
-                            if (!$assemblyWarehouseId || $assemblyWarehouseId != $warehouseId) {
-                                return false; // Assembly không thuộc kho xuất, bỏ qua
-                            }
-                        }
-                        
-                        // Chỉ giữ assemblies không có serial hoặc có slot N/A còn trống
-                        $hasSerials = $assemblyProduct->serials &&
-                                     $assemblyProduct->serials !== '' && 
-                                     $assemblyProduct->serials !== 'N/A' && 
-                                     $assemblyProduct->serials !== 'NA';
-                        
-                        if (!$hasSerials) {
-                            // Assembly không có serial, kiểm tra xem có product_unit nào chưa được dùng trong phiếu đã duyệt không
-                            $productUnitValue = $assemblyProduct->product_unit;
-                            $assemblyProductUnits = [];
-                            if (is_string($productUnitValue)) {
-                                $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                            } elseif (is_array($productUnitValue)) {
-                                $assemblyProductUnits = $productUnitValue;
-                            } else if ($productUnitValue !== null) {
-                                $assemblyProductUnits = [$productUnitValue];
-                            }
-                            
-                            // Kiểm tra xem có ít nhất một product_unit chưa được dùng trong approvedPairs không
-                            $assemblyId = (string) $assemblyProduct->assembly_id;
-                            foreach ($assemblyProductUnits as $unit) {
-                                $key = $assemblyId . ':' . (int) $unit;
-                                if (!isset($approvedPairs[$key])) {
-                                    return true; // Có ít nhất một slot chưa được dùng
-                                }
-                            }
-                            return false; // Tất cả slot đã được dùng
-                        }
-                        
-                        // Assembly có serial, kiểm tra xem có product_unit nào còn trống cho N/A không
-                        $productUnitValue = $assemblyProduct->product_unit;
-                        $assemblyProductUnits = [];
-                        if (is_string($productUnitValue)) {
-                            $assemblyProductUnits = json_decode($productUnitValue, true) ?: [];
-                        } elseif (is_array($productUnitValue)) {
-                            $assemblyProductUnits = $productUnitValue;
-                        } else if ($productUnitValue !== null) {
-                            $assemblyProductUnits = [$productUnitValue];
-                        }
-                        
-                        // Đếm số serial trong assembly
-                        $assemblySerialsStr = is_string($assemblyProduct->serials) ? $assemblyProduct->serials : '';
-                        $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                        $assemblySerialCount = is_array($parts) ? count($parts) : 1;
-                        
-                        // Nếu số product_unit > số serial, có slot N/A còn trống
-                        if (count($assemblyProductUnits) <= $assemblySerialCount) {
-                            return false; // Không có slot N/A
-                        }
-                        
-                        // Kiểm tra xem có ít nhất một slot N/A chưa được dùng trong approvedPairs không
-                        $assemblyId = (string) $assemblyProduct->assembly_id;
-                        for ($i = $assemblySerialCount; $i < count($assemblyProductUnits); $i++) {
-                            $unit = (int) $assemblyProductUnits[$i];
-                            $key = $assemblyId . ':' . $unit;
-                            if (!isset($approvedPairs[$key])) {
-                                return true; // Có ít nhất một slot N/A chưa được dùng
-                            }
-                        }
-                        return false; // Tất cả slot N/A đã được dùng
+                    ->filter(function($assemblyProduct) use ($warehouseId, $item) {
+                        $capacity = $this->getNaCapacityForAssemblyProduct((int)$assemblyProduct->assembly_id, (int)$item['item_id'], $warehouseId, true);
+                        return $capacity > 0;
                     })
                     ->sortBy(function($assemblyProduct) {
                         // Ưu tiên assemblies không có serial trước
@@ -4072,6 +3853,103 @@ class DispatchController extends Controller
         }
 
         return $duplicates;
+    }
+
+    /**
+     * Count used N/A units for a given assembly-product in approved dispatches.
+     * A "used NA unit" is computed as quantity minus count of real serials present in serial_numbers.
+     */
+    private function countUsedNaUnits(int $assemblyId, int $productId): int
+    {
+        $approvedItems = DispatchItem::where('assembly_id', $assemblyId)
+            ->where('item_type', 'product')
+            ->where('item_id', $productId)
+            ->whereHas('dispatch', function ($q) {
+                $q->where('status', 'approved');
+            })
+            ->get(['quantity', 'serial_numbers']);
+
+        $used = 0;
+        foreach ($approvedItems as $di) {
+            $qty = (int)($di->quantity ?? 0);
+            $serials = is_array($di->serial_numbers) ? $di->serial_numbers : [];
+            // Count real serials (exclude virtual N/A-* and plain N/A/NA, and blanks)
+            $realSerialCount = 0;
+            foreach ($serials as $s) {
+                $s = is_string($s) ? trim($s) : '';
+                if ($s === '' || strtoupper($s) === 'N/A' || strtoupper($s) === 'NA' || strpos($s, 'N/A-') === 0) {
+                    continue;
+                }
+                $realSerialCount++;
+            }
+            $used += max(0, $qty - $realSerialCount);
+        }
+        return $used;
+    }
+
+    /**
+     * Get available NA capacity for an assembly-product, constrained by testing receipts into a warehouse.
+     */
+    private function getNaCapacityForAssemblyProduct(int $assemblyId, int $productId, ?int $warehouseId, bool $requireProductSpecific = true): int
+    {
+        // 1) Warehouse filter by testing receipts
+        if ($warehouseId) {
+            $existsProductSpecific = DB::table('testings as t')
+                ->join('testing_items as ti', 'ti.testing_id', '=', 't.id')
+                ->where('t.assembly_id', $assemblyId)
+                ->whereIn('t.status', ['completed', 'approved', 'received'])
+                ->where('t.success_warehouse_id', $warehouseId)
+                ->whereIn('ti.item_type', ['finished_product', 'product'])
+                ->where('ti.product_id', $productId)
+                ->exists();
+
+            if (!$existsProductSpecific) {
+                if ($requireProductSpecific) {
+                    return 0; // must have product-specific receipt
+                }
+                $existsAny = DB::table('testings as t')
+                    ->where('t.assembly_id', $assemblyId)
+                    ->whereIn('t.status', ['completed', 'approved', 'received'])
+                    ->where('t.success_warehouse_id', $warehouseId)
+                    ->exists();
+                if (!$existsAny) {
+                    return 0;
+                }
+            }
+        }
+
+        // 2) Determine total NA slots from the AssemblyProduct row: units count minus real serials
+        $ap = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
+            ->where('product_id', $productId)
+            ->first();
+        if (!$ap) { return 0; }
+
+        // Parse product_unit to array and count units
+        $units = [];
+        if (is_string($ap->product_unit)) {
+            $decoded = json_decode($ap->product_unit, true);
+            if (is_array($decoded)) { $units = $decoded; }
+            elseif ($ap->product_unit !== '') { $units = [$ap->product_unit]; }
+        } elseif (is_array($ap->product_unit)) {
+            $units = $ap->product_unit;
+        } elseif ($ap->product_unit !== null) {
+            $units = [$ap->product_unit];
+        }
+        $unitsCount = count($units);
+
+        // Count real serials present in assembly serials
+        $serialCount = 0;
+        if ($ap->serials && $ap->serials !== 'N/A' && $ap->serials !== 'NA') {
+            $parts = preg_split('/[\s,;|\/]+/', (string)$ap->serials, -1, PREG_SPLIT_NO_EMPTY);
+            $serialCount = is_array($parts) ? count($parts) : 1;
+        }
+
+        // If no units defined and no serials, treat as one NA slot (legacy behavior)
+        $baseCapacity = $unitsCount > 0 ? max(0, $unitsCount - $serialCount) : ($serialCount > 0 ? 0 : 1);
+
+        // 3) Subtract used NA units from approved dispatches
+        $used = $this->countUsedNaUnits($assemblyId, $productId);
+        return max(0, $baseCapacity - $used);
     }
 
     /**
