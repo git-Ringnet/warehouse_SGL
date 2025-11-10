@@ -80,3 +80,12 @@ Route::get('/testing/check-code', [App\Http\Controllers\TestingController::class
 Route::get('/testing/materials/{type}', [App\Http\Controllers\TestingController::class, 'getMaterialsByType']);
 Route::get('/inventory/{type}/{id}/{warehouseId}', [App\Http\Controllers\TestingController::class, 'getInventoryInfo']);
 Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, 'getAvailableSerials']);
+
+// Maintenance Request API routes (Yêu cầu hỗ trợ bảo hành/sửa chữa)
+Route::prefix('maintenance-requests')->group(function () {
+	Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
+	Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
+	Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
+	// Liệt kê thiết bị theo dự án/cho thuê để chọn như ở view
+	Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevices'])->name('api.maintenance-requests.devices');
+});

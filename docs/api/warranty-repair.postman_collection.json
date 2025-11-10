@@ -1,0 +1,251 @@
+{
+  "info": {
+    "name": "Warranty & Repair APIs",
+    "_postman_id": "a1c9f6f0-0b57-4d0d-b7a3-9b9e5f8d1abc",
+    "description": "Collection for Warranty lookup and Repair (create/update) APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Maintenance - Create Support Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_type\": \"project\",                     \n  \"project_id\": {{project_id}},                   \n  \"maintenance_type\": \"repair\",                 \n  \"proposer_id\": {{proposer_id}},               \n  \"proposer_username\": \"{{proposer_username}}\", \n  \"proposer_email\": \"{{proposer_email}}\",       \n  \"request_date\": \"{{request_date}}\",           \n  \"maintenance_date\": \"{{maintenance_date}}\",   \n  \"notes\": \"Khách báo lỗi\",                     \n  \"selected_devices\": \"[\\\"{{dispatch_item_id}}_0\\\",\\\"{{dispatch_item_id}}_1\\\"]\"\n}\n"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/maintenance-requests",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "maintenance-requests"
+          ]
+        },
+        "description": "Tạo Yêu cầu hỗ trợ bảo hành/sửa chữa (Maintenance Request) ở trạng thái pending.\n\nTrường hỗ trợ:\n- project_type: project | rental (bắt buộc)\n- project_id: ID dự án/phiếu cho thuê (bắt buộc)\n- maintenance_type: maintenance|repair|replacement|upgrade|other (bắt buộc)\n- proposer: dùng 1 trong các trường sau (tùy hệ thống): proposer_id | proposer_username | proposer_email\n- request_date: dd/mm/YYYY hoặc YYYY-mm-dd\n- maintenance_date: dd/mm/YYYY hoặc YYYY-mm-dd\n- notes: ghi chú\n- selected_devices: chuỗi JSON mảng id dạng \"dispatchItemId_index\" (ví dụ: \"[\\\"123_0\\\",\\\"123_1\\\"]\")"
+      }
+    },
+    {
+      "name": "Maintenance - List Devices (by project/rental)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"project_type\": \"project\",\n  \"project_id\": {{project_id}}\n}\n"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/maintenance-requests/devices",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "maintenance-requests",
+            "devices"
+          ]
+        },
+        "description": "Lấy danh sách thiết bị từ dự án/phiếu cho thuê (giống phần danh sách ở view). Dùng trường 'id' trong kết quả để đưa vào selected_devices (id có dạng \"dispatchItemId_index\")."
+      }
+    },
+    {
+      "name": "Maintenance - Update Support Request",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maintenance_type\": \"repair\",                 \n  \"notes\": \"Cập nhật ghi chú\",                 \n  \"status\": \"pending\",                          \n  \"request_date\": \"{{request_date}}\",           \n  \"maintenance_date\": \"{{maintenance_date}}\",   \n  \"selected_devices\": \"[\\\"{{dispatch_item_id}}_0\\\",\\\"{{dispatch_item_id}}_1\\\"]\"\n}\n"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/maintenance-requests/{{maintenance_request_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "maintenance-requests",
+            "{{maintenance_request_id}}"
+          ]
+        },
+        "description": "Cập nhật Yêu cầu hỗ trợ (maintenance request).\n\nCó thể cập nhật: maintenance_type, notes, status, request_date, maintenance_date, selected_devices."
+      }
+    },
+    {
+      "name": "Warranty - Search (by code or serial)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/repairs/search-warranty?warranty_code={{warranty_code}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "repairs",
+            "search-warranty"
+          ],
+          "query": [
+            {
+              "key": "warranty_code",
+              "value": "{{warranty_code}}",
+              "description": "Warranty code or device serial"
+            }
+          ]
+        },
+        "description": "Lookup warranty info by warranty_code or serial."
+      }
+    },
+    {
+      "name": "Warranty - Check (by warranty code)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/warranty/check?warranty_code={{warranty_code}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "warranty",
+            "check"
+          ],
+          "query": [
+            {
+              "key": "warranty_code",
+              "value": "{{warranty_code}}"
+            }
+          ]
+        },
+        "description": "Check warranty details by warranty code."
+      }
+    },
+    {
+      "name": "Warehouse - Search Devices",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/repairs/search-warehouse-devices?search_term={{search_term}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "repairs",
+            "search-warehouse-devices"
+          ],
+          "query": [
+            {
+              "key": "search_term",
+              "value": "{{search_term}}"
+            }
+          ]
+        },
+        "description": "Search devices available in warehouse by term."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "project_id",
+      "value": "1"
+    },
+    {
+      "key": "proposer_username",
+      "value": "admin"
+    },
+    {
+      "key": "proposer_id",
+      "value": "1"
+    },
+    {
+      "key": "proposer_email",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "request_date",
+      "value": "10/11/2025"
+    },
+    {
+      "key": "maintenance_date",
+      "value": "12/11/2025"
+    },
+    {
+      "key": "dispatch_item_id",
+      "value": "1001"
+    },
+    {
+      "key": "maintenance_request_id",
+      "value": "1"
+    },
+    {
+      "key": "warranty_code",
+      "value": "WAR-2025-001"
+    },
+    {
+      "key": "repair_id",
+      "value": "123"
+    },
+    {
+      "key": "repair_item_id",
+      "value": "456"
+    },
+    {
+      "key": "search_term",
+      "value": "CTRL"
+    }
+  ]
+}
+

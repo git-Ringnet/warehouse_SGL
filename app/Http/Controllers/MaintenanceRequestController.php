@@ -18,9 +18,292 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\DateHelper;
+use Illuminate\Support\Facades\Schema;
 
 class MaintenanceRequestController extends Controller
 {
+    /**
+     * API: Tạo yêu cầu hỗ trợ bảo hành/sửa chữa (Maintenance Request)
+     */
+    public function apiStore(Request $request)
+    {
+        try {
+            // Chuẩn hóa ngày (cho phép dd/mm/YYYY)
+            if ($request->filled('request_date')) {
+                $request->merge(['request_date' => DateHelper::convertToDatabaseFormat($request->request_date)]);
+            } else {
+                $request->merge(['request_date' => now()->format('Y-m-d')]);
+            }
+            if ($request->filled('maintenance_date')) {
+                $request->merge(['maintenance_date' => DateHelper::convertToDatabaseFormat($request->maintenance_date)]);
+            } else {
+                $request->merge(['maintenance_date' => now()->format('Y-m-d')]);
+            }
+
+            $request->validate([
+                'project_type' => 'required|in:project,rental',
+                'project_id' => 'required|integer',
+                'maintenance_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
+                'proposer_id' => 'nullable|integer',
+                'proposer_code' => 'nullable|string',
+                'proposer_username' => 'nullable|string',
+                'proposer_email' => 'nullable|email',
+                'notes' => 'nullable|string',
+                'selected_devices' => 'nullable|string'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Resolve proposer (accept id or employee code)
+            $proposerId = null;
+            if ($request->filled('proposer_id')) {
+                $proposerId = (int) $request->proposer_id;
+            } elseif ($request->filled('proposer_username')) {
+                $proposerId = Employee::where('username', $request->proposer_username)->value('id');
+            } elseif ($request->filled('proposer_email')) {
+                $proposerId = Employee::where('email', $request->proposer_email)->value('id');
+            } elseif ($request->filled('proposer_code')) {
+                // Try flexible mapping for legacy fields if present
+                if (Schema::hasColumn('employees', 'code')) {
+                    $proposerId = Employee::where('code', $request->proposer_code)->value('id');
+                } elseif (Schema::hasColumn('employees', 'employee_code')) {
+                    $proposerId = Employee::where('employee_code', $request->proposer_code)->value('id');
+                }
+            }
+            if (!$proposerId) {
+                $proposerId = Auth::id() ?: Employee::where('is_active', true)->value('id');
+            }
+
+            // Map project/rental to customer info
+            $projectName = '';
+            $customerId = null;
+            $customerName = '';
+            $customerPhone = '';
+            $customerEmail = '';
+            $customerAddress = '';
+
+            if ($request->project_type === 'project') {
+                $project = \App\Models\Project::with('customer')->findOrFail($request->project_id);
+                $projectName = $project->project_name;
+                $customerId = $project->customer_id;
+                if ($project->customer) {
+                    $customerName = $project->customer->company_name ?: $project->customer->name;
+                    $customerPhone = $project->customer->phone;
+                    $customerEmail = $project->customer->email;
+                    $customerAddress = $project->customer->address ?: '';
+                }
+            } else {
+                $rental = \App\Models\Rental::with('customer')->findOrFail($request->project_id);
+                $projectName = $rental->rental_name;
+                $customerId = $rental->customer_id;
+                if ($rental->customer) {
+                    $customerName = $rental->customer->company_name ?: $rental->customer->name;
+                    $customerPhone = $rental->customer->phone;
+                    $customerEmail = $rental->customer->email;
+                    $customerAddress = $rental->customer->address ?: '';
+                }
+            }
+
+            $maintenanceRequest = MaintenanceRequest::create([
+                'request_code' => MaintenanceRequest::generateRequestCode(),
+                'request_date' => $request->request_date,
+                'proposer_id' => $proposerId,
+                'project_type' => $request->project_type,
+                'project_id' => $request->project_id,
+                'project_name' => $projectName,
+                'customer_id' => $customerId,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'customer_email' => $customerEmail,
+                'customer_address' => $customerAddress,
+                'maintenance_date' => $request->maintenance_date,
+                'maintenance_type' => $request->maintenance_type,
+                'maintenance_reason' => $request->notes ?? '',
+                'notes' => $request->notes,
+                'status' => 'pending',
+            ]);
+
+            // Save selected devices if provided (reuse logic: expect JSON string array of "dispatchItemId_index")
+            if ($request->filled('selected_devices')) {
+                $selected = json_decode($request->selected_devices, true);
+                if (is_array($selected)) {
+                    foreach ($selected as $deviceKey) {
+                        $parts = explode('_', $deviceKey);
+                        $itemId = $parts[0] ?? null;
+                        $index = $parts[1] ?? 0;
+                        if (!$itemId) { continue; }
+                        $dispatchItem = \App\Models\DispatchItem::with(['product','good'])->find($itemId);
+                        if ($dispatchItem) {
+                            $deviceCode = '';
+                            $deviceName = '';
+                            $deviceType = '';
+                            if ($dispatchItem->item_type === 'product' && $dispatchItem->product) {
+                                $deviceCode = $dispatchItem->product->code;
+                                $deviceName = $dispatchItem->product->name;
+                                $deviceType = 'Thành phẩm';
+                            } elseif ($dispatchItem->item_type === 'good' && $dispatchItem->good) {
+                                $deviceCode = $dispatchItem->good->code;
+                                $deviceName = $dispatchItem->good->name;
+                                $deviceType = 'Hàng hoá';
+                            }
+                            $serial = 'N/A';
+                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
+                                $serial = $dispatchItem->serial_numbers[$index] ?? 'N/A';
+                            }
+                            MaintenanceRequestProduct::create([
+                                'maintenance_request_id' => $maintenanceRequest->id,
+                                'product_id' => $dispatchItem->item_id,
+                                'product_code' => $deviceCode,
+                                'product_name' => $deviceName,
+                                'serial_number' => $serial,
+                                'type' => $deviceType,
+                                'quantity' => 1,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Yêu cầu hỗ trợ đã được tạo thành công (pending).',
+                'data' => [
+                    'maintenance_request' => [
+                        'id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'status' => $maintenanceRequest->status,
+                        'project_type' => $maintenanceRequest->project_type,
+                        'project_id' => $maintenanceRequest->project_id,
+                        'maintenance_type' => $maintenanceRequest->maintenance_type
+                    ]
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('API create maintenance request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo yêu cầu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Cập nhật yêu cầu hỗ trợ bảo hành/sửa chữa
+     */
+    public function apiUpdate(Request $request, $id)
+    {
+        try {
+            $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy yêu cầu với ID: ' . $id
+            ], 404);
+        }
+
+        try {
+            $request->validate([
+                'maintenance_type' => 'sometimes|in:maintenance,repair,replacement,upgrade,other',
+                'notes' => 'nullable|string',
+                'status' => 'sometimes|in:pending,approved,rejected,in_progress,completed,canceled',
+                'selected_devices' => 'nullable|string'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $update = [];
+            if ($request->filled('maintenance_type')) $update['maintenance_type'] = $request->maintenance_type;
+            if ($request->filled('notes')) $update['notes'] = $request->notes;
+            if ($request->filled('status')) $update['status'] = $request->status;
+
+            if (!empty($update)) {
+                $maintenanceRequest->update($update);
+            }
+
+            // Optional: replace devices if provided
+            if ($request->filled('selected_devices')) {
+                $maintenanceRequest->products()->delete();
+                $selected = json_decode($request->selected_devices, true);
+                if (is_array($selected)) {
+                    foreach ($selected as $deviceKey) {
+                        $parts = explode('_', $deviceKey);
+                        $itemId = $parts[0] ?? null;
+                        $index = $parts[1] ?? 0;
+                        if (!$itemId) { continue; }
+                        $dispatchItem = \App\Models\DispatchItem::with(['product','good'])->find($itemId);
+                        if ($dispatchItem) {
+                            $deviceCode = '';
+                            $deviceName = '';
+                            $deviceType = '';
+                            if ($dispatchItem->item_type === 'product' && $dispatchItem->product) {
+                                $deviceCode = $dispatchItem->product->code;
+                                $deviceName = $dispatchItem->product->name;
+                                $deviceType = 'Thành phẩm';
+                            } elseif ($dispatchItem->item_type === 'good' && $dispatchItem->good) {
+                                $deviceCode = $dispatchItem->good->code;
+                                $deviceName = $dispatchItem->good->name;
+                                $deviceType = 'Hàng hoá';
+                            }
+                            $serial = 'N/A';
+                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
+                                $serial = $dispatchItem->serial_numbers[$index] ?? 'N/A';
+                            }
+                            MaintenanceRequestProduct::create([
+                                'maintenance_request_id' => $maintenanceRequest->id,
+                                'product_id' => $dispatchItem->item_id,
+                                'product_code' => $deviceCode,
+                                'product_name' => $deviceName,
+                                'serial_number' => $serial,
+                                'type' => $deviceType,
+                                'quantity' => 1,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Yêu cầu hỗ trợ đã được cập nhật.',
+                'data' => [
+                    'maintenance_request' => [
+                        'id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'status' => $maintenanceRequest->status,
+                        'maintenance_type' => $maintenanceRequest->maintenance_type
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('API update maintenance request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi cập nhật yêu cầu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     /**
      * Hiển thị form tạo mới phiếu bảo trì dự án
      */
