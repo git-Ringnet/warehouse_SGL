@@ -17,8 +17,11 @@ use App\Http\Controllers\InventoryImportController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+// API Authentication routes
+Route::post('/login', [App\Http\Controllers\AuthController::class, 'apiLogin'])->name('api.login');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [App\Http\Controllers\AuthController::class, 'apiLogout'])->name('api.logout');
+    Route::get('/user', [App\Http\Controllers\AuthController::class, 'apiUser'])->name('api.user');
 });
 
 Route::get('/export-requests', [RequestExportController::class, 'index']);
@@ -97,4 +100,7 @@ Route::prefix('maintenance-requests')->group(function () {
 Route::prefix('customer-maintenance-requests')->group(function () {
 	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
 	Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
+	Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì
+	Route::patch('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate'])->name('api.customer-maintenance-requests.update'); // Cập nhật phiếu khách yêu cầu bảo trì
+	Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
 });

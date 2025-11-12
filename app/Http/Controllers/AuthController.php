@@ -298,4 +298,218 @@ class AuthController extends Controller
             return back()->withErrors(['error' => 'Có lỗi xảy ra khi cập nhật mật khẩu']);
         }
     }
+
+    /**
+     * API: Đăng nhập và trả về token
+     */
+    public function apiLogin(Request $request)
+    {
+        try {
+            $request->validate([
+                'username' => 'required|string',
+                'password' => 'required|string',
+            ]);
+
+            // Thử đăng nhập với nhân viên (Employee)
+            $employee = Employee::where('username', $request->username)->first();
+            
+            if ($employee) {
+                // Kiểm tra trạng thái tài khoản
+                if (!$employee->is_active) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.'
+                    ], 403);
+                }
+
+                // Kiểm tra mật khẩu
+                if (Hash::check($request->password, $employee->password)) {
+                    // Tạo token
+                    $token = $employee->createToken('api-token')->plainTextToken;
+
+                    // Ghi nhật ký đăng nhập
+                    UserLog::logActivity(
+                        $employee->id,
+                        'login',
+                        'auth',
+                        'Đăng nhập API thành công (nhân viên)',
+                        null,
+                        ['username' => $employee->username, 'name' => $employee->name]
+                    );
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Đăng nhập thành công',
+                        'data' => [
+                            'token' => $token,
+                            'token_type' => 'Bearer',
+                            'user' => [
+                                'id' => $employee->id,
+                                'username' => $employee->username,
+                                'name' => $employee->name,
+                                'email' => $employee->email,
+                                'role' => $employee->role,
+                                'type' => 'employee'
+                            ]
+                        ]
+                    ]);
+                }
+            }
+
+            // Thử đăng nhập với khách hàng (User)
+            $user = User::where('username', $request->username)->first();
+            
+            if ($user && $user->role === 'customer') {
+                // Kiểm tra trạng thái tài khoản khách hàng
+                $customer = Customer::find($user->customer_id);
+                
+                if ($customer && $customer->is_locked) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.'
+                    ], 403);
+                }
+
+                // Kiểm tra mật khẩu
+                if (Hash::check($request->password, $user->password)) {
+                    // Tạo token
+                    $token = $user->createToken('api-token')->plainTextToken;
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Đăng nhập thành công',
+                        'data' => [
+                            'token' => $token,
+                            'token_type' => 'Bearer',
+                            'user' => [
+                                'id' => $user->id,
+                                'username' => $user->username,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'role' => $user->role,
+                                'customer_id' => $user->customer_id,
+                                'type' => 'customer'
+                            ]
+                        ]
+                    ]);
+                }
+            }
+
+            // Đăng nhập thất bại
+            return response()->json([
+                'success' => false,
+                'message' => 'Tên đăng nhập hoặc mật khẩu không đúng.'
+            ], 401);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('API login error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi đăng nhập: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Đăng xuất và xóa token
+     */
+    public function apiLogout(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if ($user) {
+                // Xóa token hiện tại
+                $request->user()->currentAccessToken()->delete();
+
+                // Ghi nhật ký đăng xuất
+                if ($user instanceof Employee) {
+                    UserLog::logActivity(
+                        $user->id,
+                        'logout',
+                        'auth',
+                        'Đăng xuất API thành công (nhân viên)',
+                        ['username' => $user->username, 'name' => $user->name],
+                        null
+                    );
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đăng xuất thành công'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy người dùng'
+            ], 401);
+
+        } catch (\Exception $e) {
+            Log::error('API logout error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi đăng xuất: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Lấy thông tin người dùng hiện tại
+     */
+    public function apiUser(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy người dùng'
+                ], 401);
+            }
+
+            $userData = [
+                'id' => $user->id,
+                'username' => $user->username,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ];
+
+            if ($user instanceof Employee) {
+                $userData['type'] = 'employee';
+                $userData['phone'] = $user->phone;
+                $userData['department'] = $user->department;
+            } elseif ($user instanceof User && $user->role === 'customer') {
+                $userData['type'] = 'customer';
+                $userData['customer_id'] = $user->customer_id;
+                if ($user->customer) {
+                    $userData['customer'] = [
+                        'id' => $user->customer->id,
+                        'name' => $user->customer->name,
+                        'company_name' => $user->customer->company_name,
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $userData
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('API user info error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy thông tin người dùng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 } 

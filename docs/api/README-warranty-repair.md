@@ -1,7 +1,139 @@
+### API Authentication (Xác thực API)
+
+- Base URL: `{your-domain}/api`
+- Tất cả ví dụ dùng `application/json`
+
+---
+
+### 0) Đăng nhập và lấy API Token
+- POST `/api/login`
+- Body:
+```json
+{
+  "username": "admin",
+  "password": "password123"
+}
+```
+
+Ví dụ:
+```bash
+curl -X POST "{your-domain}/api/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "password123"
+  }'
+```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "message": "Đăng nhập thành công",
+  "data": {
+    "token": "1|abcdefghijklmnopqrstuvwxyz1234567890",
+    "token_type": "Bearer",
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "name": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "role": "admin",
+      "type": "employee"
+    }
+  }
+}
+```
+
+Response (thất bại):
+```json
+{
+  "success": false,
+  "message": "Tên đăng nhập hoặc mật khẩu không đúng."
+}
+```
+
+**Lưu ý**: 
+- Token có thể được sử dụng cho cả nhân viên (Employee) và khách hàng (Customer)
+- Token không có thời hạn mặc định, có thể xóa bằng API logout
+- Sau khi có token, thêm vào header: `Authorization: Bearer <token>`
+
+---
+
+### 0a) Đăng xuất và xóa Token
+- POST `/api/logout`
+- Header: `Authorization: Bearer <token>`
+
+Ví dụ:
+```bash
+curl -X POST "{your-domain}/api/logout" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Đăng xuất thành công"
+}
+```
+
+---
+
+### 0b) Lấy thông tin người dùng hiện tại
+- GET `/api/user`
+- Header: `Authorization: Bearer <token>`
+
+Ví dụ:
+```bash
+curl -X GET "{your-domain}/api/user" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
+```
+
+Response (nhân viên):
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "admin",
+    "name": "Nguyễn Văn A",
+    "email": "admin@example.com",
+    "role": "admin",
+    "type": "employee",
+    "phone": "0123456789",
+    "department": "IT"
+  }
+}
+```
+
+Response (khách hàng):
+```json
+{
+  "success": true,
+  "data": {
+    "id": 10,
+    "username": "customer1",
+    "name": "Nguyễn Văn B",
+    "email": "customer@example.com",
+    "role": "customer",
+    "type": "customer",
+    "customer_id": 5,
+    "customer": {
+      "id": 5,
+      "name": "Nguyễn Văn B",
+      "company_name": "Công ty XYZ"
+    }
+  }
+}
+```
+
+---
+
 ### Warranty, Maintenance & Repair APIs
 
 - Base URL: `{your-domain}/api`
-- Auth: nếu hệ thống yêu cầu, thêm `Authorization: Bearer <token>`
+- Auth: nếu hệ thống yêu cầu, thêm `Authorization: Bearer <token>` vào header
 - Tất cả ví dụ dùng `application/json`
 
 ---
@@ -357,6 +489,155 @@ Response:
     "from": 1,
     "to": 15
   }
+}
+```
+
+---
+
+### 2b-3) Tạo phiếu khách yêu cầu bảo trì
+- POST `/api/customer-maintenance-requests`
+- Body:
+```json
+{
+  "customer_id": 10,
+  "project_name": "Dự án ABC",
+  "project_description": "Mô tả dự án",
+  "maintenance_reason": "Thiết bị bị lỗi",
+  "maintenance_details": "Màn hình không hiển thị",
+  "priority": "high",
+  "item_source": "project",
+  "project_id": 60,
+  "request_date": "01/01/2025",
+  "estimated_cost": 500000,
+  "selected_item": "product:100:SN123456",
+  "notes": "Ghi chú"
+}
+```
+
+**Lưu ý**:
+- `item_source`: bắt buộc, giá trị: `project` hoặc `rental`
+- Nếu `item_source` = `project` thì `project_id` bắt buộc
+- Nếu `item_source` = `rental` thì `rental_id` bắt buộc
+- `priority`: bắt buộc, giá trị: `low`, `medium`, `high`, `urgent`
+- `request_date`: tùy chọn, định dạng: `dd/mm/YYYY` hoặc `YYYY-mm-dd`, mặc định là ngày hiện tại
+- `selected_item`: tùy chọn, định dạng: `{type}:{id}:{serial_number}` (serial_number là tùy chọn)
+  - `type`: loại item, giá trị: `product` hoặc `good`
+  - `id`: ID của sản phẩm hoặc hàng hóa
+  - `serial_number`: số serial (tùy chọn, chỉ cần nếu có)
+  - Ví dụ: `"product:100:SN123456"` (sản phẩm ID 100, serial SN123456)
+  - Ví dụ: `"product:100"` (sản phẩm ID 100, không có serial)
+  - Ví dụ: `"good:50:SN789012"` (hàng hóa ID 50, serial SN789012)
+
+Ví dụ:
+```bash
+curl -X POST "{your-domain}/api/customer-maintenance-requests" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": 10,
+    "project_name": "Dự án ABC",
+    "maintenance_reason": "Thiết bị bị lỗi",
+    "priority": "high",
+    "item_source": "project",
+    "project_id": 60
+  }'
+```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "message": "Phiếu khách yêu cầu bảo trì đã được tạo thành công.",
+  "data": {
+    "customer_maintenance_request": {
+      "id": 201,
+      "request_code": "CUST-MAINT-250101-001",
+      "status": "pending",
+      "priority": "high",
+      "project_name": "Dự án ABC",
+      "customer_name": "Công ty XYZ"
+    }
+  }
+}
+```
+
+Response (lỗi validation):
+```json
+{
+  "success": false,
+  "message": "Dữ liệu không hợp lệ",
+  "errors": {
+    "project_name": ["Trường project name là bắt buộc."],
+    "maintenance_reason": ["Trường maintenance reason là bắt buộc."]
+  }
+}
+```
+
+---
+
+### 2b-4) Cập nhật phiếu khách yêu cầu bảo trì
+- PUT/PATCH `/api/customer-maintenance-requests/{id}`
+- **Lưu ý**: Chỉ có thể cập nhật khi phiếu ở trạng thái `pending`
+- Body (tất cả các trường đều tùy chọn, chỉ cập nhật các trường được gửi):
+```json
+{
+  "project_name": "Dự án ABC (cập nhật)",
+  "project_description": "Mô tả mới",
+  "maintenance_reason": "Lý do mới",
+  "maintenance_details": "Chi tiết mới",
+  "priority": "urgent",
+  "item_source": "rental",
+  "rental_id": 5,
+  "request_date": "02/01/2025",
+  "estimated_cost": 600000,
+  "selected_item": "product:101:SN789012",
+  "notes": "Ghi chú mới"
+}
+```
+
+**Lưu ý về `selected_item`**:
+- Định dạng: `{type}:{id}:{serial_number}` (serial_number là tùy chọn)
+- `type`: loại item - `product` (thành phẩm) hoặc `good` (hàng hóa)
+- `id`: ID của sản phẩm/hàng hóa trong database
+- `serial_number`: số serial của thiết bị (tùy chọn, chỉ cần nếu thiết bị có serial)
+- Ví dụ:
+  - `"product:100:SN123456"` - Thành phẩm ID 100, serial SN123456
+  - `"product:100"` - Thành phẩm ID 100, không có serial
+  - `"good:50:SN789012"` - Hàng hóa ID 50, serial SN789012
+  - `"good:50"` - Hàng hóa ID 50, không có serial
+
+Ví dụ:
+```bash
+curl -X PATCH "{your-domain}/api/customer-maintenance-requests/201" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "priority": "urgent",
+    "maintenance_details": "Cập nhật chi tiết"
+  }'
+```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "message": "Phiếu khách yêu cầu bảo trì đã được cập nhật thành công.",
+  "data": {
+    "customer_maintenance_request": {
+      "id": 201,
+      "request_code": "CUST-MAINT-250101-001",
+      "status": "pending",
+      "priority": "urgent",
+      "project_name": "Dự án ABC",
+      "customer_name": "Công ty XYZ"
+    }
+  }
+}
+```
+
+Response (lỗi - phiếu đã được duyệt):
+```json
+{
+  "success": false,
+  "message": "Không thể cập nhật phiếu yêu cầu đã được duyệt hoặc đã xử lý."
 }
 ```
 

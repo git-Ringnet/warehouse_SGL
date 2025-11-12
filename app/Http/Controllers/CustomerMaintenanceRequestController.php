@@ -273,6 +273,248 @@ class CustomerMaintenanceRequestController extends Controller
     }
 
     /**
+     * API: Tạo phiếu khách yêu cầu bảo trì
+     */
+    public function apiStore(Request $request)
+    {
+        try {
+            // Validation
+            $rules = [
+                'project_name' => 'required|string|max:255',
+                'project_description' => 'nullable|string',
+                'maintenance_reason' => 'required|string',
+                'maintenance_details' => 'nullable|string',
+                'priority' => 'required|in:low,medium,high,urgent',
+                'notes' => 'nullable|string',
+                'item_source' => 'required|in:project,rental',
+                'customer_id' => 'required|exists:customers,id',
+                'request_date' => 'nullable|date',
+                'estimated_cost' => 'nullable|numeric|min:0',
+                'selected_item' => 'nullable|string',
+            ];
+
+            // Thêm validation cho project_id hoặc rental_id tùy theo item_source
+            if ($request->item_source === 'project') {
+                $rules['project_id'] = 'required|exists:projects,id';
+            } elseif ($request->item_source === 'rental') {
+                $rules['rental_id'] = 'required|exists:rentals,id';
+            }
+
+            // Custom messages tiếng Việt
+            $messages = [
+                'project_name.required' => 'Trường tên dự án là bắt buộc.',
+                'maintenance_reason.required' => 'Trường lý do bảo trì là bắt buộc.',
+                'priority.required' => 'Trường mức độ ưu tiên là bắt buộc.',
+                'priority.in' => 'Mức độ ưu tiên phải là: low, medium, high, hoặc urgent.',
+                'item_source.required' => 'Trường nguồn thiết bị là bắt buộc.',
+                'item_source.in' => 'Nguồn thiết bị phải là: project hoặc rental.',
+                'customer_id.required' => 'Trường ID khách hàng là bắt buộc.',
+                'customer_id.exists' => 'Khách hàng không tồn tại.',
+                'project_id.required' => 'Trường ID dự án là bắt buộc khi item_source là project.',
+                'project_id.exists' => 'Dự án không tồn tại.',
+                'rental_id.required' => 'Trường ID phiếu cho thuê là bắt buộc khi item_source là rental.',
+                'rental_id.exists' => 'Phiếu cho thuê không tồn tại.',
+                'request_date.date' => 'Ngày yêu cầu không hợp lệ.',
+                'estimated_cost.numeric' => 'Chi phí ước tính phải là số.',
+                'estimated_cost.min' => 'Chi phí ước tính phải lớn hơn hoặc bằng 0.',
+            ];
+
+            $validatedData = $request->validate($rules, $messages);
+
+            // Lấy thông tin khách hàng
+            $customer = Customer::findOrFail($request->customer_id);
+            
+            // Kiểm tra trạng thái khách hàng
+            if ($customer->is_locked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tài khoản khách hàng đã bị khóa.'
+                ], 403);
+            }
+
+            // Sử dụng transaction
+            $maintenanceRequest = null;
+            $requestDate = $request->filled('request_date') 
+                ? DateHelper::convertToDatabaseFormat($request->request_date) 
+                : now()->format('Y-m-d');
+            
+            DB::transaction(function () use ($validatedData, $customer, $requestDate, &$maintenanceRequest) {
+                // Tạo mã phiếu mới
+                $requestCode = $this->generateUniqueRequestCode();
+
+                // Thêm thông tin khách hàng và các trường bổ sung
+                $validatedData['request_code'] = $requestCode;
+                $validatedData['request_date'] = $requestDate;
+                $validatedData['status'] = 'pending';
+                $validatedData['customer_id'] = $customer->id;
+                $validatedData['customer_name'] = $customer->company_name ?? $customer->name;
+                $validatedData['customer_phone'] = $customer->phone;
+                $validatedData['customer_email'] = $customer->email;
+                $validatedData['customer_address'] = $customer->address ?? '';
+
+                // Lưu phiếu yêu cầu
+                $maintenanceRequest = CustomerMaintenanceRequest::create($validatedData);
+            });
+
+            if (!$maintenanceRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Có lỗi xảy ra khi tạo phiếu yêu cầu bảo trì.'
+                ], 500);
+            }
+
+            // Gửi thông báo cho tất cả admin
+            $admins = Employee::where('role', 'admin')->where('is_active', true)->get();
+            foreach ($admins as $admin) {
+                Notification::createNotification(
+                    'Phiếu khách yêu cầu bảo trì mới',
+                    'Khách hàng ' . $maintenanceRequest->customer_name . ' đã tạo phiếu yêu cầu bảo trì ' . $maintenanceRequest->project_name,
+                    'info',
+                    $admin->id,
+                    'customer_maintenance_request',
+                    $maintenanceRequest->id,
+                    route('requests.customer-maintenance.show', $maintenanceRequest->id)
+                );
+            }
+
+            // Load relationships
+            $maintenanceRequest->load(['customer', 'project', 'rental']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Phiếu khách yêu cầu bảo trì đã được tạo thành công.',
+                'data' => [
+                    'customer_maintenance_request' => [
+                        'id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'status' => $maintenanceRequest->status,
+                        'priority' => $maintenanceRequest->priority,
+                        'project_name' => $maintenanceRequest->project_name,
+                        'customer_name' => $maintenanceRequest->customer_name,
+                    ]
+                ]
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('API create customer maintenance request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo phiếu yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Cập nhật phiếu khách yêu cầu bảo trì
+     */
+    public function apiUpdate(Request $request, $id)
+    {
+        try {
+            $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
+
+            // Chỉ cho phép cập nhật khi phiếu còn ở trạng thái chờ duyệt
+            if ($maintenanceRequest->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể cập nhật phiếu yêu cầu đã được duyệt hoặc đã xử lý.'
+                ], 403);
+            }
+
+            // Validation
+            $rules = [
+                'project_name' => 'sometimes|required|string|max:255',
+                'project_description' => 'nullable|string',
+                'maintenance_reason' => 'sometimes|required|string',
+                'maintenance_details' => 'nullable|string',
+                'priority' => 'sometimes|required|in:low,medium,high,urgent',
+                'notes' => 'nullable|string',
+                'item_source' => 'sometimes|required|in:project,rental',
+                'request_date' => 'nullable|date',
+                'estimated_cost' => 'nullable|numeric|min:0',
+                'selected_item' => 'nullable|string',
+            ];
+
+            // Thêm validation cho project_id hoặc rental_id nếu item_source được cập nhật
+            if ($request->filled('item_source')) {
+                if ($request->item_source === 'project') {
+                    $rules['project_id'] = 'required|exists:projects,id';
+                } elseif ($request->item_source === 'rental') {
+                    $rules['rental_id'] = 'required|exists:rentals,id';
+                }
+            }
+
+            // Custom messages tiếng Việt
+            $messages = [
+                'project_name.required' => 'Trường tên dự án là bắt buộc.',
+                'maintenance_reason.required' => 'Trường lý do bảo trì là bắt buộc.',
+                'priority.required' => 'Trường mức độ ưu tiên là bắt buộc.',
+                'priority.in' => 'Mức độ ưu tiên phải là: low, medium, high, hoặc urgent.',
+                'item_source.required' => 'Trường nguồn thiết bị là bắt buộc.',
+                'item_source.in' => 'Nguồn thiết bị phải là: project hoặc rental.',
+                'project_id.required' => 'Trường ID dự án là bắt buộc khi item_source là project.',
+                'project_id.exists' => 'Dự án không tồn tại.',
+                'rental_id.required' => 'Trường ID phiếu cho thuê là bắt buộc khi item_source là rental.',
+                'rental_id.exists' => 'Phiếu cho thuê không tồn tại.',
+                'request_date.date' => 'Ngày yêu cầu không hợp lệ.',
+                'estimated_cost.numeric' => 'Chi phí ước tính phải là số.',
+                'estimated_cost.min' => 'Chi phí ước tính phải lớn hơn hoặc bằng 0.',
+            ];
+
+            $validatedData = $request->validate($rules, $messages);
+
+            // Chuẩn hóa ngày tháng nếu có
+            if ($request->filled('request_date')) {
+                $validatedData['request_date'] = DateHelper::convertToDatabaseFormat($request->request_date);
+            }
+
+            // Cập nhật phiếu
+            $maintenanceRequest->update($validatedData);
+
+            // Load relationships
+            $maintenanceRequest->load(['customer', 'project', 'rental']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Phiếu khách yêu cầu bảo trì đã được cập nhật thành công.',
+                'data' => [
+                    'customer_maintenance_request' => [
+                        'id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'status' => $maintenanceRequest->status,
+                        'priority' => $maintenanceRequest->priority,
+                        'project_name' => $maintenanceRequest->project_name,
+                        'customer_name' => $maintenanceRequest->customer_name,
+                    ]
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy phiếu yêu cầu với ID: ' . $id
+            ], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('API update customer maintenance request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi cập nhật phiếu yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Kiểm tra xem người dùng có quyền truy cập
      */
     private function checkAccess()
