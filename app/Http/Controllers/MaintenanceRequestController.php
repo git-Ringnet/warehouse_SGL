@@ -304,6 +304,253 @@ class MaintenanceRequestController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * API: Lấy TẤT CẢ phiếu bảo trì dự án (không lọc, không phân trang)
+     */
+    public function apiGetAllProject()
+    {
+        try {
+            $maintenanceRequests = MaintenanceRequest::with(['proposer', 'customer', 'products', 'warranty'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Format dữ liệu trả về
+            $data = $maintenanceRequests->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'request_code' => $item->request_code,
+                    'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
+                    'maintenance_date' => $item->maintenance_date ? $item->maintenance_date->format('Y-m-d') : null,
+                    'maintenance_type' => $item->maintenance_type,
+                    'status' => $item->status,
+                    'project_type' => $item->project_type,
+                    'project_id' => $item->project_id,
+                    'project_name' => $item->project_name,
+                    'customer_id' => $item->customer_id,
+                    'customer_name' => $item->customer_name,
+                    'customer_phone' => $item->customer_phone,
+                    'customer_email' => $item->customer_email,
+                    'customer_address' => $item->customer_address,
+                    'notes' => $item->notes,
+                    'maintenance_reason' => $item->maintenance_reason,
+                    'reject_reason' => $item->reject_reason,
+                    'proposer' => $item->proposer ? [
+                        'id' => $item->proposer->id,
+                        'name' => $item->proposer->name,
+                        'username' => $item->proposer->username,
+                        'email' => $item->proposer->email,
+                    ] : null,
+                    'customer' => $item->customer ? [
+                        'id' => $item->customer->id,
+                        'name' => $item->customer->name,
+                        'company_name' => $item->customer->company_name,
+                        'phone' => $item->customer->phone,
+                        'email' => $item->customer->email,
+                    ] : null,
+                    'products_count' => $item->products->count(),
+                    'products' => $item->products->map(function ($product) {
+                        return [
+                            'id' => $product->id,
+                            'product_id' => $product->product_id,
+                            'product_code' => $product->product_code,
+                            'product_name' => $product->product_name,
+                            'serial_number' => $product->serial_number,
+                            'type' => $product->type,
+                            'quantity' => $product->quantity,
+                        ];
+                    }),
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'total' => $data->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API get all maintenance requests error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách phiếu bảo trì dự án: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Lấy danh sách phiếu bảo trì dự án (MaintenanceRequest) - có lọc và phân trang
+     */
+    public function apiIndexProject(Request $request)
+    {
+        try {
+            $query = MaintenanceRequest::with(['proposer', 'customer', 'products', 'warranty']);
+
+            // Tìm kiếm
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('request_code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('project_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('customer_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhereHas('proposer', function ($proposerQuery) use ($searchTerm) {
+                            $proposerQuery->where('name', 'LIKE', "%{$searchTerm}%")
+                                ->orWhere('username', 'LIKE', "%{$searchTerm}%");
+                        })
+                        ->orWhereHas('customer', function ($customerQuery) use ($searchTerm) {
+                            $customerQuery->where('name', 'LIKE', "%{$searchTerm}%")
+                                ->orWhere('company_name', 'LIKE', "%{$searchTerm}%");
+                        });
+                });
+            }
+
+            // Lọc theo trạng thái
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Lọc theo loại bảo trì
+            if ($request->filled('maintenance_type')) {
+                $query->where('maintenance_type', $request->maintenance_type);
+            }
+
+            // Lọc theo loại dự án
+            if ($request->filled('project_type')) {
+                $query->where('project_type', $request->project_type);
+            }
+
+            // Lọc theo project_id
+            if ($request->filled('project_id')) {
+                $query->where('project_id', $request->project_id);
+            }
+
+            // Lọc theo customer_id
+            if ($request->filled('customer_id')) {
+                $query->where('customer_id', $request->customer_id);
+            }
+
+            // Lọc theo proposer_id
+            if ($request->filled('proposer_id')) {
+                $query->where('proposer_id', $request->proposer_id);
+            }
+
+            // Lọc theo khoảng thời gian request_date
+            if ($request->filled('request_date_from')) {
+                $dateFrom = DateHelper::convertToDatabaseFormat($request->request_date_from);
+                $query->whereDate('request_date', '>=', $dateFrom);
+            }
+            if ($request->filled('request_date_to')) {
+                $dateTo = DateHelper::convertToDatabaseFormat($request->request_date_to);
+                $query->whereDate('request_date', '<=', $dateTo);
+            }
+
+            // Lọc theo khoảng thời gian maintenance_date
+            if ($request->filled('maintenance_date_from')) {
+                $dateFrom = DateHelper::convertToDatabaseFormat($request->maintenance_date_from);
+                $query->whereDate('maintenance_date', '>=', $dateFrom);
+            }
+            if ($request->filled('maintenance_date_to')) {
+                $dateTo = DateHelper::convertToDatabaseFormat($request->maintenance_date_to);
+                $query->whereDate('maintenance_date', '<=', $dateTo);
+            }
+
+            // Sắp xếp
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortOrder = $request->get('sort_order', 'desc');
+            $allowedSortFields = ['id', 'request_code', 'request_date', 'maintenance_date', 'created_at', 'updated_at'];
+            if (in_array($sortBy, $allowedSortFields)) {
+                $query->orderBy($sortBy, $sortOrder);
+            } else {
+                $query->orderBy('created_at', 'desc');
+            }
+
+            // Phân trang
+            $perPage = $request->get('per_page', 15);
+            $perPage = min(max(1, (int)$perPage), 100); // Giới hạn từ 1 đến 100
+
+            $maintenanceRequests = $query->paginate($perPage);
+
+            // Format dữ liệu trả về
+            $data = $maintenanceRequests->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'request_code' => $item->request_code,
+                    'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
+                    'maintenance_date' => $item->maintenance_date ? $item->maintenance_date->format('Y-m-d') : null,
+                    'maintenance_type' => $item->maintenance_type,
+                    'status' => $item->status,
+                    'project_type' => $item->project_type,
+                    'project_id' => $item->project_id,
+                    'project_name' => $item->project_name,
+                    'customer_id' => $item->customer_id,
+                    'customer_name' => $item->customer_name,
+                    'customer_phone' => $item->customer_phone,
+                    'customer_email' => $item->customer_email,
+                    'customer_address' => $item->customer_address,
+                    'notes' => $item->notes,
+                    'maintenance_reason' => $item->maintenance_reason,
+                    'reject_reason' => $item->reject_reason,
+                    'proposer' => $item->proposer ? [
+                        'id' => $item->proposer->id,
+                        'name' => $item->proposer->name,
+                        'username' => $item->proposer->username,
+                        'email' => $item->proposer->email,
+                    ] : null,
+                    'customer' => $item->customer ? [
+                        'id' => $item->customer->id,
+                        'name' => $item->customer->name,
+                        'company_name' => $item->customer->company_name,
+                        'phone' => $item->customer->phone,
+                        'email' => $item->customer->email,
+                    ] : null,
+                    'products_count' => $item->products->count(),
+                    'products' => $item->products->map(function ($product) {
+                        return [
+                            'id' => $product->id,
+                            'product_id' => $product->product_id,
+                            'product_code' => $product->product_code,
+                            'product_name' => $product->product_name,
+                            'serial_number' => $product->serial_number,
+                            'type' => $product->type,
+                            'quantity' => $product->quantity,
+                        ];
+                    }),
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'pagination' => [
+                    'current_page' => $maintenanceRequests->currentPage(),
+                    'per_page' => $maintenanceRequests->perPage(),
+                    'total' => $maintenanceRequests->total(),
+                    'last_page' => $maintenanceRequests->lastPage(),
+                    'from' => $maintenanceRequests->firstItem(),
+                    'to' => $maintenanceRequests->lastItem(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API list maintenance requests error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách phiếu yêu cầu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Lấy danh sách phiếu yêu cầu sửa chữa & bảo trì (tất cả - giữ lại để tương thích)
+     */
+    public function apiIndex(Request $request)
+    {
+        // Gọi lại apiIndexProject để giữ tương thích
+        return $this->apiIndexProject($request);
+    }
+
     /**
      * Hiển thị form tạo mới phiếu bảo trì dự án
      */

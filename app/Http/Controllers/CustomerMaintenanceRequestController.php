@@ -26,6 +26,253 @@ class CustomerMaintenanceRequestController extends Controller
     }
 
     /**
+     * API: Lấy TẤT CẢ phiếu khách yêu cầu bảo trì (không lọc, không phân trang)
+     */
+    public function apiGetAll()
+    {
+        try {
+            $customerMaintenanceRequests = CustomerMaintenanceRequest::with(['customer', 'project', 'rental', 'approvedByUser'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Format dữ liệu trả về
+            $data = $customerMaintenanceRequests->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'request_code' => $item->request_code,
+                    'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
+                    'maintenance_reason' => $item->maintenance_reason,
+                    'maintenance_details' => $item->maintenance_details,
+                    'priority' => $item->priority,
+                    'status' => $item->status,
+                    'item_source' => $item->item_source,
+                    'project_id' => $item->project_id,
+                    'rental_id' => $item->rental_id,
+                    'project_name' => $item->project_name,
+                    'project_description' => $item->project_description,
+                    'selected_item' => $item->selected_item,
+                    'estimated_cost' => $item->estimated_cost ? (float)$item->estimated_cost : null,
+                    'customer_id' => $item->customer_id,
+                    'customer_name' => $item->customer_name,
+                    'customer_phone' => $item->customer_phone,
+                    'customer_email' => $item->customer_email,
+                    'customer_address' => $item->customer_address,
+                    'notes' => $item->notes,
+                    'rejection_reason' => $item->rejection_reason,
+                    'approved_by' => $item->approved_by,
+                    'approved_at' => $item->approved_at ? $item->approved_at->format('Y-m-d H:i:s') : null,
+                    'customer' => $item->customer ? [
+                        'id' => $item->customer->id,
+                        'name' => $item->customer->name,
+                        'company_name' => $item->customer->company_name,
+                        'phone' => $item->customer->phone,
+                        'email' => $item->customer->email,
+                    ] : null,
+                    'project' => $item->project ? [
+                        'id' => $item->project->id,
+                        'project_code' => $item->project->project_code,
+                        'project_name' => $item->project->project_name,
+                    ] : null,
+                    'rental' => $item->rental ? [
+                        'id' => $item->rental->id,
+                        'rental_code' => $item->rental->rental_code,
+                        'rental_name' => $item->rental->rental_name,
+                    ] : null,
+                    'approved_by_user' => $item->approvedByUser ? [
+                        'id' => $item->approvedByUser->id,
+                        'name' => $item->approvedByUser->name,
+                        'username' => $item->approvedByUser->username,
+                        'email' => $item->approvedByUser->email,
+                    ] : null,
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'total' => $data->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API get all customer maintenance requests error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách phiếu khách yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Lấy danh sách phiếu khách yêu cầu bảo trì - có lọc và phân trang
+     */
+    public function apiIndex(Request $request)
+    {
+        try {
+            $query = CustomerMaintenanceRequest::with(['customer', 'project', 'rental', 'approvedByUser']);
+
+            // Tìm kiếm
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('request_code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('project_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('customer_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('maintenance_reason', 'LIKE', "%{$searchTerm}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($searchTerm) {
+                            $customerQuery->where('name', 'LIKE', "%{$searchTerm}%")
+                                ->orWhere('company_name', 'LIKE', "%{$searchTerm}%");
+                        });
+                });
+            }
+
+            // Lọc theo trạng thái
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Lọc theo priority
+            if ($request->filled('priority')) {
+                $query->where('priority', $request->priority);
+            }
+
+            // Lọc theo item_source
+            if ($request->filled('item_source')) {
+                $query->where('item_source', $request->item_source);
+            }
+
+            // Lọc theo project_id
+            if ($request->filled('project_id')) {
+                $query->where('project_id', $request->project_id);
+            }
+
+            // Lọc theo rental_id
+            if ($request->filled('rental_id')) {
+                $query->where('rental_id', $request->rental_id);
+            }
+
+            // Lọc theo customer_id
+            if ($request->filled('customer_id')) {
+                $query->where('customer_id', $request->customer_id);
+            }
+
+            // Lọc theo approved_by
+            if ($request->filled('approved_by')) {
+                $query->where('approved_by', $request->approved_by);
+            }
+
+            // Lọc theo khoảng thời gian request_date
+            if ($request->filled('request_date_from')) {
+                $dateFrom = DateHelper::convertToDatabaseFormat($request->request_date_from);
+                $query->whereDate('request_date', '>=', $dateFrom);
+            }
+            if ($request->filled('request_date_to')) {
+                $dateTo = DateHelper::convertToDatabaseFormat($request->request_date_to);
+                $query->whereDate('request_date', '<=', $dateTo);
+            }
+
+            // Lọc theo khoảng thời gian approved_at
+            if ($request->filled('approved_at_from')) {
+                $dateFrom = DateHelper::convertToDatabaseFormat($request->approved_at_from);
+                $query->whereDate('approved_at', '>=', $dateFrom);
+            }
+            if ($request->filled('approved_at_to')) {
+                $dateTo = DateHelper::convertToDatabaseFormat($request->approved_at_to);
+                $query->whereDate('approved_at', '<=', $dateTo);
+            }
+
+            // Sắp xếp
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortOrder = $request->get('sort_order', 'desc');
+            $allowedSortFields = ['id', 'request_code', 'request_date', 'priority', 'status', 'created_at', 'updated_at', 'approved_at'];
+            if (in_array($sortBy, $allowedSortFields)) {
+                $query->orderBy($sortBy, $sortOrder);
+            } else {
+                $query->orderBy('created_at', 'desc');
+            }
+
+            // Phân trang
+            $perPage = $request->get('per_page', 15);
+            $perPage = min(max(1, (int)$perPage), 100); // Giới hạn từ 1 đến 100
+
+            $customerMaintenanceRequests = $query->paginate($perPage);
+
+            // Format dữ liệu trả về
+            $data = $customerMaintenanceRequests->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'request_code' => $item->request_code,
+                    'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
+                    'maintenance_reason' => $item->maintenance_reason,
+                    'maintenance_details' => $item->maintenance_details,
+                    'priority' => $item->priority,
+                    'status' => $item->status,
+                    'item_source' => $item->item_source,
+                    'project_id' => $item->project_id,
+                    'rental_id' => $item->rental_id,
+                    'project_name' => $item->project_name,
+                    'project_description' => $item->project_description,
+                    'selected_item' => $item->selected_item,
+                    'estimated_cost' => $item->estimated_cost ? (float)$item->estimated_cost : null,
+                    'customer_id' => $item->customer_id,
+                    'customer_name' => $item->customer_name,
+                    'customer_phone' => $item->customer_phone,
+                    'customer_email' => $item->customer_email,
+                    'customer_address' => $item->customer_address,
+                    'notes' => $item->notes,
+                    'rejection_reason' => $item->rejection_reason,
+                    'approved_by' => $item->approved_by,
+                    'approved_at' => $item->approved_at ? $item->approved_at->format('Y-m-d H:i:s') : null,
+                    'customer' => $item->customer ? [
+                        'id' => $item->customer->id,
+                        'name' => $item->customer->name,
+                        'company_name' => $item->customer->company_name,
+                        'phone' => $item->customer->phone,
+                        'email' => $item->customer->email,
+                    ] : null,
+                    'project' => $item->project ? [
+                        'id' => $item->project->id,
+                        'project_code' => $item->project->project_code,
+                        'project_name' => $item->project->project_name,
+                    ] : null,
+                    'rental' => $item->rental ? [
+                        'id' => $item->rental->id,
+                        'rental_code' => $item->rental->rental_code,
+                        'rental_name' => $item->rental->rental_name,
+                    ] : null,
+                    'approved_by_user' => $item->approvedByUser ? [
+                        'id' => $item->approvedByUser->id,
+                        'name' => $item->approvedByUser->name,
+                        'username' => $item->approvedByUser->username,
+                        'email' => $item->approvedByUser->email,
+                    ] : null,
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'pagination' => [
+                    'current_page' => $customerMaintenanceRequests->currentPage(),
+                    'per_page' => $customerMaintenanceRequests->perPage(),
+                    'total' => $customerMaintenanceRequests->total(),
+                    'last_page' => $customerMaintenanceRequests->lastPage(),
+                    'from' => $customerMaintenanceRequests->firstItem(),
+                    'to' => $customerMaintenanceRequests->lastItem(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API list customer maintenance requests error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách phiếu khách yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Kiểm tra xem người dùng có quyền truy cập
      */
     private function checkAccess()

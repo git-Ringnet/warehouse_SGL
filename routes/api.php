@@ -83,9 +83,18 @@ Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, '
 
 // Maintenance Request API routes (Yêu cầu hỗ trợ bảo hành/sửa chữa)
 Route::prefix('maintenance-requests')->group(function () {
+	Route::get('/all', [App\Http\Controllers\MaintenanceRequestController::class, 'apiGetAllProject'])->name('api.maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
+	Route::get('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndex'])->name('api.maintenance-requests.index'); // Tương thích ngược
+	Route::get('/project', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndexProject'])->name('api.maintenance-requests.project'); // API riêng cho bảo trì dự án (có lọc, phân trang)
 	Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
 	Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
 	Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
 	// Liệt kê thiết bị theo dự án/cho thuê để chọn như ở view
 	Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevices'])->name('api.maintenance-requests.devices');
+});
+
+// Customer Maintenance Request API routes (Khách yêu cầu bảo trì)
+Route::prefix('customer-maintenance-requests')->group(function () {
+	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
+	Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
 });
