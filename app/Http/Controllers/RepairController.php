@@ -108,7 +108,285 @@ class RepairController extends Controller
     }
 
     /**
-     * API: Search warranty by code or serial number
+     * Private helper: Find warranty by code or serial number (shared logic)
+     */
+    private function findWarrantyByCodeOrSerial($warrantyCode)
+    {
+        $input = trim($warrantyCode);
+        $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
+        
+        // Tìm bảo hành theo mã bảo hành hoặc serial (không filter status để tìm được cả warranty đã hết hạn)
+        $warranty = Warranty::where(function ($q) use ($input, $normalizedSerial) {
+                $q->where('warranty_code', $input)
+                    ->orWhere(function ($qq) use ($normalizedSerial) {
+                        $qq->whereNotNull('serial_number')
+                            ->whereRaw('UPPER(REPLACE(REPLACE(serial_number, " ", ""), "-", "")) = ?', [$normalizedSerial]);
+                    })
+                    ->orWhereHas('dispatch.items', function ($qi) use ($input, $normalizedSerial) {
+                        $qi->whereIn('item_type', ['product', 'good'])
+                            ->where(function ($qj) use ($input, $normalizedSerial) {
+                                $qj->whereJsonContains('serial_numbers', $input)
+                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
+                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
+                            });
+                    })
+                    ->orWhereHas('dispatch.project.dispatches.items', function ($qi) use ($input, $normalizedSerial) {
+                        $qi->whereIn('item_type', ['product', 'good'])
+                            ->where(function ($qj) use ($input, $normalizedSerial) {
+                                $qj->whereJsonContains('serial_numbers', $input)
+                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
+                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
+                            });
+                    });
+            })
+            ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
+            ->first();
+
+        // Nếu không tìm thấy warranty trực tiếp, thử tìm trong tất cả warranty có project
+        if (!$warranty) {
+            $allProjectWarranties = Warranty::where('item_type', 'project')
+                ->with(['dispatch.project', 'dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
+                ->get();
+            
+            foreach ($allProjectWarranties as $projectWarranty) {
+                $projectItems = $projectWarranty->project_items ?? [];
+                foreach ($projectItems as $item) {
+                    $itemSerials = $item['serial_numbers'] ?? [];
+                    foreach ($itemSerials as $serial) {
+                        $normalizedItemSerial = strtoupper(preg_replace('/[\s-]+/', '', $serial));
+                        if ($normalizedItemSerial === $normalizedSerial) {
+                            $warranty = $projectWarranty;
+                            break 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $warranty;
+    }
+
+    /**
+     * API: Search warranty by code or serial number (new format for API)
+     */
+    public function searchWarrantyApi(Request $request)
+    {
+        $warrantyCode = $request->get('warranty_code');
+
+        if (!$warrantyCode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng nhập mã bảo hành hoặc serial number'
+            ]);
+        }
+
+        try {
+            $warranty = $this->findWarrantyByCodeOrSerial($warrantyCode);
+
+            if (!$warranty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy thông tin bảo hành với mã: ' . $warrantyCode
+                ]);
+            }
+
+            // Lấy devices (copy logic từ searchWarranty nhưng filter chỉ contract)
+            $input = trim($warrantyCode);
+            $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
+            
+            $devices = [];
+            $projectItems = $warranty->project_items ?? [];
+            
+            $indexed = [];
+            foreach ($projectItems as $pi) {
+                if (empty($pi['code']) || empty($pi['name']) || empty($pi['type'])) {
+                    continue;
+                }
+                if (!in_array($pi['type'], ['product', 'good'])) {
+                    continue;
+                }
+                $code = $pi['code'];
+                $name = $pi['name'];
+                $quantity = (int) ($pi['quantity'] ?? 1);
+                $serialNumbers = is_array($pi['serial_numbers'] ?? null) ? $pi['serial_numbers'] : [];
+                $dispatchItemId = $pi['dispatch_item_id'] ?? null;
+                
+                $uniqueKey = $code . '_' . ($dispatchItemId ?? 'no_dispatch_item');
+                
+                if (isset($indexed[$uniqueKey])) {
+                    $mergedSerials = array_unique(array_merge($indexed[$uniqueKey]['serial_numbers'], $serialNumbers));
+                    $indexed[$uniqueKey]['quantity'] += $quantity;
+                    $indexed[$uniqueKey]['serial_numbers'] = $mergedSerials;
+                    $indexed[$uniqueKey]['serial_numbers_text'] = !empty($mergedSerials) ? implode(', ', $mergedSerials) : 'N/A';
+                } else {
+                    $indexed[$uniqueKey] = [
+                        'id' => $code . '_' . ($dispatchItemId ?? 'no_dispatch_item') . '_' . microtime(true) . '_' . uniqid(),
+                        'code' => $code,
+                        'name' => $name,
+                        'quantity' => $quantity,
+                        'serial' => $serialNumbers[0] ?? '',
+                        'serial_numbers' => $serialNumbers,
+                        'serial_numbers_text' => !empty($serialNumbers) ? implode(', ', $serialNumbers) : 'N/A',
+                        'status' => 'active',
+                        'type' => $pi['type'],
+                        'source' => 'contract',
+                        'dispatch_item_id' => $dispatchItemId,
+                    ];
+                }
+            }
+
+            // Bổ sung serial từ phiếu gốc
+            if ($warranty->dispatch) {
+                $dispatch = $warranty->dispatch;
+                $items = $dispatch->items()
+                    ->whereIn('item_type', ['product', 'good'])
+                    ->where('category', 'contract') // API: Chỉ lấy contract
+                    ->with(['product', 'good'])
+                    ->get();
+                foreach ($items as $it) {
+                    $code = $it->product->code ?? $it->good->code ?? '';
+                    if (!$code || !isset($indexed[$code])) {
+                        continue;
+                    }
+                    $serialNumbers = $it->serial_numbers ?: [];
+                    if (!empty($serialNumbers)) {
+                        $merged = array_unique(array_merge($indexed[$code]['serial_numbers'], $serialNumbers));
+                        $indexed[$code]['serial_numbers'] = $merged;
+                        $indexed[$code]['serial_numbers_text'] = implode(', ', $merged);
+                    }
+                }
+            }
+
+            $allowedCodes = array_values(array_unique(array_map(function ($item) {
+                return $item['code'] ?? '';
+            }, array_values($indexed))));
+            $devices = array_values($indexed);
+            
+            // Expand devices
+            $expandedDevices = [];
+            foreach ($devices as $d) {
+                $serials = is_array($d['serial_numbers'] ?? null) ? $d['serial_numbers'] : [];
+                $serialCount = count($serials);
+                foreach ($serials as $sn) {
+                    $expandedDevices[] = [
+                        'id' => $d['code'] . '_' . $sn . '_' . microtime(true) . '_' . uniqid(),
+                        'code' => $d['code'],
+                        'name' => $d['name'],
+                        'quantity' => 1,
+                        'serial' => $sn,
+                        'serial_numbers' => [$sn],
+                        'serial_numbers_text' => $sn,
+                        'status' => $d['status'] ?? 'active',
+                        'type' => $d['type'] ?? 'product',
+                        'source' => 'contract',
+                    ];
+                }
+                $missing = max(0, ((int)($d['quantity'] ?? 0)) - $serialCount);
+                for ($i = 0; $i < $missing; $i++) {
+                    $expandedDevices[] = [
+                        'id' => $d['code'] . '_NA_' . ($d['dispatch_item_id'] ?? 'no_dispatch_item') . '_' . $i . '_' . microtime(true) . '_' . uniqid(),
+                        'code' => $d['code'],
+                        'name' => $d['name'],
+                        'quantity' => 1,
+                        'serial' => '',
+                        'serial_numbers' => [],
+                        'serial_numbers_text' => 'N/A',
+                        'status' => $d['status'] ?? 'active',
+                        'type' => $d['type'] ?? 'product',
+                        'source' => 'contract',
+                        'dispatch_item_id' => $d['dispatch_item_id'] ?? null,
+                    ];
+                }
+            }
+            
+            $devices = array_values(array_filter($expandedDevices, function ($d) use ($allowedCodes) {
+                return in_array($d['code'] ?? '', $allowedCodes, true);
+            }));
+
+            // API: Chỉ hiển thị các thiết bị thuộc dạng contract (loại bỏ backup và mixed)
+            $devices = array_values(array_filter($devices, function ($d) {
+                return ($d['source'] ?? '') === 'contract';
+            }));
+
+            // Filter by serial if searching by serial
+            $isSerialSearch = strcasecmp($input, $warranty->warranty_code) !== 0;
+            if ($isSerialSearch && !empty($normalizedSerial)) {
+                $devices = array_values(array_filter($devices, function ($d) use ($normalizedSerial) {
+                    $serials = $d['serial_numbers'] ?? [];
+                    foreach ($serials as $s) {
+                        $ns = strtoupper(preg_replace('/[\s-]+/', '', $s));
+                        if ($ns === $normalizedSerial) return true;
+                    }
+                    if (!empty($d['serial'])) {
+                        $ns2 = strtoupper(preg_replace('/[\s-]+/', '', $d['serial']));
+                        if ($ns2 === $normalizedSerial) return true;
+                    }
+                    return false;
+                }));
+            }
+
+            // Add good to devices if warranty is for a good
+            if ($warranty->item_type === 'good' && $warranty->item) {
+                $good = $warranty->item;
+                $devices[] = [
+                    'id' => 'good_' . $good->code . '_' . ($warranty->serial_number ?: '') . '_' . microtime(true) . '_' . uniqid(),
+                    'code' => $good->code,
+                    'name' => $good->name,
+                    'quantity' => 1,
+                    'serial' => $warranty->serial_number ?: '',
+                    'serial_numbers' => $warranty->serial_number ? [$warranty->serial_number] : [],
+                    'serial_numbers_text' => $warranty->serial_number ? $warranty->serial_number : 'N/A',
+                    'status' => 'active',
+                    'type' => 'good',
+                    'source' => 'contract',
+                ];
+            }
+
+            // Tính toán thời gian bảo hành
+            $warrantyActivationTime = $warranty->activated_at ? $warranty->activated_at->format('Y-m-d H:i:s') : null;
+            
+            // Tính ngày kết thúc: nếu có activated_at thì dùng activated_at + warranty_period_months, ngược lại dùng warranty_end_date
+            $warrantyEndTime = null;
+            if ($warranty->activated_at && $warranty->warranty_period_months) {
+                $warrantyEndTime = $warranty->activated_at->copy()->addMonths($warranty->warranty_period_months)->format('Y-m-d');
+            } elseif ($warranty->warranty_end_date) {
+                $warrantyEndTime = $warranty->warranty_end_date->format('Y-m-d');
+            }
+
+            // Format devices cho API
+            $formattedDevices = [];
+            foreach ($devices as $device) {
+                $formattedDevices[] = [
+                    'code' => $device['code'],
+                    'name' => $device['name'],
+                    'quantity' => $device['quantity'] ?? 1,
+                    'serial_numbers' => $device['serial_numbers'] ?? [],
+                    'type' => $device['type'] ?? 'product',
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'warranty' => [
+                    'warranty_code' => $warranty->warranty_code,
+                    'project_name' => $warranty->project_name,
+                    'status' => $warranty->status,
+                    'activated_at' => $warrantyActivationTime,
+                    'warranty_end_date' => $warrantyEndTime,
+                    'devices' => $formattedDevices
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error searching warranty API: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tìm kiếm bảo hành: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Web: Search warranty by code or serial number (for repair creation page)
      */
     public function searchWarranty(Request $request)
     {
@@ -122,75 +400,13 @@ class RepairController extends Controller
         }
 
         try {
-            // Tìm bảo hành (chính xác) theo mã bảo hành hoặc serial thiết bị (hợp đồng)
-            $input = trim($warrantyCode);
-            $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
-            
-            $warranty = Warranty::where('status', 'active')
-                ->where(function ($q) use ($input, $normalizedSerial) {
-                    $q->where('warranty_code', $input)
-                        // Match serial_number của bảo hành đơn lẻ (exact, bỏ khoảng trắng và '-')
-                        ->orWhere(function ($qq) use ($normalizedSerial) {
-                            $qq->whereNotNull('serial_number')
-                                ->whereRaw('UPPER(REPLACE(REPLACE(serial_number, " ", ""), "-", "")) = ?', [$normalizedSerial]);
-                        })
-                        // Match serial nằm trong dispatch items của warranty (tất cả categories)
-                        ->orWhereHas('dispatch.items', function ($qi) use ($input, $normalizedSerial) {
-                            $qi->whereIn('item_type', ['product', 'good'])
-                                ->where(function ($qj) use ($input, $normalizedSerial) {
-                                    // JSON_CONTAINS (whereJsonContains) khi column là JSON; fallback JSON_SEARCH
-                                    $qj->whereJsonContains('serial_numbers', $input)
-                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
-                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
-                                });
-                        })
-                        // Match serial trong tất cả dispatch của dự án (nếu warranty có project_id)
-                        ->orWhereHas('dispatch.project.dispatches.items', function ($qi) use ($input, $normalizedSerial) {
-                            $qi->whereIn('item_type', ['product', 'good'])
-                                ->where(function ($qj) use ($input, $normalizedSerial) {
-                                    $qj->whereJsonContains('serial_numbers', $input)
-                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
-                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
-                                });
-                        });
-                })
-                ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
-                ->first();
-
-            // Nếu không tìm thấy warranty trực tiếp, thử tìm trong tất cả warranty có project
-            if (!$warranty) {
-                $allProjectWarranties = Warranty::where('status', 'active')
-                    ->where('item_type', 'project')
-                    ->with(['dispatch.project', 'dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
-                    ->get();
-                
-                foreach ($allProjectWarranties as $projectWarranty) {
-                    $projectItems = $projectWarranty->project_items ?? [];
-                    foreach ($projectItems as $item) {
-                        $itemSerials = $item['serial_numbers'] ?? [];
-                        foreach ($itemSerials as $serial) {
-                            $normalizedItemSerial = strtoupper(preg_replace('/[\s-]+/', '', $serial));
-                            if ($normalizedItemSerial === $normalizedSerial) {
-                                $warranty = $projectWarranty;
-                                break 3;
-                            }
-                        }
-                    }
-                }
-            }
+            // Sử dụng hàm helper để tìm warranty (cho phép tìm cả warranty đã hết hạn)
+            $warranty = $this->findWarrantyByCodeOrSerial($warrantyCode);
 
             if (!$warranty) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy thông tin bảo hành với mã: ' . $warrantyCode
-                ]);
-            }
-
-            // Kiểm tra trạng thái bảo hành
-            if ($warranty->status !== 'active') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bảo hành không còn hiệu lực. Trạng thái: ' . $warranty->status_label
                 ]);
             }
 
@@ -356,7 +572,11 @@ class RepairController extends Controller
                 return in_array($d['code'] ?? '', $allowedCodes, true);
             }));
 
+            // Web version: Không filter devices (giữ cả backup và mixed để hiển thị đầy đủ)
+
             // Nếu input là serial (khác mã bảo hành), lọc chỉ còn thiết bị chứa đúng serial đó
+            $input = trim($warrantyCode);
+            $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
             $isSerialSearch = strcasecmp($input, $warranty->warranty_code) !== 0;
             
             if ($isSerialSearch && !empty($normalizedSerial)) {
@@ -391,7 +611,7 @@ class RepairController extends Controller
                 ];
             }
 
-            // Lấy lịch sử sửa chữa
+            // Lấy lịch sử sửa chữa (cho web version)
             $repairHistory = [];
             $existingRepairs = Repair::where('warranty_code', $warranty->warranty_code)
                 ->with(['technician', 'warehouse'])

@@ -610,8 +610,8 @@
                 // Clear thiết bị và vật tư cũ trước khi tìm kiếm mới
                 clearDeviceList();
 
-                // Gọi API tìm kiếm bảo hành
-                fetch('/api/repairs/search-warranty?warranty_code=' + encodeURIComponent(warrantyCode), {
+                // Gọi API tìm kiếm bảo hành (web route - có customer_name và repair_history)
+                fetch('/api/repairs/search-warranty-web?warranty_code=' + encodeURIComponent(warrantyCode), {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',

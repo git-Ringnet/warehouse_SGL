@@ -142,13 +142,53 @@ Response (khách hàng):
 - GET `/api/repairs/search-warranty?warranty_code={ma_bao_hanh_hoac_serial}`
 - Hoặc: GET `/api/warranty/check?warranty_code={ma_bao_hanh}`
 
+**Lưu ý**: API này có thể tìm cả các mã bảo hành đã hết hạn.
+
 Ví dụ:
 ```bash
-curl -X GET "{your-domain}/api/repairs/search-warranty?warranty_code=WAR-2025-001"
+curl -X GET "{your-domain}/api/repairs/search-warranty?warranty_code=BH2025100007"
 ```
 ```bash
-curl -X GET "{your-domain}/api/warranty/check?warranty_code=WAR-2025-001"
+curl -X GET "{your-domain}/api/warranty/check?warranty_code=BH2025100007"
 ```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "warranty": {
+    "warranty_code": "BH2025100007",
+    "project_name": "RNT-251021110 - Phiếu thuê 21/10 (Công Ty Lộc 1)",
+    "status": "active",
+    "activated_at": "2025-01-15 10:30:00",
+    "warranty_end_date": "2026-01-15",
+    "devices": [
+      {
+        "code": "SP-TP161001",
+        "name": "Thành phẩm 1 16/10",
+        "quantity": 1,
+        "serial_numbers": [],
+        "type": "product"
+      }
+    ]
+  }
+}
+```
+
+Response (thất bại):
+```json
+{
+  "success": false,
+  "message": "Không tìm thấy thông tin bảo hành với mã: BH202510000"
+}
+```
+
+**Ghi chú**:
+- `status`: Trạng thái bảo hành (`active`, `expired`, `claimed`, `void`)
+- `activated_at`: Thời điểm kích hoạt bảo hành (format: `Y-m-d H:i:s`)
+- `warranty_end_date`: Ngày kết thúc bảo hành (format: `Y-m-d`). Nếu có `activated_at`, sẽ tính từ `activated_at + warranty_period_months`, ngược lại dùng `warranty_end_date` từ database
+- `devices`: Chỉ hiển thị các thiết bị thuộc dạng contract (loại bỏ backup và mixed)
+- `repair_history`: Đã được tách thành API riêng
 
 ---
 
@@ -168,7 +208,7 @@ Response:
   "data": [
     {
       "id": 101,
-      "request_code": "REQ-MAINT-20250101-0001",
+      "request_code": "CUS-MAINT-20250101-0001",
       "request_date": "2025-01-01",
       "maintenance_date": "2025-01-05",
       "maintenance_type": "repair",
@@ -272,7 +312,7 @@ Response:
   "data": [
     {
       "id": 101,
-      "request_code": "REQ-MAINT-20250101-0001",
+      "request_code": "CUS-MAINT-20250101-0001",
       "request_date": "2025-01-01",
       "maintenance_date": "2025-01-05",
       "maintenance_type": "repair",
@@ -660,7 +700,108 @@ curl -X POST "{your-domain}/api/maintenance-requests/devices" \
     "project_id": 60             # ID dự án/phiếu cho thuê
   }'
 ```
-- Kết quả trả về mảng thiết bị, mỗi phần tử có `id` dạng `"dispatchItemId_index"`. Dùng các id này cho `selected_devices` ở bước tạo/cập nhật yêu cầu bảo trì.
+
+Response:
+```json
+{
+  "devices": [
+    {
+      "code": "SP-TP161001",
+      "name": "Thành phẩm 1 16/10",
+      "type": "product"
+    },
+    {
+      "code": "HH-001",
+      "name": "Hàng hóa 1",
+      "type": "good"
+    }
+  ]
+}
+```
+
+**Lưu ý**:
+- `type`: Trả về giá trị `"product"` hoặc `"good"` (không phải "Thành phẩm" hoặc "Hàng hoá") để đồng bộ với các API khác
+- API chỉ trả về danh sách thiết bị duy nhất (loại bỏ trùng lặp), không bao gồm serial number
+
+---
+
+### 3a) Lấy danh sách serial thiết bị theo device_id và project_id
+- POST `/api/maintenance-requests/device-serials`
+- Body:
+```bash
+curl -X POST "{your-domain}/api/maintenance-requests/device-serials" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": 123,            # ID thiết bị (product_id hoặc good_id)
+    "project_type": "project",   # hoặc "rental"
+    "project_id": 60,            # ID dự án/phiếu cho thuê
+    "item_type": "product",      # "product" hoặc "good" (tùy chọn, nhưng nên có để chính xác)
+    "category": "contract"       # "contract" hoặc "backup" (tùy chọn, nếu không có thì lấy cả 2)
+  }'
+```
+
+Response:
+```json
+{
+  "serial": [
+    "SN123456",
+    "SN789012",
+    "N/A",
+    "N/A-2",
+    "N/A-3"
+  ]
+}
+```
+
+**Lưu ý**:
+- Nếu có nhiều "N/A", sẽ được đánh số thành "N/A", "N/A-2", "N/A-3", ...
+- Serial sử dụng `SerialDisplayHelper` để lấy serial hiển thị (có thể đã đổi tên trong `device_codes`)
+- `device_id`: ID thiết bị - là `product_id` hoặc `good_id` (ID của sản phẩm/hàng hóa)
+- `item_type`: Loại thiết bị - `"product"` (thành phẩm) hoặc `"good"` (hàng hóa)
+  - Nếu không có `item_type`, API sẽ tìm cả product và good (có thể trả về nhiều kết quả nếu trùng ID)
+  - Nên cung cấp `item_type` để kết quả chính xác
+- `category`: Loại category - `"contract"` (hợp đồng) hoặc `"backup"` (dự phòng)
+  - Nếu không có `category`, API sẽ lấy cả contract và backup (giống trang show dự án/cho thuê)
+  - Nên cung cấp `category` nếu chỉ cần một loại
+- API sẽ tìm tất cả dispatch items có `item_id` khớp với `device_id`, `item_type` và `category` trong dự án/phiếu cho thuê, sau đó gộp tất cả serial lại
+
+---
+
+### 3b) Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
+- POST `/api/maintenance-requests/projects-or-rentals`
+- Body:
+```bash
+curl -X POST "{your-domain}/api/maintenance-requests/projects-or-rentals" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_type": "project",        # "project" hoặc "rental"
+    "customer_id": 1,                 # (tùy chọn) ID khách hàng
+    "customer_name": "ABC",           # (tùy chọn) Tên khách hàng
+    "customer_phone": "0123456789",   # (tùy chọn) Số điện thoại
+    "customer_email": "abc@example.com" # (tùy chọn) Email
+  }'
+```
+
+Response:
+```json
+{
+  "projects": [
+    {
+      "project_code": "PRJ-251031229",
+      "project_name": "ABCXTZ"
+    },
+    {
+      "project_code": "PRJ-251031230",
+      "project_name": "XYZ Company"
+    }
+  ]
+}
+```
+
+**Lưu ý**:
+- Có thể filter theo một trong các thông tin khách hàng: `customer_id`, `customer_name`, `customer_phone`, hoặc `customer_email`
+- Nếu không có filter nào, sẽ trả về tất cả dự án/phiếu cho thuê
+- Với `project_type: "rental"`, `project_code` sẽ là `rental_code` và `project_name` sẽ là `rental_name`
 
 ---
 
@@ -681,23 +822,44 @@ curl -X POST "{your-domain}/api/maintenance-requests" \
     "selected_devices": "[\"123_0\",\"123_1\"]"
   }'
 ```
-- Response (rút gọn):
+
+**Response thành công:**
 ```json
 {
   "success": true,
+  "message": "Yêu cầu hỗ trợ đã được tạo thành công (pending).",
   "data": {
     "maintenance_request": {
-      "id": 101,
-      "request_code": "REQ-2025-0001",
-      "status": "pending"
+      "request_date": "10/11/2025",
+      "proposer_username": "admin",
+      "request_code": "CUS-MAINT-20251112-0034",
+      "status": "pending",
+      "project_code": "PRJ-251031229",
+      "maintenance_type": "repair",
+      "maintenance_reason": "Khách báo lỗi",
+      "selected_devices": ["123_0", "123_1"]
     }
   }
 }
 ```
 
+**Response thất bại:**
+```json
+{
+  "success": false,
+  "message": "Có lỗi xảy ra khi tạo yêu cầu: No query results for model [App\\Models\\Project] 6"
+}
+```
+
+**Lưu ý**:
+- `request_code`: Phiếu yêu cầu hỗ trợ tạo bởi khách hàng có mã là `CUS-MAINT`, không phải `REQ-MAINT`
+- `request_date`: Format `dd/mm/YYYY`
+- `selected_devices`: Mảng các ID thiết bị dạng `"dispatchItemId_index"`
+
 ---
 
-### 5) Cập nhật yêu cầu hỗ trợ bảo hành/sửa chữa
+### 5) Cập nhật yêu cầu hỗ trợ bảo hành/sửa chữa - Không cần API này
+<!--
 - PUT/PATCH `/api/maintenance-requests/{id}`
 - Body mẫu:
 ```bash
@@ -723,6 +885,7 @@ curl -X PATCH "{your-domain}/api/maintenance-requests/101" \
     }
   }
 }
+-->
 ```
 
 ---
@@ -741,5 +904,6 @@ Import file `docs/api/warranty-repair.postman_collection.json`, chỉnh các bi�
 - `dispatch_item_id` (lấy từ API devices)
 - `maintenance_request_id` (tự động set sau khi gọi API tạo nếu dùng Postman)
 - `warranty_code`, `repair_id` (nếu cần dùng API repair).
+
 
 

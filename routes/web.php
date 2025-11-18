@@ -319,9 +319,16 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::delete('/{repair}', [App\Http\Controllers\RepairController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.delete');
     });
 
-    // API routes for repairs
+    // Repair API routes (new format for external API) - Đặt trước để match trước
     Route::prefix('api/repairs')->group(function () {
-        Route::get('search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarranty'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        // API mới: format mới theo yêu cầu (có thể tìm warranty đã hết hạn, không có repair_history)
+        Route::get('/search-warranty', [RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
+    });
+
+    // API routes for repairs (internal web routes)
+    Route::prefix('api/repairs')->group(function () {
+        // Route riêng cho web view (format cũ có customer_name và repair_history)
+        Route::get('search-warranty-web', [App\Http\Controllers\RepairController::class, 'searchWarranty'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view')->name('api.repairs.search-warranty-web');
         Route::get('search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('device-materials', [App\Http\Controllers\RepairController::class, 'getDeviceMaterials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('available-serials', [App\Http\Controllers\RepairController::class, 'getAvailableSerials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
@@ -382,14 +389,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('show');
     });
 
-    // Repair API routes
-    Route::prefix('api/repairs')->group(function () {
-        Route::get('/search-warranty', [RepairController::class, 'searchWarranty'])->name('api.repairs.search-warranty');
-        Route::get('/device-materials', [RepairController::class, 'getDeviceMaterials'])->name('api.repairs.device-materials');
-        Route::get('/available-serials', [RepairController::class, 'getAvailableSerials'])->name('api.repairs.available-serials');
-        Route::post('/replace-material', [RepairController::class, 'replaceMaterial'])->name('api.repairs.replace-material');
-        Route::post('/update-device-status', [RepairController::class, 'updateDeviceStatus'])->name('api.repairs.update-device-status');
-    });
 
 
 

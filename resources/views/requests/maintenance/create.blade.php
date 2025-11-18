@@ -8,7 +8,7 @@
         <div>
             <h1 class="text-2xl font-bold text-gray-800">Tạo phiếu bảo trì dự án</h1>
             <div class="mt-1 flex items-center">
-                <span class="text-sm text-gray-500">Mẫu REQ-MAINT</span>
+                <span class="text-sm text-gray-500">Mẫu CUS-MAINT</span>
             </div>
         </div>
         <div>

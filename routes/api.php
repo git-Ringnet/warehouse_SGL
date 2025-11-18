@@ -35,7 +35,8 @@ Route::get('dispatch/item-serials', [App\Http\Controllers\DispatchController::cl
 Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
 Route::post('device-codes/import', [DeviceCodeController::class, 'importFromExcel']);
 Route::post('device-codes/sync-serial-numbers', [DeviceCodeController::class, 'syncSerialNumbers']);
-Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial');
+// Tra cứu thiết bị trong kho - Không cần API này
+// Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial');
 
 // Product API routes
 Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductController::class, 'createFromAssembly'])
@@ -81,7 +82,8 @@ Route::get('/device-codes/{dispatchId}', [App\Http\Controllers\Api\DeviceCodeCon
 // Testing API routes
 Route::get('/testing/check-code', [App\Http\Controllers\TestingController::class, 'checkTestCode']);
 Route::get('/testing/materials/{type}', [App\Http\Controllers\TestingController::class, 'getMaterialsByType']);
-Route::get('/inventory/{type}/{id}/{warehouseId}', [App\Http\Controllers\TestingController::class, 'getInventoryInfo']);
+// Tra cứu thiết bị trong kho - Không cần API này
+// Route::get('/inventory/{type}/{id}/{warehouseId}', [App\Http\Controllers\TestingController::class, 'getInventoryInfo']);
 Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, 'getAvailableSerials']);
 
 // Maintenance Request API routes (Yêu cầu hỗ trợ bảo hành/sửa chữa)
@@ -90,10 +92,15 @@ Route::prefix('maintenance-requests')->group(function () {
 	Route::get('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndex'])->name('api.maintenance-requests.index'); // Tương thích ngược
 	Route::get('/project', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndexProject'])->name('api.maintenance-requests.project'); // API riêng cho bảo trì dự án (có lọc, phân trang)
 	Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
-	Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
-	Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
-	// Liệt kê thiết bị theo dự án/cho thuê để chọn như ở view
-	Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevices'])->name('api.maintenance-requests.devices');
+	// Cập nhật yêu cầu bảo hành/sửa chữa: Không cần API này
+	// Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
+	// Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
+	// Liệt kê thiết bị theo dự án/cho thuê cho API bên ngoài
+	Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevicesApi'])->name('api.maintenance-requests.devices');
+	// Lấy danh sách serial thiết bị dựa trên device_code và project_id
+	Route::post('/device-serials', [App\Http\Controllers\MaintenanceRequestController::class, 'getDeviceSerials'])->name('api.maintenance-requests.device-serials');
+	// Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
+	Route::post('/projects-or-rentals', [App\Http\Controllers\MaintenanceRequestController::class, 'getProjectsOrRentals'])->name('api.maintenance-requests.projects-or-rentals');
 });
 
 // Customer Maintenance Request API routes (Khách yêu cầu bảo trì)

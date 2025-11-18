@@ -18,6 +18,8 @@ class MaintenanceRequest extends Model
         'request_code',
         'request_date',
         'proposer_id',
+        'project_type',
+        'project_id',
         'project_name',
         'customer_id',
         'warranty_id',
@@ -99,6 +101,6 @@ class MaintenanceRequest extends Model
     {
         $latestRequest = self::orderBy('id', 'desc')->first();
         $nextId = $latestRequest ? $latestRequest->id + 1 : 1;
-        return 'REQ-MAINT-' . date('Ymd') . '-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        return 'CUS-MAINT-' . date('Ymd') . '-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
     }
 } 

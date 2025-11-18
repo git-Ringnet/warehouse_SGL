@@ -84,6 +84,7 @@ class MaintenanceRequestController extends Controller
 
             // Map project/rental to customer info
             $projectName = '';
+            $projectCode = '';
             $customerId = null;
             $customerName = '';
             $customerPhone = '';
@@ -93,6 +94,7 @@ class MaintenanceRequestController extends Controller
             if ($request->project_type === 'project') {
                 $project = \App\Models\Project::with('customer')->findOrFail($request->project_id);
                 $projectName = $project->project_name;
+                $projectCode = $project->project_code;
                 $customerId = $project->customer_id;
                 if ($project->customer) {
                     $customerName = $project->customer->company_name ?: $project->customer->name;
@@ -103,6 +105,7 @@ class MaintenanceRequestController extends Controller
             } else {
                 $rental = \App\Models\Rental::with('customer')->findOrFail($request->project_id);
                 $projectName = $rental->rental_name;
+                $projectCode = $rental->rental_code;
                 $customerId = $rental->customer_id;
                 if ($rental->customer) {
                     $customerName = $rental->customer->company_name ?: $rental->customer->name;
@@ -174,17 +177,40 @@ class MaintenanceRequestController extends Controller
 
             DB::commit();
 
+            // Lấy proposer_username
+            $proposerUsername = null;
+            if ($proposerId) {
+                $proposer = Employee::find($proposerId);
+                $proposerUsername = $proposer ? $proposer->username : null;
+            }
+
+            // Parse selected_devices từ JSON string
+            $selectedDevicesArray = [];
+            if ($request->filled('selected_devices')) {
+                $selected = json_decode($request->selected_devices, true);
+                if (is_array($selected)) {
+                    $selectedDevicesArray = $selected;
+                }
+            }
+
+            // Format request_date về dd/mm/YYYY
+            $formattedRequestDate = $maintenanceRequest->request_date 
+                ? \Carbon\Carbon::parse($maintenanceRequest->request_date)->format('d/m/Y')
+                : null;
+
             return response()->json([
                 'success' => true,
                 'message' => 'Yêu cầu hỗ trợ đã được tạo thành công (pending).',
                 'data' => [
                     'maintenance_request' => [
-                        'id' => $maintenanceRequest->id,
+                        'request_date' => $formattedRequestDate,
+                        'proposer_username' => $proposerUsername,
                         'request_code' => $maintenanceRequest->request_code,
                         'status' => $maintenanceRequest->status,
-                        'project_type' => $maintenanceRequest->project_type,
-                        'project_id' => $maintenanceRequest->project_id,
-                        'maintenance_type' => $maintenanceRequest->maintenance_type
+                        'project_code' => $projectCode,
+                        'maintenance_type' => $maintenanceRequest->maintenance_type,
+                        'maintenance_reason' => $maintenanceRequest->maintenance_reason ?? '',
+                        'selected_devices' => $selectedDevicesArray
                     ]
                 ]
             ], 201);
@@ -471,67 +497,42 @@ class MaintenanceRequestController extends Controller
 
             $maintenanceRequests = $query->paginate($perPage);
 
-            // Format dữ liệu trả về
-            $data = $maintenanceRequests->map(function ($item) {
+            // Tối ưu: Load tất cả project và rental cần thiết trước
+            $projectIds = $maintenanceRequests->where('project_type', 'project')->pluck('project_id')->unique()->filter();
+            $rentalIds = $maintenanceRequests->where('project_type', 'rental')->pluck('project_id')->unique()->filter();
+            
+            $projects = \App\Models\Project::whereIn('id', $projectIds)->pluck('project_code', 'id');
+            $rentals = \App\Models\Rental::whereIn('id', $rentalIds)->pluck('rental_code', 'id');
+
+            // Format dữ liệu trả về - format đơn giản
+            $data = $maintenanceRequests->map(function ($item) use ($projects, $rentals) {
+                // Lấy project_code từ project/rental
+                $projectCode = '';
+                if ($item->project_type === 'project' && $item->project_id && isset($projects[$item->project_id])) {
+                    $projectCode = $projects[$item->project_id];
+                } elseif ($item->project_type === 'rental' && $item->project_id && isset($rentals[$item->project_id])) {
+                    $projectCode = $rentals[$item->project_id];
+                }
+
+                // Map status: approved -> accepted, các status khác giữ nguyên
+                $status = $item->status;
+                if ($status === 'approved') {
+                    $status = 'accepted';
+                }
+
                 return [
-                    'id' => $item->id,
                     'request_code' => $item->request_code,
                     'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
-                    'maintenance_date' => $item->maintenance_date ? $item->maintenance_date->format('Y-m-d') : null,
-                    'maintenance_type' => $item->maintenance_type,
-                    'status' => $item->status,
                     'project_type' => $item->project_type,
-                    'project_id' => $item->project_id,
+                    'project_code' => $projectCode,
                     'project_name' => $item->project_name,
-                    'customer_id' => $item->customer_id,
-                    'customer_name' => $item->customer_name,
-                    'customer_phone' => $item->customer_phone,
-                    'customer_email' => $item->customer_email,
-                    'customer_address' => $item->customer_address,
-                    'notes' => $item->notes,
-                    'maintenance_reason' => $item->maintenance_reason,
-                    'reject_reason' => $item->reject_reason,
-                    'proposer' => $item->proposer ? [
-                        'id' => $item->proposer->id,
-                        'name' => $item->proposer->name,
-                        'username' => $item->proposer->username,
-                        'email' => $item->proposer->email,
-                    ] : null,
-                    'customer' => $item->customer ? [
-                        'id' => $item->customer->id,
-                        'name' => $item->customer->name,
-                        'company_name' => $item->customer->company_name,
-                        'phone' => $item->customer->phone,
-                        'email' => $item->customer->email,
-                    ] : null,
-                    'products_count' => $item->products->count(),
-                    'products' => $item->products->map(function ($product) {
-                        return [
-                            'id' => $product->id,
-                            'product_id' => $product->product_id,
-                            'product_code' => $product->product_code,
-                            'product_name' => $product->product_name,
-                            'serial_number' => $product->serial_number,
-                            'type' => $product->type,
-                            'quantity' => $product->quantity,
-                        ];
-                    }),
-                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
-                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                    'status' => $status,
                 ];
             });
 
             return response()->json([
-                'success' => true,
                 'data' => $data,
-                'pagination' => [
-                    'current_page' => $maintenanceRequests->currentPage(),
-                    'per_page' => $maintenanceRequests->perPage(),
-                    'total' => $maintenanceRequests->total(),
-                    'last_page' => $maintenanceRequests->lastPage(),
-                    'from' => $maintenanceRequests->firstItem(),
-                    'to' => $maintenanceRequests->lastItem(),
-                ]
+                'total' => $maintenanceRequests->total()
             ]);
         } catch (\Exception $e) {
             Log::error('API list maintenance requests error: ' . $e->getMessage());
@@ -567,7 +568,7 @@ class MaintenanceRequestController extends Controller
         
         // Lấy danh sách dự án (tất cả, bao gồm cả đã quá hạn)
         $projects = \App\Models\Project::with(['customer'])
-            ->select('*', \DB::raw('DATE_ADD(end_date, INTERVAL warranty_period MONTH) as warranty_end_date'))
+            ->select('*', DB::raw('DATE_ADD(end_date, INTERVAL warranty_period MONTH) as warranty_end_date'))
             ->orderBy('created_at', 'desc')
             ->get();
             
@@ -712,6 +713,8 @@ class MaintenanceRequestController extends Controller
                 'request_code' => MaintenanceRequest::generateRequestCode(),
                 'request_date' => $request->request_date, // Sử dụng request_date
                 'proposer_id' => $request->proposer_id,
+                'project_type' => $request->project_type, // Thêm project_type
+                'project_id' => $request->project_id, // Thêm project_id
                 'project_name' => $projectName,
                 'customer_id' => $customerId,
                 'warranty_id' => null, // Không còn sử dụng warranty_id
@@ -1525,7 +1528,7 @@ class MaintenanceRequestController extends Controller
      */
     public function getDevices(Request $request)
     {
-        Log::info('=== GET DEVICES API CALLED ===');
+        Log::info('=== GET DEVICES (WEB) CALLED ===');
         Log::info('Request data:', $request->all());
         
         $validator = Validator::make($request->all(), [
@@ -1539,188 +1542,393 @@ class MaintenanceRequestController extends Controller
         }
 
         try {
-            $devices = [];
-
-            if ($request->project_type === 'project') {
-                Log::info('Processing PROJECT type');
-                $project = \App\Models\Project::with(['customer'])->findOrFail($request->project_id);
-                Log::info('Project found:', ['id' => $project->id, 'name' => $project->project_name]);
-                
-                // Lấy thiết bị từ dispatches (chỉ phiếu hợp lệ): đúng loại, đúng project, trạng thái đã duyệt/hoàn thành
-                $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
-                    ->where('project_id', $project->id)
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->with(['items.product', 'items.good'])
-                    ->get();
-                
-                Log::info('Project dispatches found:', ['count' => $dispatches->count()]);
-                foreach($dispatches as $dispatch) {
-                    Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
-                }
-                
-                foreach ($dispatches as $dispatch) {
-                    foreach ($dispatch->items as $item) {
-                        Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
-                        
-                        // Lấy danh sách serial đã trả về (nếu có) cho từng dispatch item
-                        $returnedSerials = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                            ->pluck('serial_number')
-                            ->filter()
-                            ->toArray();
-                        $returnedCount = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->count();
-
-                        if ($item->item_type === 'product' && $item->product) {
-                            // Tạo bản ghi theo serial (nếu có), loại bỏ những serial đã trả
-                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                foreach ($item->serial_numbers as $idx => $sn) {
-                                    if (!empty($sn) && in_array($sn, $returnedSerials)) {
-                                        continue; // bỏ serial đã trả về kho
-                                    }
-                                    $device = [
-                                        'id' => $item->id . '_' . $idx,
-                                        'code' => $item->product->code,
-                                        'name' => $item->product->name,
-                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
-                                        'type' => 'Thành phẩm',
-                                        'quantity' => 1,
-                                    ];
-                                    $devices[] = $device;
-                                }
-                            } else {
-                                // Không có serial: chỉ thêm (quantity - returnedCount) thiết bị
-                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
-                                for ($i = 0; $i < $availableQty; $i++) {
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $i,
-                                        'code' => $item->product->code,
-                                        'name' => $item->product->name,
-                                        'serial_number' => 'N/A',
-                                        'type' => 'Thành phẩm',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            }
-                        } elseif ($item->item_type === 'good' && $item->good) {
-                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                foreach ($item->serial_numbers as $idx => $sn) {
-                                    if (!empty($sn) && in_array($sn, $returnedSerials)) {
-                                        continue;
-                                    }
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $idx,
-                                        'code' => $item->good->code,
-                                        'name' => $item->good->name,
-                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
-                                        'type' => 'Hàng hoá',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            } else {
-                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
-                                for ($i = 0; $i < $availableQty; $i++) {
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $i,
-                                        'code' => $item->good->code,
-                                        'name' => $item->good->name,
-                                        'serial_number' => 'N/A',
-                                        'type' => 'Hàng hoá',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            }
-                        }
-                    }
-                }
-            } else { // rental
-                Log::info('Processing RENTAL type');
-                $rental = \App\Models\Rental::with(['customer'])->findOrFail($request->project_id);
-                Log::info('Rental found:', ['id' => $rental->id, 'name' => $rental->rental_name]);
-                
-                // Lấy thiết bị từ dispatches RENTAL (đã duyệt/hoàn thành)
-                $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
-                    ->where('project_id', $rental->id)
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->with(['items.product', 'items.good'])
-                    ->get();
-                
-                Log::info('Rental dispatches found:', ['count' => $dispatches->count()]);
-                foreach($dispatches as $dispatch) {
-                    Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
-                }
-                
-                foreach ($dispatches as $dispatch) {
-                    foreach ($dispatch->items as $item) {
-                        Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
-                        
-                        $returnedSerials = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                            ->pluck('serial_number')
-                            ->filter()
-                            ->toArray();
-                        $returnedCount = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->count();
-
-                        if ($item->item_type === 'product' && $item->product) {
-                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                foreach ($item->serial_numbers as $idx => $sn) {
-                                    if (!empty($sn) && in_array($sn, $returnedSerials)) { continue; }
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $idx,
-                                        'code' => $item->product->code,
-                                        'name' => $item->product->name,
-                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
-                                        'type' => 'Thành phẩm',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            } else {
-                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
-                                for ($i = 0; $i < $availableQty; $i++) {
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $i,
-                                        'code' => $item->product->code,
-                                        'name' => $item->product->name,
-                                        'serial_number' => 'N/A',
-                                        'type' => 'Thành phẩm',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            }
-                        } elseif ($item->item_type === 'good' && $item->good) {
-                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                foreach ($item->serial_numbers as $idx => $sn) {
-                                    if (!empty($sn) && in_array($sn, $returnedSerials)) { continue; }
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $idx,
-                                        'code' => $item->good->code,
-                                        'name' => $item->good->name,
-                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
-                                        'type' => 'Hàng hoá',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            } else {
-                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
-                                for ($i = 0; $i < $availableQty; $i++) {
-                                    $devices[] = [
-                                        'id' => $item->id . '_' . $i,
-                                        'code' => $item->good->code,
-                                        'name' => $item->good->name,
-                                        'serial_number' => 'N/A',
-                                        'type' => 'Hàng hoá',
-                                        'quantity' => 1,
-                                    ];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Log::info('Final devices array:', ['count' => count($devices), 'devices' => $devices]);
+            $devices = $this->collectDevicesWithSerials($request->project_type, (int) $request->project_id);
+            Log::info('Final devices array (web):', ['count' => count($devices)]);
             return response()->json(['devices' => $devices]);
         } catch (\Exception $e) {
             Log::error('Lỗi khi lấy thiết bị: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json(['error' => 'Có lỗi xảy ra khi lấy thiết bị: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * API: Lấy thiết bị (format đơn giản cho bên ngoài)
+     */
+    public function getDevicesApi(Request $request)
+    {
+        Log::info('=== GET DEVICES (API) CALLED ===');
+        Log::info('Request data:', $request->all());
+        
+        $validator = Validator::make($request->all(), [
+            'project_type' => 'required|in:project,rental',
+            'project_id' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Validation failed:', $validator->errors()->toArray());
+            return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
+        }
+
+        try {
+            $detailedDevices = $this->collectDevicesWithSerials($request->project_type, (int) $request->project_id);
+            $devices = $this->formatDevicesForApi($detailedDevices);
+            Log::info('Final devices array (api):', ['count' => count($devices)]);
+            return response()->json(['devices' => $devices]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy thiết bị (API): ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Có lỗi xảy ra khi lấy thiết bị: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Thu thập danh sách thiết bị đầy đủ (bao gồm serial) theo project/rental
+     */
+    private function collectDevicesWithSerials(string $projectType, int $projectId): array
+    {
+        $devices = [];
+
+        if ($projectType === 'project') {
+            Log::info('Processing PROJECT type');
+            $project = \App\Models\Project::with(['customer'])->findOrFail($projectId);
+            Log::info('Project found:', ['id' => $project->id, 'name' => $project->project_name]);
+            
+            $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+                ->where('project_id', $project->id)
+                ->whereIn('status', ['approved', 'completed'])
+                ->with(['items.product', 'items.good'])
+                ->get();
+            
+            Log::info('Project dispatches found:', ['count' => $dispatches->count()]);
+            foreach ($dispatches as $dispatch) {
+                Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
+            }
+
+            foreach ($dispatches as $dispatch) {
+                $this->appendDispatchItems($dispatch, $devices);
+            }
+        } else {
+            Log::info('Processing RENTAL type');
+            $rental = \App\Models\Rental::with(['customer'])->findOrFail($projectId);
+            Log::info('Rental found:', ['id' => $rental->id, 'name' => $rental->rental_name]);
+            
+            $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+                ->where('project_id', $rental->id)
+                ->whereIn('status', ['approved', 'completed'])
+                ->with(['items.product', 'items.good'])
+                ->get();
+            
+            Log::info('Rental dispatches found:', ['count' => $dispatches->count()]);
+            foreach ($dispatches as $dispatch) {
+                Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
+            }
+
+            foreach ($dispatches as $dispatch) {
+                $this->appendDispatchItems($dispatch, $devices);
+            }
+        }
+
+        return $devices;
+    }
+
+    /**
+     * Bổ sung thiết bị từ dispatch vào danh sách
+     */
+    private function appendDispatchItems($dispatch, array &$devices): void
+    {
+        foreach ($dispatch->items as $item) {
+            Log::info('Processing item:', [
+                'id' => $item->id,
+                'type' => $item->item_type,
+                'item_id' => $item->item_id,
+                'quantity' => $item->quantity
+            ]);
+
+            $returnedSerials = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                ->pluck('serial_number')
+                ->filter()
+                ->toArray();
+            $returnedCount = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->count();
+
+            if ($item->item_type === 'product' && $item->product) {
+                $this->appendDeviceEntries($devices, $item, $returnedSerials, $returnedCount, 'Thành phẩm', $item->product->code, $item->product->name);
+            } elseif ($item->item_type === 'good' && $item->good) {
+                $this->appendDeviceEntries($devices, $item, $returnedSerials, $returnedCount, 'Hàng hoá', $item->good->code, $item->good->name);
+            }
+        }
+    }
+
+    /**
+     * Thêm dòng thiết bị theo serial/quantity
+     */
+    private function appendDeviceEntries(array &$devices, $item, array $returnedSerials, int $returnedCount, string $typeLabel, string $code, string $name): void
+    {
+        if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+            foreach ($item->serial_numbers as $idx => $sn) {
+                if (!empty($sn) && in_array($sn, $returnedSerials)) {
+                    continue;
+                }
+                $devices[] = [
+                    'id' => $item->id . '_' . $idx,
+                    'code' => $code,
+                    'name' => $name,
+                    'serial_number' => !empty($sn) ? $sn : 'N/A',
+                    'type' => $typeLabel,
+                    'quantity' => 1,
+                ];
+            }
+        } else {
+            $availableQty = max(0, (int) $item->quantity - $returnedCount);
+            for ($i = 0; $i < $availableQty; $i++) {
+                $devices[] = [
+                    'id' => $item->id . '_' . $i,
+                    'code' => $code,
+                    'name' => $name,
+                    'serial_number' => 'N/A',
+                    'type' => $typeLabel,
+                    'quantity' => 1,
+                ];
+            }
+        }
+    }
+
+    /**
+     * Chuẩn hóa danh sách thiết bị cho API bên ngoài
+     */
+    private function formatDevicesForApi(array $devices): array
+    {
+        $uniqueDevices = [];
+        $seenDevices = [];
+
+        foreach ($devices as $device) {
+            $code = $device['code'] ?? null;
+            if (!$code) {
+                continue;
+            }
+            $type = $this->normalizeDeviceType($device['type'] ?? '');
+            $key = $code . '_' . $type;
+
+            if (!isset($seenDevices[$key])) {
+                $seenDevices[$key] = true;
+                $uniqueDevices[] = [
+                    'code' => $code,
+                    'name' => $device['name'] ?? '',
+                    'type' => $type,
+                ];
+            }
+        }
+
+        return $uniqueDevices;
+    }
+
+    private function normalizeDeviceType(?string $typeLabel): string
+    {
+        if (!$typeLabel) {
+            return 'product';
+        }
+
+        $normalized = strtolower($typeLabel);
+        if (in_array($normalized, ['hàng hoá', 'hang hoa', 'good'])) {
+            return 'good';
+        }
+
+        return 'product';
+    }
+
+    /**
+     * API: Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
+     */
+    public function getProjectsOrRentals(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'project_type' => 'required|in:project,rental',
+            'customer_id' => 'nullable|integer',
+            'customer_name' => 'nullable|string',
+            'customer_phone' => 'nullable|string',
+            'customer_email' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
+        }
+
+        try {
+            $projectType = $request->project_type;
+            $results = [];
+
+            if ($projectType === 'project') {
+                $query = \App\Models\Project::with('customer');
+
+                // Filter theo thông tin khách hàng
+                if ($request->filled('customer_id')) {
+                    $query->where('customer_id', $request->customer_id);
+                } elseif ($request->filled('customer_name')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('name', 'like', '%' . $request->customer_name . '%')
+                          ->orWhere('company_name', 'like', '%' . $request->customer_name . '%');
+                    });
+                } elseif ($request->filled('customer_phone')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('phone', 'like', '%' . $request->customer_phone . '%');
+                    });
+                } elseif ($request->filled('customer_email')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('email', 'like', '%' . $request->customer_email . '%');
+                    });
+                }
+
+                $projects = $query->get();
+
+                $results = $projects->map(function($project) {
+                    return [
+                        'project_code' => $project->project_code,
+                        'project_name' => $project->project_name,
+                    ];
+                })->toArray();
+
+            } else { // rental
+                $query = \App\Models\Rental::with('customer');
+
+                // Filter theo thông tin khách hàng
+                if ($request->filled('customer_id')) {
+                    $query->where('customer_id', $request->customer_id);
+                } elseif ($request->filled('customer_name')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('name', 'like', '%' . $request->customer_name . '%')
+                          ->orWhere('company_name', 'like', '%' . $request->customer_name . '%');
+                    });
+                } elseif ($request->filled('customer_phone')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('phone', 'like', '%' . $request->customer_phone . '%');
+                    });
+                } elseif ($request->filled('customer_email')) {
+                    $query->whereHas('customer', function($q) use ($request) {
+                        $q->where('email', 'like', '%' . $request->customer_email . '%');
+                    });
+                }
+
+                $rentals = $query->get();
+
+                $results = $rentals->map(function($rental) {
+                    return [
+                        'project_code' => $rental->rental_code, // Dùng project_code để đồng bộ với API
+                        'project_name' => $rental->rental_name, // Dùng project_name để đồng bộ với API
+                    ];
+                })->toArray();
+            }
+
+            return response()->json(['projects' => $results]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách dự án/phiếu cho thuê: ' . $e->getMessage());
+            return response()->json(['error' => 'Có lỗi xảy ra khi lấy danh sách: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * API: Lấy danh sách serial thiết bị dựa trên device_id (product_id/good_id) và project_id
+     */
+    public function getDeviceSerials(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'device_id' => 'required|integer',
+            'project_type' => 'required|in:project,rental',
+            'project_id' => 'required|integer',
+            'item_type' => 'nullable|in:product,good', // Loại thiết bị: product hoặc good
+            'category' => 'nullable|in:contract,backup', // Loại category: contract hoặc backup
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
+        }
+
+        try {
+            $deviceId = $request->device_id; // product_id hoặc good_id
+            $projectType = $request->project_type;
+            $projectId = $request->project_id;
+            $itemType = $request->item_type; // 'product' hoặc 'good'
+            $category = $request->category; // 'contract' hoặc 'backup'
+
+            // Lấy dispatches theo project_type và project_id
+            $dispatches = \App\Models\Dispatch::where('dispatch_type', $projectType)
+                ->where('project_id', $projectId)
+                ->whereIn('status', ['approved', 'completed'])
+                ->pluck('id');
+
+            if ($dispatches->isEmpty()) {
+                return response()->json(['error' => 'Không tìm thấy dự án/phiếu cho thuê với ID: ' . $projectId], 404);
+            }
+
+            // Tìm dispatch items theo item_id và item_type
+            $query = \App\Models\DispatchItem::whereIn('dispatch_id', $dispatches)
+                ->where('item_id', $deviceId);
+
+            // Nếu có category, filter theo category (contract hoặc backup)
+            if ($category) {
+                $query->where('category', $category);
+            } else {
+                // Nếu không có category, lấy cả contract và backup (giống trang show)
+                $query->whereIn('category', ['contract', 'backup']);
+            }
+
+            // Nếu có item_type, filter theo item_type
+            if ($itemType) {
+                $query->where('item_type', $itemType);
+            } else {
+                // Nếu không có item_type, thử tìm cả product và good
+                $query->whereIn('item_type', ['product', 'good']);
+            }
+
+            $dispatchItems = $query->with(['product', 'good', 'dispatch'])->get();
+
+            if ($dispatchItems->isEmpty()) {
+                return response()->json(['error' => 'Không tìm thấy thiết bị với ID: ' . $deviceId . ' trong dự án/phiếu cho thuê này'], 404);
+            }
+
+            $serials = [];
+
+            // Lấy serial từ tất cả dispatch items tìm được (giống logic trang show)
+            foreach ($dispatchItems as $dispatchItem) {
+                $serialNumbers = $dispatchItem->serial_numbers ?? [];
+                
+                // Lấy serial hiển thị sử dụng SerialDisplayHelper (giống trang show)
+                if (!empty($serialNumbers) && is_array($serialNumbers)) {
+                    foreach ($serialNumbers as $originalSerial) {
+                        $originalSerial = trim($originalSerial);
+                        if (!empty($originalSerial)) {
+                            // Sử dụng SerialDisplayHelper để lấy serial hiển thị (có thể đã đổi tên trong device_codes)
+                            $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                                $dispatchItem->dispatch_id,
+                                $dispatchItem->item_id,
+                                $dispatchItem->item_type,
+                                $originalSerial
+                            );
+                            $serials[] = $displaySerial;
+                        }
+                    }
+                }
+            }
+
+            // Xử lý nhiều "N/A" thành "N/A", "N/A-2", "N/A-3", ...
+            $naCount = 0;
+            $processedSerials = [];
+            foreach ($serials as $serial) {
+                if ($serial === 'N/A' || empty($serial)) {
+                    $naCount++;
+                    if ($naCount === 1) {
+                        $processedSerials[] = 'N/A';
+                    } else {
+                        $processedSerials[] = 'N/A-' . $naCount;
+                    }
+                } else {
+                    $processedSerials[] = $serial;
+                }
+            }
+
+            return response()->json(['serial' => $processedSerials]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy serial thiết bị: ' . $e->getMessage());
+            return response()->json(['error' => 'Có lỗi xảy ra khi lấy serial thiết bị: ' . $e->getMessage()], 500);
         }
     }
 } 
