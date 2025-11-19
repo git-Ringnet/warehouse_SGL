@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class Repair extends Model
 {
@@ -33,6 +34,7 @@ class Repair extends Model
 
     /**
      * Generate unique repair code
+     * Uses database lock to prevent race conditions
      */
     public static function generateRepairCode()
     {
@@ -40,19 +42,34 @@ class Repair extends Model
         $year = date('Y');
         $month = date('m');
         
-        // Get the last repair code for this month
-        $lastRepair = self::where('repair_code', 'like', $prefix . $year . $month . '%')
-            ->orderBy('repair_code', 'desc')
-            ->first();
+        // Check if we're already in a transaction
+        $inTransaction = DB::transactionLevel() > 0;
         
-        if ($lastRepair) {
-            $lastNumber = (int) substr($lastRepair->repair_code, -4);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
+        $generateCode = function () use ($prefix, $year, $month) {
+            // Lock the table to prevent concurrent access
+            // Get the last repair code for this month with lock
+            $lastRepair = self::where('repair_code', 'like', $prefix . $year . $month . '%')
+                ->lockForUpdate() // Lock rows to prevent concurrent reads
+                ->orderBy('repair_code', 'desc')
+                ->first();
+            
+            if ($lastRepair) {
+                $lastNumber = (int) substr($lastRepair->repair_code, -4);
+                $newNumber = $lastNumber + 1;
+            } else {
+                $newNumber = 1;
+            }
+            
+            return $prefix . $year . $month . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        };
+        
+        // If already in transaction, don't create nested transaction
+        if ($inTransaction) {
+            return $generateCode();
         }
         
-        return $prefix . $year . $month . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        // Otherwise, wrap in transaction for safety
+        return DB::transaction($generateCode);
     }
 
     /**

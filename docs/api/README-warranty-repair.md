@@ -190,6 +190,50 @@ Response (thất bại):
 - `devices`: Chỉ hiển thị các thiết bị thuộc dạng contract (loại bỏ backup và mixed)
 - `repair_history`: Đã được tách thành API riêng
 
+### 1a) Lấy lịch sử sửa chữa theo mã bảo hành hoặc serial
+- GET `/api/repairs/repair-history?warranty_code={ma_bao_hanh_hoac_serial}`
+- **Tham số**: `warranty_code` có thể là mã bảo hành hoặc serial của thiết bị (API sẽ tự động tra cứu)
+
+Ví dụ:
+```bash
+curl -X GET "{your-domain}/api/repairs/repair-history?warranty_code=BH2025100007"
+```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "warranty_code": "BH2025100007",
+  "repair_history": [
+    {
+      "date": "12/11/2025",
+      "repair_date": "2025-11-12",
+      "type": "Sửa chữa",
+      "repair_type": "repair",
+      "description": "Khách báo lỗi",
+      "technician": "Nguyễn Văn A",
+      "warehouse": "Kho Hà Nội"
+    }
+  ]
+}
+```
+
+Response (không tìm thấy):
+```json
+{
+  "success": false,
+  "message": "Không tìm thấy thông tin bảo hành với mã: BH202510000"
+}
+```
+
+Response (thiếu tham số):
+```json
+{
+  "success": false,
+  "message": "Vui lòng nhập mã bảo hành hoặc serial number"
+}
+```
+
 ---
 
 ### 2a) Lấy TẤT CẢ phiếu bảo trì dự án (MaintenanceRequest) - Đơn giản, không lọc, không phân trang

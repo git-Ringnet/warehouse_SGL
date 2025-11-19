@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\QueryException;
 use App\Models\Employee;
 use App\Models\Warehouse;
 use App\Models\Dispatch;
@@ -648,6 +649,61 @@ class RepairController extends Controller
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tìm kiếm bảo hành: ' . $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * API: Get repair history by warranty code or serial
+     */
+    public function getRepairHistory(Request $request)
+    {
+        $inputCode = $request->get('warranty_code') ?: $request->get('serial');
+
+        if (!$inputCode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng nhập mã bảo hành hoặc serial number'
+            ]);
+        }
+
+        try {
+            $warranty = $this->findWarrantyByCodeOrSerial($inputCode);
+
+            if (!$warranty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy thông tin bảo hành với mã: ' . $inputCode
+                ]);
+            }
+
+            $repairs = Repair::where('warranty_code', $warranty->warranty_code)
+                ->with(['technician', 'warehouse'])
+                ->orderBy('repair_date', 'desc')
+                ->get();
+
+            $repairHistory = $repairs->map(function ($repair) {
+                return [
+                    'date' => $repair->repair_date ? $repair->repair_date->format('d/m/Y') : null,
+                    'repair_date' => $repair->repair_date ? $repair->repair_date->format('Y-m-d') : null,
+                    'type' => $this->getRepairTypeLabel($repair->repair_type),
+                    'repair_type' => $repair->repair_type,
+                    'description' => $repair->repair_description,
+                    'technician' => $repair->technician->name ?? 'N/A',
+                    'warehouse' => $repair->warehouse->name ?? null,
+                ];
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'warranty_code' => $warranty->warranty_code,
+                'repair_history' => $repairHistory,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API get repair history error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy lịch sử sửa chữa: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -2424,12 +2480,13 @@ class RepairController extends Controller
             'warranty_code' => 'nullable|string|max:255',
             'repair_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
                 'repair_date' => 'required|date_format:d/m/Y',
-                'technician_id' => 'required|string', // Change to string since it comes as string
+                'technician_id' => 'required|integer|exists:employees,id', // Ensure it's a valid employee ID
             'repair_description' => 'required|string',
             'repair_notes' => 'nullable|string',
             'repair_photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'selected_devices' => 'nullable|array',
             'damaged_materials' => 'nullable|string',
+            'warehouse_id' => 'nullable|integer|exists:warehouses,id',
         ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed:', [
@@ -2490,21 +2547,178 @@ class RepairController extends Controller
             // Initial status: luôn là đang xử lý khi tạo mới
             $initialStatus = 'in_progress';
 
-            // Create repair record
-            $repair = Repair::create([
-                'repair_code' => Repair::generateRepairCode(),
+            // Validate and get warehouse_id
+            $warehouseId = null;
+            if ($request->warehouse_id) {
+                $warehouseId = (int) $request->warehouse_id;
+                // Verify warehouse exists
+                $warehouse = Warehouse::find($warehouseId);
+                if (!$warehouse) {
+                    throw new \Exception('Kho không tồn tại. Vui lòng chọn kho hợp lệ.');
+                }
+            } else {
+                // Get default warehouse if not provided
+                $defaultWarehouse = Warehouse::where('status', 'active')
+                    ->where('is_hidden', false)
+                    ->where(function($q) {
+                        $q->where('is_default', true)
+                          ->orWhereNull('is_default');
+                    })
+                    ->orderBy('is_default', 'desc')
+                    ->first();
+                
+                if ($defaultWarehouse) {
+                    $warehouseId = $defaultWarehouse->id;
+                } else {
+                    // If no default warehouse, get first active warehouse
+                    $firstWarehouse = Warehouse::where('status', 'active')
+                        ->where('is_hidden', false)
+                        ->first();
+                    if ($firstWarehouse) {
+                        $warehouseId = $firstWarehouse->id;
+                    }
+                }
+                
+                if (!$warehouseId) {
+                    throw new \Exception('Không tìm thấy kho hợp lệ. Vui lòng tạo kho trước khi tạo phiếu sửa chữa.');
+                }
+            }
+
+            // Create repair record with retry mechanism for duplicate repair_code
+            $repair = null;
+            $maxRetries = 10;
+            $repairData = [
                 // If warranty resolved from serial, always use real warranty code
                 'warranty_code' => $warranty ? $warranty->warranty_code : ($inputWarrantyOrSerial ?: null),
                 'warranty_id' => $warranty ? $warranty->id : null,
                 'repair_type' => $request->repair_type,
                 'repair_date' => \Carbon\Carbon::createFromFormat('d/m/Y', $request->repair_date)->format('Y-m-d'),
-                'technician_id' => $request->technician_id,
-                'warehouse_id' => $request->warehouse_id ?? 1,
+                'technician_id' => (int) $request->technician_id, // Ensure integer type
+                'warehouse_id' => $warehouseId,
                 'repair_description' => $request->repair_description,
                 'repair_notes' => $request->repair_notes,
                 'repair_photos' => $repairPhotos,
                 'status' => $initialStatus,
                 'created_by' => Auth::id() ?? 1,
+            ];
+
+            // Track the last number used in this transaction to avoid duplicates
+            $prefix = 'SC';
+            $year = date('Y');
+            $month = date('m');
+            $lastUsedNumber = null;
+
+            for ($i = 0; $i < $maxRetries; $i++) {
+                try {
+                    // Generate repair code with tracking of used numbers in transaction
+                    if ($lastUsedNumber === null) {
+                        // First attempt: get from database
+                        $lastRepair = Repair::where('repair_code', 'like', $prefix . $year . $month . '%')
+                            ->lockForUpdate()
+                            ->orderBy('repair_code', 'desc')
+                            ->first();
+                        
+                        if ($lastRepair) {
+                            $lastUsedNumber = (int) substr($lastRepair->repair_code, -4);
+                        } else {
+                            $lastUsedNumber = 0;
+                        }
+                    }
+                    
+                    // Increment for next code
+                    $lastUsedNumber++;
+                    $repairCode = $prefix . $year . $month . str_pad($lastUsedNumber, 4, '0', STR_PAD_LEFT);
+                    $repairData['repair_code'] = $repairCode;
+                    
+                    Log::info('Attempting to create repair', [
+                        'attempt' => $i + 1,
+                        'repair_code' => $repairCode,
+                        'last_used_number' => $lastUsedNumber
+                    ]);
+                    
+                    // Try to create the repair
+                    $repair = Repair::create($repairData);
+                    
+                    // Success - break out of retry loop
+                    Log::info('Repair created successfully', ['repair_id' => $repair->id, 'repair_code' => $repair->repair_code]);
+                    break;
+                } catch (QueryException $e) {
+                    // Handle database constraint violations
+                    if ($e->getCode() == 23000) { // Integrity constraint violation
+                        $errorMessage = $e->getMessage();
+                        
+                        // Check if it's a foreign key constraint violation (1452)
+                        if (strpos($errorMessage, '1452') !== false || 
+                            strpos($errorMessage, 'foreign key constraint fails') !== false ||
+                            strpos($errorMessage, 'Cannot add or update a child row') !== false) {
+                            
+                            // Foreign key violation - don't retry, throw error immediately
+                            $errorMsg = 'Lỗi ràng buộc database: ';
+                            if (strpos($errorMessage, 'technician_id') !== false) {
+                                $errorMsg .= 'Kỹ thuật viên không tồn tại.';
+                            } elseif (strpos($errorMessage, 'warehouse_id') !== false) {
+                                $errorMsg .= 'Kho không tồn tại.';
+                            } elseif (strpos($errorMessage, 'created_by') !== false) {
+                                $errorMsg .= 'Người tạo không tồn tại.';
+                            } else {
+                                $errorMsg .= 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
+                            }
+                            
+                            Log::error('Foreign key constraint violation', [
+                                'error' => $errorMessage,
+                                'repair_data' => $repairData
+                            ]);
+                            
+                            throw new \Exception($errorMsg);
+                        }
+                        
+                        // Check if it's a duplicate repair_code error (1062)
+                        if (strpos($errorMessage, 'repair_code') !== false || 
+                            strpos($errorMessage, 'Duplicate entry') !== false ||
+                            strpos($errorMessage, 'UNIQUE constraint failed') !== false ||
+                            strpos($errorMessage, '1062') !== false) {
+                            
+                            Log::warning('Duplicate repair code detected, retrying', [
+                                'attempt' => $i + 1,
+                                'repair_code' => $repairCode ?? 'N/A',
+                                'error' => $errorMessage
+                            ]);
+                            
+                            // If this is the last retry, throw error
+                            if ($i === $maxRetries - 1) {
+                                Log::error('Failed to create repair after max retries', [
+                                    'attempts' => $maxRetries,
+                                    'last_code' => $repairCode ?? 'N/A'
+                                ]);
+                                throw new \Exception('Không thể tạo mã phiếu sửa chữa duy nhất sau ' . $maxRetries . ' lần thử. Vui lòng thử lại.');
+                            }
+                            
+                            // Continue to next iteration (will increment lastUsedNumber)
+                            continue;
+                        }
+                        
+                        // Other constraint violations - throw error
+                        Log::error('Unknown constraint violation', [
+                            'error' => $errorMessage,
+                            'error_code' => $e->getCode()
+                        ]);
+                        throw new \Exception('Lỗi ràng buộc database: ' . $errorMessage);
+                    }
+                    // Re-throw if it's not a constraint violation we can handle
+                    throw $e;
+                }
+            }
+            
+            // Verify repair was created successfully
+            if (!$repair || !$repair->id) {
+                throw new \Exception('Không thể tạo phiếu sửa chữa. Vui lòng thử lại.');
+            }
+            
+            Log::info('Repair created successfully', [
+                'repair_id' => $repair->id, 
+                'repair_code' => $repair->repair_code,
+                'technician_id' => $repair->technician_id,
+                'warehouse_id' => $repair->warehouse_id
             ]);
 
             // Ghi nhật ký tạo mới phiếu sửa chữa
@@ -2762,6 +2976,12 @@ class RepairController extends Controller
 
             DB::commit();
 
+            // Verify repair still exists after commit
+            $repair->refresh();
+            if (!$repair->exists) {
+                throw new \Exception('Phiếu sửa chữa không được lưu vào database. Vui lòng thử lại.');
+            }
+
             // Luôn flash trước, dù trả về JSON hay redirect
             session()->flash('success', 'Phiếu sửa chữa đã được tạo thành công!');
 
@@ -2769,15 +2989,45 @@ class RepairController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
+                    'message' => 'Phiếu sửa chữa đã được tạo thành công!',
+                    'repair_id' => $repair->id,
+                    'repair_code' => $repair->repair_code,
                     'redirect' => route('repairs.index')
                 ]);
             }
 
             return redirect()->route('repairs.index');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            Log::error('Validation error creating repair:', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Error creating repair: ' . $e->getMessage());
-            return back()->withInput()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+            Log::error('Error creating repair: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            
+            $errorMessage = 'Có lỗi xảy ra khi tạo phiếu sửa chữa: ' . $e->getMessage();
+            
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 500);
+            }
+            
+            return back()->withInput()->withErrors(['error' => $errorMessage]);
         }
     }
 

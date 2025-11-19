@@ -323,6 +323,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::prefix('api/repairs')->group(function () {
         // API mới: format mới theo yêu cầu (có thể tìm warranty đã hết hạn, không có repair_history)
         Route::get('/search-warranty', [RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
+        Route::get('/repair-history', [RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
     });
 
     // API routes for repairs (internal web routes)
