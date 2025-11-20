@@ -406,6 +406,89 @@ class MaintenanceRequestController extends Controller
     }
 
     /**
+     * API: Lấy chi tiết một phiếu bảo trì dự án theo ID
+     */
+    public function apiShow($id)
+    {
+        try {
+            $maintenanceRequest = MaintenanceRequest::with(['proposer', 'customer', 'products', 'warranty', 'project', 'rental'])
+                ->findOrFail($id);
+
+            // Format dữ liệu trả về
+            $data = [
+                'id' => $maintenanceRequest->id,
+                'request_code' => $maintenanceRequest->request_code,
+                'request_date' => $maintenanceRequest->request_date ? $maintenanceRequest->request_date->format('Y-m-d') : null,
+                'maintenance_date' => $maintenanceRequest->maintenance_date ? $maintenanceRequest->maintenance_date->format('Y-m-d') : null,
+                'maintenance_type' => $maintenanceRequest->maintenance_type,
+                'status' => $maintenanceRequest->status,
+                'project_type' => $maintenanceRequest->project_type,
+                'project_id' => $maintenanceRequest->project_id,
+                'project_code' => null,
+                'project_name' => $maintenanceRequest->project_name,
+                'customer_id' => $maintenanceRequest->customer_id,
+                'customer_name' => $maintenanceRequest->customer_name,
+                'customer_phone' => $maintenanceRequest->customer_phone,
+                'customer_email' => $maintenanceRequest->customer_email,
+                'customer_address' => $maintenanceRequest->customer_address,
+                'notes' => $maintenanceRequest->notes,
+                'maintenance_reason' => $maintenanceRequest->maintenance_reason,
+                'reject_reason' => $maintenanceRequest->reject_reason,
+                'proposer' => $maintenanceRequest->proposer ? [
+                    'id' => $maintenanceRequest->proposer->id,
+                    'name' => $maintenanceRequest->proposer->name,
+                    'username' => $maintenanceRequest->proposer->username,
+                    'email' => $maintenanceRequest->proposer->email,
+                ] : null,
+                'customer' => $maintenanceRequest->customer ? [
+                    'id' => $maintenanceRequest->customer->id,
+                    'name' => $maintenanceRequest->customer->name,
+                    'company_name' => $maintenanceRequest->customer->company_name,
+                    'phone' => $maintenanceRequest->customer->phone,
+                    'email' => $maintenanceRequest->customer->email,
+                ] : null,
+                'products_count' => $maintenanceRequest->products->count(),
+                'products' => $maintenanceRequest->products->map(function ($product) {
+                    return [
+                        'id' => $product->id,
+                        'product_id' => $product->product_id,
+                        'product_code' => $product->product_code,
+                        'product_name' => $product->product_name,
+                        'serial_number' => $product->serial_number,
+                        'type' => $product->type,
+                        'quantity' => $product->quantity,
+                    ];
+                }),
+                'created_at' => $maintenanceRequest->created_at ? $maintenanceRequest->created_at->format('Y-m-d H:i:s') : null,
+                'updated_at' => $maintenanceRequest->updated_at ? $maintenanceRequest->updated_at->format('Y-m-d H:i:s') : null,
+            ];
+
+            // Lấy project_code từ project hoặc rental
+            if ($maintenanceRequest->project_type === 'project' && $maintenanceRequest->project) {
+                $data['project_code'] = $maintenanceRequest->project->project_code;
+            } elseif ($maintenanceRequest->project_type === 'rental' && $maintenanceRequest->rental) {
+                $data['project_code'] = $maintenanceRequest->rental->rental_code;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy phiếu bảo trì với ID: ' . $id
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('API get maintenance request by ID error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy thông tin phiếu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * API: Lấy danh sách phiếu bảo trì dự án (MaintenanceRequest) - có lọc và phân trang
      */
     public function apiIndexProject(Request $request)

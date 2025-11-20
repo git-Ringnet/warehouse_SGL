@@ -133,23 +133,32 @@ Response (khách hàng):
 ### Warranty, Maintenance & Repair APIs
 
 - Base URL: `{your-domain}/api`
-- Auth: nếu hệ thống yêu cầu, thêm `Authorization: Bearer <token>` vào header
+- **Authentication**: Tất cả các API dưới đây đều **YÊU CẦU** token xác thực (trừ API đăng nhập)
+- Thêm header: `Authorization: Bearer <token>` vào mọi request
 - Tất cả ví dụ dùng `application/json`
+
+**Lưu ý quan trọng**:
+- Token được lấy từ API `/api/login` (xem phần 0)
+- Nếu không có token hoặc token không hợp lệ, API sẽ trả về lỗi 401 Unauthorized
+- Token không có thời hạn mặc định, có thể xóa bằng API `/api/logout`
 
 ---
 
 ### 1) Tra cứu thông tin bảo hành
 - GET `/api/repairs/search-warranty?warranty_code={ma_bao_hanh_hoac_serial}`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Hoặc: GET `/api/warranty/check?warranty_code={ma_bao_hanh}`
 
 **Lưu ý**: API này có thể tìm cả các mã bảo hành đã hết hạn.
 
 Ví dụ:
 ```bash
-curl -X GET "{your-domain}/api/repairs/search-warranty?warranty_code=BH2025100007"
+curl -X GET "{your-domain}/api/repairs/search-warranty?warranty_code=BH2025100007" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 ```bash
-curl -X GET "{your-domain}/api/warranty/check?warranty_code=BH2025100007"
+curl -X GET "{your-domain}/api/warranty/check?warranty_code=BH2025100007" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response (thành công):
@@ -192,11 +201,13 @@ Response (thất bại):
 
 ### 1a) Lấy lịch sử sửa chữa theo mã bảo hành hoặc serial
 - GET `/api/repairs/repair-history?warranty_code={ma_bao_hanh_hoac_serial}`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Tham số**: `warranty_code` có thể là mã bảo hành hoặc serial của thiết bị (API sẽ tự động tra cứu)
 
 Ví dụ:
 ```bash
-curl -X GET "{your-domain}/api/repairs/repair-history?warranty_code=BH2025100007"
+curl -X GET "{your-domain}/api/repairs/repair-history?warranty_code=BH2025100007" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response (thành công):
@@ -236,13 +247,64 @@ Response (thiếu tham số):
 
 ---
 
+### 1b) Tìm kiếm thiết bị trong kho
+- GET `/api/repairs/?search_termsearch-warehouse-devices={ma_thiet_bi_hoac_serial}`
+- **Authentication**: Yêu cầu token (Bearer token)
+- **Tham số**: `search_term` có thể là mã thiết bị, tên thiết bị, hoặc serial number
+
+Ví dụ:
+```bash
+curl -X GET "{your-domain}/api/repairs/search-warehouse-devices?search_term=SP-TP161001" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
+```
+
+Response (thành công):
+```json
+{
+  "success": true,
+  "devices": [
+    {
+      "id": "warehouse_product_SP-TP161001_1_SN123456_...",
+      "code": "SP-TP161001",
+      "name": "Thành phẩm 1 16/10",
+      "quantity": 1,
+      "serial": "SN123456",
+      "serial_numbers": ["SN123456"],
+      "serial_numbers_text": "SN123456",
+      "status": "active",
+      "type": "product",
+      "source": "warehouse",
+      "warehouse_id": 1,
+      "warehouse_name": "Kho Hà Nội"
+    }
+  ]
+}
+```
+
+Response (không tìm thấy):
+```json
+{
+  "success": false,
+  "message": "Vui lòng nhập mã thiết bị hoặc serial number"
+}
+```
+
+**Lưu ý**:
+- API tìm kiếm trong cả products và goods có trong kho
+- Nếu thiết bị có nhiều serial, mỗi serial sẽ được trả về như một thiết bị riêng biệt
+- `source`: Luôn là `"warehouse"` cho các thiết bị từ kho
+
+---
+
 ### 2a) Lấy TẤT CẢ phiếu bảo trì dự án (MaintenanceRequest) - Đơn giản, không lọc, không phân trang
 - GET `/api/maintenance-requests/all`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Lưu ý**: API này trả về TẤT CẢ phiếu bảo trì dự án, không có filter hay phân trang. Chỉ cần gọi API là lấy được tất cả.
 
 Ví dụ:
 ```bash
-curl -X GET "{your-domain}/api/maintenance-requests/all"
+curl -X GET "{your-domain}/api/maintenance-requests/all" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response:
@@ -305,6 +367,7 @@ Response:
 
 ### 2a-2) Lấy danh sách phiếu bảo trì dự án (MaintenanceRequest) - Có lọc và phân trang
 - GET `/api/maintenance-requests/project`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Lưu ý**: API này có đầy đủ tính năng lọc và phân trang. Nếu cần lọc hoặc phân trang, sử dụng API này.
 - Query parameters (tất cả đều tùy chọn):
   - `search`: Tìm kiếm theo mã phiếu, tên dự án, tên khách hàng, tên người đề xuất
@@ -326,27 +389,32 @@ Response:
 Ví dụ:
 ```bash
 # Lấy TẤT CẢ phiếu bảo trì dự án (không filter)
-curl -X GET "{your-domain}/api/maintenance-requests/project"
+curl -X GET "{your-domain}/api/maintenance-requests/project" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lấy tất cả với phân trang
-curl -X GET "{your-domain}/api/maintenance-requests/project?per_page=50"
+curl -X GET "{your-domain}/api/maintenance-requests/project?per_page=50" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lọc theo trạng thái
-curl -X GET "{your-domain}/api/maintenance-requests/project?status=pending&per_page=20"
+curl -X GET "{your-domain}/api/maintenance-requests/project?status=pending&per_page=20" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Tìm kiếm và lọc
-curl -X GET "{your-domain}/api/maintenance-requests/project?search=REQ&maintenance_type=repair&status=approved"
+curl -X GET "{your-domain}/api/maintenance-requests/project?search=REQ&maintenance_type=repair&status=approved" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lọc theo khoảng thời gian
-curl -X GET "{your-domain}/api/maintenance-requests/project?request_date_from=01/01/2025&request_date_to=31/01/2025"
+curl -X GET "{your-domain}/api/maintenance-requests/project?request_date_from=01/01/2025&request_date_to=31/01/2025" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response:
@@ -416,11 +484,13 @@ Response:
 
 ### 2b) Lấy TẤT CẢ phiếu khách yêu cầu bảo trì (CustomerMaintenanceRequest) - Đơn giản, không lọc, không phân trang
 - GET `/api/customer-maintenance-requests/all`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Lưu ý**: API này trả về TẤT CẢ phiếu khách yêu cầu bảo trì, không có filter hay phân trang. Chỉ cần gọi API là lấy được tất cả.
 
 Ví dụ:
 ```bash
-curl -X GET "{your-domain}/api/customer-maintenance-requests/all"
+curl -X GET "{your-domain}/api/customer-maintenance-requests/all" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response:
@@ -478,6 +548,7 @@ Response:
 
 ### 2b-2) Lấy danh sách phiếu khách yêu cầu bảo trì (CustomerMaintenanceRequest) - Có lọc và phân trang
 - GET `/api/customer-maintenance-requests`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Lưu ý**: API này có đầy đủ tính năng lọc và phân trang. Nếu cần lọc hoặc phân trang, sử dụng API này.
 - Query parameters (tất cả đều tùy chọn):
   - `search`: Tìm kiếm theo mã phiếu, tên dự án, tên khách hàng, lý do bảo trì
@@ -500,22 +571,26 @@ Response:
 Ví dụ:
 ```bash
 # Lấy TẤT CẢ phiếu khách yêu cầu bảo trì (không filter)
-curl -X GET "{your-domain}/api/customer-maintenance-requests"
+curl -X GET "{your-domain}/api/customer-maintenance-requests" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lấy tất cả với phân trang
-curl -X GET "{your-domain}/api/customer-maintenance-requests?per_page=50"
+curl -X GET "{your-domain}/api/customer-maintenance-requests?per_page=50" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lọc theo trạng thái và mức độ ưu tiên
-curl -X GET "{your-domain}/api/customer-maintenance-requests?status=pending&priority=high"
+curl -X GET "{your-domain}/api/customer-maintenance-requests?status=pending&priority=high" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 ```bash
 # Lọc theo khách hàng và nguồn thiết bị
-curl -X GET "{your-domain}/api/customer-maintenance-requests?customer_id=10&item_source=project"
+curl -X GET "{your-domain}/api/customer-maintenance-requests?customer_id=10&item_source=project" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890"
 ```
 
 Response:
@@ -580,6 +655,7 @@ Response:
 
 ### 2b-3) Tạo phiếu khách yêu cầu bảo trì
 - POST `/api/customer-maintenance-requests`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Body:
 ```json
 {
@@ -616,6 +692,7 @@ Ví dụ:
 ```bash
 curl -X POST "{your-domain}/api/customer-maintenance-requests" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "customer_id": 10,
     "project_name": "Dự án ABC",
@@ -660,6 +737,7 @@ Response (lỗi validation):
 
 ### 2b-4) Cập nhật phiếu khách yêu cầu bảo trì
 - PUT/PATCH `/api/customer-maintenance-requests/{id}`
+- **Authentication**: Yêu cầu token (Bearer token)
 - **Lưu ý**: Chỉ có thể cập nhật khi phiếu ở trạng thái `pending`
 - Body (tất cả các trường đều tùy chọn, chỉ cập nhật các trường được gửi):
 ```json
@@ -693,6 +771,7 @@ Ví dụ:
 ```bash
 curl -X PATCH "{your-domain}/api/customer-maintenance-requests/201" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "priority": "urgent",
     "maintenance_details": "Cập nhật chi tiết"
@@ -729,16 +808,19 @@ Response (lỗi - phiếu đã được duyệt):
 
 ### 2c) Lấy danh sách phiếu yêu cầu sửa chữa & bảo trì (Tương thích ngược - giữ lại)
 - GET `/api/maintenance-requests`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Lưu ý: API này tương thích với API `/api/maintenance-requests/project`, khuyến nghị sử dụng API riêng cho từng loại phiếu
 
 ---
 
 ### 3) Lấy danh sách thiết bị theo dự án/phiếu cho thuê
 - POST `/api/maintenance-requests/devices`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Body:
 ```bash
 curl -X POST "{your-domain}/api/maintenance-requests/devices" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "project_type": "project",   # hoặc "rental"
     "project_id": 60             # ID dự án/phiếu cho thuê
@@ -771,10 +853,12 @@ Response:
 
 ### 3a) Lấy danh sách serial thiết bị theo device_id và project_id
 - POST `/api/maintenance-requests/device-serials`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Body:
 ```bash
 curl -X POST "{your-domain}/api/maintenance-requests/device-serials" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "device_id": 123,            # ID thiết bị (product_id hoặc good_id)
     "project_type": "project",   # hoặc "rental"
@@ -813,10 +897,12 @@ Response:
 
 ### 3b) Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
 - POST `/api/maintenance-requests/projects-or-rentals`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Body:
 ```bash
 curl -X POST "{your-domain}/api/maintenance-requests/projects-or-rentals" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "project_type": "project",        # "project" hoặc "rental"
     "customer_id": 1,                 # (tùy chọn) ID khách hàng
@@ -851,10 +937,12 @@ Response:
 
 ### 4) Tạo yêu cầu hỗ trợ bảo hành/sửa chữa (Maintenance Request)
 - POST `/api/maintenance-requests`
+- **Authentication**: Yêu cầu token (Bearer token)
 - Body mẫu:
 ```bash
 curl -X POST "{your-domain}/api/maintenance-requests" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
     "project_type": "project",                 # project | rental
     "project_id": 60,

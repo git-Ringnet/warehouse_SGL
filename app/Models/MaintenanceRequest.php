@@ -95,6 +95,22 @@ class MaintenanceRequest extends Model
     }
 
     /**
+     * Lấy thông tin dự án liên quan (nếu project_type = 'project').
+     */
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /**
+     * Lấy thông tin phiếu cho thuê liên quan (nếu project_type = 'rental').
+     */
+    public function rental()
+    {
+        return $this->belongsTo(Rental::class, 'project_id');
+    }
+
+    /**
      * Tạo mã phiếu bảo trì tự động
      */
     public static function generateRequestCode()

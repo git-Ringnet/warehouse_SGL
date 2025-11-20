@@ -319,18 +319,12 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::delete('/{repair}', [App\Http\Controllers\RepairController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.delete');
     });
 
-    // Repair API routes (new format for external API) - Đặt trước để match trước
-    Route::prefix('api/repairs')->group(function () {
-        // API mới: format mới theo yêu cầu (có thể tìm warranty đã hết hạn, không có repair_history)
-        Route::get('/search-warranty', [RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
-        Route::get('/repair-history', [RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
-    });
-
     // API routes for repairs (internal web routes)
     Route::prefix('api/repairs')->group(function () {
         // Route riêng cho web view (format cũ có customer_name và repair_history)
         Route::get('search-warranty-web', [App\Http\Controllers\RepairController::class, 'searchWarranty'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view')->name('api.repairs.search-warranty-web');
-        Route::get('search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        // Route search-warehouse-devices đã được chuyển sang routes/api.php với auth:sanctum
+        // Route::get('search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('device-materials', [App\Http\Controllers\RepairController::class, 'getDeviceMaterials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('available-serials', [App\Http\Controllers\RepairController::class, 'getAvailableSerials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::post('check-stock-availability', [App\Http\Controllers\RepairController::class, 'checkStockAvailability'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');

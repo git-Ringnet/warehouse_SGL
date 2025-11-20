@@ -87,10 +87,11 @@ Route::get('/testing/materials/{type}', [App\Http\Controllers\TestingController:
 Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, 'getAvailableSerials']);
 
 // Maintenance Request API routes (Yêu cầu hỗ trợ bảo hành/sửa chữa)
-Route::prefix('maintenance-requests')->group(function () {
+Route::middleware('auth:sanctum')->prefix('maintenance-requests')->group(function () {
 	Route::get('/all', [App\Http\Controllers\MaintenanceRequestController::class, 'apiGetAllProject'])->name('api.maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
 	Route::get('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndex'])->name('api.maintenance-requests.index'); // Tương thích ngược
 	Route::get('/project', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndexProject'])->name('api.maintenance-requests.project'); // API riêng cho bảo trì dự án (có lọc, phân trang)
+	Route::get('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiShow'])->name('api.maintenance-requests.show'); // Lấy chi tiết một phiếu bảo trì theo ID
 	Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
 	// Cập nhật yêu cầu bảo hành/sửa chữa: Không cần API này
 	// Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
@@ -104,10 +105,17 @@ Route::prefix('maintenance-requests')->group(function () {
 });
 
 // Customer Maintenance Request API routes (Khách yêu cầu bảo trì)
-Route::prefix('customer-maintenance-requests')->group(function () {
+Route::middleware('auth:sanctum')->prefix('customer-maintenance-requests')->group(function () {
 	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
 	Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
 	Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì
 	Route::patch('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate'])->name('api.customer-maintenance-requests.update'); // Cập nhật phiếu khách yêu cầu bảo trì
 	Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
+});
+
+// Repair API routes (token protected)
+Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
+    Route::get('/search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
+    Route::get('/search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->name('api.repairs.search-warehouse-devices');
+    Route::get('/repair-history', [App\Http\Controllers\RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
 });
