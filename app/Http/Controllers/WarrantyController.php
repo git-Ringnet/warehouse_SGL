@@ -233,4 +233,76 @@ class WarrantyController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * API: Export warranty to PDF
+     * Route: GET /api/warranties/{warranty_code}/export-pdf
+     */
+    public function exportPdf($warrantyCode)
+    {
+        try {
+            // Tìm warranty theo code
+            $warranty = Warranty::where('warranty_code', $warrantyCode)
+                ->with(['dispatch.project', 'dispatch.rental', 'dispatch.items.product', 'dispatch.items.good', 'creator'])
+                ->first();
+
+            if (!$warranty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy dữ liệu bảo hành để xuất file.'
+                ], 404);
+            }
+
+            // Load item relationship
+            switch ($warranty->item_type) {
+                case 'product':
+                    $warranty->load(['product']);
+                    break;
+                case 'material':
+                    $warranty->load(['material']);
+                    break;
+                case 'good':
+                    $warranty->load(['good']);
+                    break;
+            }
+
+            // Tạo tên file
+            $fileName = 'Phieu_Bao_Hanh_' . $warranty->warranty_code . '.pdf';
+            $filePath = 'exports/warranties/' . $fileName;
+            
+            // Tạo PDF
+            $pdf = \PDF::loadView('exports.warranty_pdf', ['warranty' => $warranty]);
+            
+            // Lưu file vào storage/app/public
+            \Storage::disk('public')->put($filePath, $pdf->output());
+            
+            // Lấy thông tin file
+            $fileSize = \Storage::disk('public')->size($filePath);
+            $fileSizeMB = round($fileSize / 1024 / 1024, 2);
+            
+            // Tạo URL download (expires sau 1 giờ)
+            $downloadUrl = url('storage/' . $filePath);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Tạo file PDF thành công',
+                'data' => [
+                    'file_name' => $fileName,
+                    'file_type' => 'pdf',
+                    'file_size' => $fileSizeMB . ' MB',
+                    'download_url' => $downloadUrl,
+                    'expires_in' => 3600 // 1 hour
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Export warranty PDF error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo file PDF: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

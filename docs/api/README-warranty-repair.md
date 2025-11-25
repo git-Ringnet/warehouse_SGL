@@ -832,12 +832,12 @@ Response:
 {
   "devices": [
     {
-      "code": "SP-TP161001",
+      "device_id": 1,
       "name": "Thành phẩm 1 16/10",
       "type": "product"
     },
     {
-      "code": "HH-001",
+      "device_id": 2,
       "name": "Hàng hóa 1",
       "type": "good"
     }
@@ -846,10 +846,12 @@ Response:
 ```
 
 **Lưu ý**:
+- `device_id`: ID của thiết bị (product_id hoặc good_id trong database)
 - `type`: Trả về giá trị `"product"` hoặc `"good"` (không phải "Thành phẩm" hoặc "Hàng hoá") để đồng bộ với các API khác
 - API chỉ trả về danh sách thiết bị duy nhất (loại bỏ trùng lặp), không bao gồm serial number
 
 ---
+
 
 ### 3a) Lấy danh sách serial thiết bị theo device_id và project_id
 - POST `/api/maintenance-requests/device-serials`
@@ -871,7 +873,7 @@ curl -X POST "{your-domain}/api/maintenance-requests/device-serials" \
 Response:
 ```json
 {
-  "serial": [
+  "serials": [
     "SN123456",
     "SN789012",
     "N/A",
@@ -881,7 +883,15 @@ Response:
 }
 ```
 
+**Response khi không có serial:**
+```json
+{
+  "serials": []
+}
+```
+
 **Lưu ý**:
+- Nếu thiết bị không quản lý serial hoặc không tìm thấy thiết bị trong dự án/phiếu cho thuê, API sẽ trả về mảng rỗng `[]`
 - Nếu có nhiều "N/A", sẽ được đánh số thành "N/A", "N/A-2", "N/A-3", ...
 - Serial sử dụng `SerialDisplayHelper` để lấy serial hiển thị (có thể đã đổi tên trong `device_codes`)
 - `device_id`: ID thiết bị - là `product_id` hoặc `good_id` (ID của sản phẩm/hàng hóa)
@@ -893,45 +903,83 @@ Response:
   - Nên cung cấp `category` nếu chỉ cần một loại
 - API sẽ tìm tất cả dispatch items có `item_id` khớp với `device_id`, `item_type` và `category` trong dự án/phiếu cho thuê, sau đó gộp tất cả serial lại
 
+
+
 ---
 
-### 3b) Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
+### 3b) Lấy danh sách dự án/phiếu cho thuê cho khách hàng đang đăng nhập
 - POST `/api/maintenance-requests/projects-or-rentals`
 - **Authentication**: Yêu cầu token (Bearer token)
+- **Bảo mật**: Backend tự động trích xuất `customer_id` từ Auth Token. **KHÔNG** gửi `customer_id` trong body để tránh lỗi bảo mật (User A xem dữ liệu User B).
 - Body:
 ```bash
 curl -X POST "{your-domain}/api/maintenance-requests/projects-or-rentals" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer 1|abcdefghijklmnopqrstuvwxyz1234567890" \
   -d '{
-    "project_type": "project",        # "project" hoặc "rental"
-    "customer_id": 1,                 # (tùy chọn) ID khách hàng
-    "customer_name": "ABC",           # (tùy chọn) Tên khách hàng
-    "customer_phone": "0123456789",   # (tùy chọn) Số điện thoại
-    "customer_email": "abc@example.com" # (tùy chọn) Email
+    "project_type": "project"   # "project" hoặc "rental"
   }'
 ```
 
-Response:
+**Body Request (JSON)**:
+```json
+{
+  "project_type": "project"
+}
+```
+
+Response (thành công):
 ```json
 {
   "projects": [
     {
-      "project_code": "PRJ-251031229",
-      "project_name": "ABCXTZ"
+      "project_id": 60,
+      "project_name": "Dự án Lộc 1"
     },
     {
-      "project_code": "PRJ-251031230",
-      "project_name": "XYZ Company"
+      "project_id": 61,
+      "project_name": "Dự án ABC"
     }
   ]
 }
 ```
 
+Response (lỗi xác thực - 401):
+```json
+{
+  "success": false,
+  "message": "Unauthenticated.",
+  "error_code": "AUTH_001"
+}
+```
+
+Response (lỗi không xác định khách hàng - 403):
+```json
+{
+  "success": false,
+  "message": "Không xác định được khách hàng từ token.",
+  "error_code": "CUSTOMER_NOT_BOUND"
+}
+```
+
+Response (lỗi validation - 422):
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": {
+    "project_type": ["The project type field is required."]
+  }
+}
+```
+
 **Lưu ý**:
-- Có thể filter theo một trong các thông tin khách hàng: `customer_id`, `customer_name`, `customer_phone`, hoặc `customer_email`
-- Nếu không có filter nào, sẽ trả về tất cả dự án/phiếu cho thuê
-- Với `project_type: "rental"`, `project_code` sẽ là `rental_code` và `project_name` sẽ là `rental_name`
+- ✅ **Bảo mật**: API tự động lấy `customer_id` từ Bearer Token của user đang đăng nhập
+- ✅ **Chỉ trả về dự án/phiếu thuê của khách hàng đó**: Ngăn chặn user A xem dữ liệu của user B
+- ✅ **Không cần gửi customer_id trong body**: Backend tự động xử lý
+- `project_type`: Bắt buộc, giá trị: `"project"` (Dự án) hoặc `"rental"` (Phiếu thuê)
+- Response trả về `project_id` và `project_name` cho cả project và rental
+- Với `project_type: "rental"`, `project_id` sẽ là ID của rental và `project_name` sẽ là `rental_name`
 
 ---
 

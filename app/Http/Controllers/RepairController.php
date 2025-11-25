@@ -109,12 +109,70 @@ class RepairController extends Controller
     }
 
     /**
-     * Private helper: Find warranty by code or serial number (shared logic)
+     * Private helper: Find warranty by code, serial number, or phone number (shared logic)
      */
     private function findWarrantyByCodeOrSerial($warrantyCode)
     {
         $input = trim($warrantyCode);
         $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
+        
+        // Kiểm tra xem input có phải là số điện thoại không (chỉ chứa số và có độ dài 10-11 ký tự)
+        $isPhoneNumber = preg_match('/^[0-9]{10,11}$/', $input);
+        
+        Log::info('findWarrantyByCodeOrSerial called', [
+            'input' => $input,
+            'isPhoneNumber' => $isPhoneNumber
+        ]);
+        
+        // Nếu là số điện thoại, tìm theo customer phone
+        if ($isPhoneNumber) {
+            // Tìm customer có số điện thoại này
+            $customers = \App\Models\Customer::where('phone', $input)->pluck('id');
+            
+            if ($customers->isNotEmpty()) {
+                // Tìm warranties thông qua dispatch -> project -> customer
+                $warranties = Warranty::whereHas('dispatch.project', function($q) use ($customers) {
+                    $q->whereIn('customer_id', $customers);
+                })
+                ->orWhereHas('dispatch.rental', function($q) use ($customers) {
+                    $q->whereIn('customer_id', $customers);
+                })
+                ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
+                ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END") // Ưu tiên active
+                ->orderBy('created_at', 'desc') // Mới nhất
+                ->get();
+                
+                Log::info('Search by phone number via customers', [
+                    'phone' => $input,
+                    'customer_ids' => $customers->toArray(),
+                    'found_count' => $warranties->count(),
+                    'warranties' => $warranties->map(function($w) {
+                        return [
+                            'id' => $w->id,
+                            'warranty_code' => $w->warranty_code,
+                            'customer_name' => $w->customer_name,
+                            'status' => $w->status
+                        ];
+                    })
+                ]);
+                
+                if ($warranties->isNotEmpty()) {
+                    // Trả về warranty đầu tiên (active và mới nhất)
+                    return $warranties->first();
+                }
+            }
+            
+            // Fallback: Tìm trực tiếp trong bảng warranties (nếu có customer_phone)
+            $warranties = Warranty::where('customer_phone', $input)
+                ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
+                ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            if ($warranties->isNotEmpty()) {
+                return $warranties->first();
+            }
+        }
         
         // Tìm bảo hành theo mã bảo hành hoặc serial (không filter status để tìm được cả warranty đã hết hạn)
         $warranty = Warranty::where(function ($q) use ($input, $normalizedSerial) {
@@ -177,8 +235,8 @@ class RepairController extends Controller
         if (!$warrantyCode) {
             return response()->json([
                 'success' => false,
-                'message' => 'Vui lòng nhập mã bảo hành hoặc serial number'
-            ]);
+                'message' => 'Vui lòng nhập mã bảo hành hoặc số điện thoại.'
+            ], 400);
         }
 
         try {
@@ -188,7 +246,7 @@ class RepairController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy thông tin bảo hành với mã: ' . $warrantyCode
-                ]);
+                ], 404);
             }
 
             // Lấy devices (copy logic từ searchWarranty nhưng filter chỉ contract)
@@ -258,73 +316,7 @@ class RepairController extends Controller
                 }
             }
 
-            $allowedCodes = array_values(array_unique(array_map(function ($item) {
-                return $item['code'] ?? '';
-            }, array_values($indexed))));
             $devices = array_values($indexed);
-            
-            // Expand devices
-            $expandedDevices = [];
-            foreach ($devices as $d) {
-                $serials = is_array($d['serial_numbers'] ?? null) ? $d['serial_numbers'] : [];
-                $serialCount = count($serials);
-                foreach ($serials as $sn) {
-                    $expandedDevices[] = [
-                        'id' => $d['code'] . '_' . $sn . '_' . microtime(true) . '_' . uniqid(),
-                        'code' => $d['code'],
-                        'name' => $d['name'],
-                        'quantity' => 1,
-                        'serial' => $sn,
-                        'serial_numbers' => [$sn],
-                        'serial_numbers_text' => $sn,
-                        'status' => $d['status'] ?? 'active',
-                        'type' => $d['type'] ?? 'product',
-                        'source' => 'contract',
-                    ];
-                }
-                $missing = max(0, ((int)($d['quantity'] ?? 0)) - $serialCount);
-                for ($i = 0; $i < $missing; $i++) {
-                    $expandedDevices[] = [
-                        'id' => $d['code'] . '_NA_' . ($d['dispatch_item_id'] ?? 'no_dispatch_item') . '_' . $i . '_' . microtime(true) . '_' . uniqid(),
-                        'code' => $d['code'],
-                        'name' => $d['name'],
-                        'quantity' => 1,
-                        'serial' => '',
-                        'serial_numbers' => [],
-                        'serial_numbers_text' => 'N/A',
-                        'status' => $d['status'] ?? 'active',
-                        'type' => $d['type'] ?? 'product',
-                        'source' => 'contract',
-                        'dispatch_item_id' => $d['dispatch_item_id'] ?? null,
-                    ];
-                }
-            }
-            
-            $devices = array_values(array_filter($expandedDevices, function ($d) use ($allowedCodes) {
-                return in_array($d['code'] ?? '', $allowedCodes, true);
-            }));
-
-            // API: Chỉ hiển thị các thiết bị thuộc dạng contract (loại bỏ backup và mixed)
-            $devices = array_values(array_filter($devices, function ($d) {
-                return ($d['source'] ?? '') === 'contract';
-            }));
-
-            // Filter by serial if searching by serial
-            $isSerialSearch = strcasecmp($input, $warranty->warranty_code) !== 0;
-            if ($isSerialSearch && !empty($normalizedSerial)) {
-                $devices = array_values(array_filter($devices, function ($d) use ($normalizedSerial) {
-                    $serials = $d['serial_numbers'] ?? [];
-                    foreach ($serials as $s) {
-                        $ns = strtoupper(preg_replace('/[\s-]+/', '', $s));
-                        if ($ns === $normalizedSerial) return true;
-                    }
-                    if (!empty($d['serial'])) {
-                        $ns2 = strtoupper(preg_replace('/[\s-]+/', '', $d['serial']));
-                        if ($ns2 === $normalizedSerial) return true;
-                    }
-                    return false;
-                }));
-            }
 
             // Add good to devices if warranty is for a good
             if ($warranty->item_type === 'good' && $warranty->item) {
@@ -354,23 +346,49 @@ class RepairController extends Controller
                 $warrantyEndTime = $warranty->warranty_end_date->format('Y-m-d');
             }
 
-            // Format devices cho API
-            $formattedDevices = [];
-            foreach ($devices as $device) {
-                $formattedDevices[] = [
-                    'code' => $device['code'],
-                    'name' => $device['name'],
-                    'quantity' => $device['quantity'] ?? 1,
-                    'serial_numbers' => $device['serial_numbers'] ?? [],
-                    'type' => $device['type'] ?? 'product',
-                ];
+            // Format project_name: "PRJ-CODE - Project Name (Customer Name)"
+            $projectNameFormatted = $warranty->project_name;
+            if ($warranty->dispatch && $warranty->dispatch->project) {
+                $project = $warranty->dispatch->project;
+                $customerName = $warranty->customer_name ?? '';
+                $projectNameFormatted = $project->project_code . ' - ' . $project->project_name;
+                if ($customerName) {
+                    $projectNameFormatted .= ' (' . $customerName . ')';
+                }
             }
+
+            // Gộp devices theo code để tính tổng quantity và serial_numbers
+            $groupedDevices = [];
+            foreach ($devices as $device) {
+                $code = $device['code'];
+                $type = $device['type'];
+                $key = $code . '_' . $type;
+
+                if (isset($groupedDevices[$key])) {
+                    // Gộp quantity và serial_numbers
+                    $groupedDevices[$key]['quantity'] += $device['quantity'];
+                    $groupedDevices[$key]['serial_numbers'] = array_unique(
+                        array_merge($groupedDevices[$key]['serial_numbers'], $device['serial_numbers'])
+                    );
+                } else {
+                    $groupedDevices[$key] = [
+                        'code' => $code,
+                        'name' => $device['name'],
+                        'quantity' => $device['quantity'],
+                        'serial_numbers' => $device['serial_numbers'],
+                        'type' => $type,
+                    ];
+                }
+            }
+
+            // Format devices cho API
+            $formattedDevices = array_values($groupedDevices);
 
             return response()->json([
                 'success' => true,
                 'warranty' => [
                     'warranty_code' => $warranty->warranty_code,
-                    'project_name' => $warranty->project_name,
+                    'project_name' => $projectNameFormatted,
                     'status' => $warranty->status,
                     'activated_at' => $warrantyActivationTime,
                     'warranty_end_date' => $warrantyEndTime,
@@ -379,10 +397,11 @@ class RepairController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Error searching warranty API: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tìm kiếm bảo hành: ' . $e->getMessage()
-            ]);
+            ], 500);
         }
     }
 

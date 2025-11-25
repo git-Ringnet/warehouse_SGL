@@ -26,79 +26,174 @@ class CustomerMaintenanceRequestController extends Controller
     }
 
     /**
-     * API: Lấy TẤT CẢ phiếu khách yêu cầu bảo trì (không lọc, không phân trang)
+     * API: Lấy danh sách phiếu khách yêu cầu bảo trì (có phân trang)
+     * Route: GET /api/customer-maintenance-requests/all
      */
-    public function apiGetAll()
+    public function apiGetAll(Request $request)
     {
         try {
-            $customerMaintenanceRequests = CustomerMaintenanceRequest::with(['customer', 'project', 'rental', 'approvedByUser'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Lấy số bản ghi mỗi trang từ request, mặc định là 15
+            $perPage = $request->get('per_page', 15);
+            $perPage = min(max(1, (int)$perPage), 100); // Giới hạn từ 1 đến 100
 
-            // Format dữ liệu trả về
+            // Lấy customer_id từ token (nếu là customer thì chỉ lấy phiếu của mình)
+            $user = $request->user();
+            $query = CustomerMaintenanceRequest::query();
+
+            // Nếu là customer, chỉ lấy phiếu của customer đó
+            if ($user && $user instanceof User && $user->role === 'customer' && $user->customer_id) {
+                $query->where('customer_id', $user->customer_id);
+            }
+
+            // Sắp xếp theo thời gian tạo mới nhất
+            $query->orderBy('created_at', 'desc');
+
+            // Phân trang
+            $customerMaintenanceRequests = $query->paginate($perPage);
+
+            // Format dữ liệu trả về (chỉ các field cần thiết)
             $data = $customerMaintenanceRequests->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'request_code' => $item->request_code,
-                    'request_date' => $item->request_date ? $item->request_date->format('Y-m-d') : null,
-                    'maintenance_reason' => $item->maintenance_reason,
-                    'maintenance_details' => $item->maintenance_details,
-                    'priority' => $item->priority,
-                    'status' => $item->status,
-                    'item_source' => $item->item_source,
-                    'project_id' => $item->project_id,
-                    'rental_id' => $item->rental_id,
-                    'project_name' => $item->project_name,
-                    'project_description' => $item->project_description,
-                    'selected_item' => $item->selected_item,
-                    'estimated_cost' => $item->estimated_cost ? (float)$item->estimated_cost : null,
-                    'customer_id' => $item->customer_id,
-                    'customer_name' => $item->customer_name,
-                    'customer_phone' => $item->customer_phone,
-                    'customer_email' => $item->customer_email,
-                    'customer_address' => $item->customer_address,
                     'notes' => $item->notes,
-                    'rejection_reason' => $item->rejection_reason,
-                    'approved_by' => $item->approved_by,
-                    'approved_at' => $item->approved_at ? $item->approved_at->format('Y-m-d H:i:s') : null,
-                    'customer' => $item->customer ? [
-                        'id' => $item->customer->id,
-                        'name' => $item->customer->name,
-                        'company_name' => $item->customer->company_name,
-                        'phone' => $item->customer->phone,
-                        'email' => $item->customer->email,
-                    ] : null,
-                    'project' => $item->project ? [
-                        'id' => $item->project->id,
-                        'project_code' => $item->project->project_code,
-                        'project_name' => $item->project->project_name,
-                    ] : null,
-                    'rental' => $item->rental ? [
-                        'id' => $item->rental->id,
-                        'rental_code' => $item->rental->rental_code,
-                        'rental_name' => $item->rental->rental_name,
-                    ] : null,
-                    'approved_by_user' => $item->approvedByUser ? [
-                        'id' => $item->approvedByUser->id,
-                        'name' => $item->approvedByUser->name,
-                        'username' => $item->approvedByUser->username,
-                        'email' => $item->approvedByUser->email,
-                    ] : null,
-                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
-                    'updated_at' => $item->updated_at ? $item->updated_at->format('Y-m-d H:i:s') : null,
+                    'status' => $item->status,
+                    'request_date' => $item->request_date ? $item->request_date->format('d/m/Y') : null,
                 ];
             });
 
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'total' => $data->count()
+                'pagination' => [
+                    'current_page' => $customerMaintenanceRequests->currentPage(),
+                    'total_pages' => $customerMaintenanceRequests->lastPage(),
+                    'total_items' => $customerMaintenanceRequests->total(),
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('API get all customer maintenance requests error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi lấy danh sách phiếu khách yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Lấy chi tiết một phiếu khách yêu cầu bảo trì
+     * Route: GET /api/customer-maintenance-requests/{id}
+     */
+    public function apiShow(Request $request, $id)
+    {
+        try {
+            // Tìm phiếu yêu cầu bảo trì
+            $maintenanceRequest = CustomerMaintenanceRequest::with(['customer', 'project', 'rental', 'approvedByUser'])
+                ->find($id);
+
+            if (!$maintenanceRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy phiếu yêu cầu bảo trì.'
+                ], 404);
+            }
+
+            // Kiểm tra quyền truy cập
+            $user = $request->user();
+            if ($user && $user instanceof User && $user->role === 'customer' && $user->customer_id) {
+                // Nếu là customer, chỉ được xem phiếu của mình
+                if ($maintenanceRequest->customer_id != $user->customer_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bạn không có quyền xem phiếu yêu cầu này.'
+                    ], 403);
+                }
+            }
+
+            // Parse selected_item để lấy thông tin thiết bị
+            // Format: "product:123:SN-123456" hoặc "product:123"
+            $deviceName = null;
+            $deviceCode = null;
+            $deviceSerial = null;
+
+            if ($maintenanceRequest->selected_item) {
+                $parts = explode(':', $maintenanceRequest->selected_item);
+                if (count($parts) >= 2) {
+                    $itemType = $parts[0]; // 'product' hoặc 'good'
+                    $itemId = $parts[1];
+                    $serialNumber = $parts[2] ?? null;
+
+                    // Lấy thông tin thiết bị từ database
+                    if ($itemType === 'product') {
+                        $device = \App\Models\Product::find($itemId);
+                        if ($device) {
+                            $deviceName = $device->name;
+                            $deviceCode = $device->code;
+                        }
+                    } elseif ($itemType === 'good') {
+                        $device = \App\Models\Good::find($itemId);
+                        if ($device) {
+                            $deviceName = $device->name;
+                            $deviceCode = $device->code;
+                        }
+                    }
+
+                    $deviceSerial = $serialNumber;
+                }
+            }
+
+            // Lấy thông tin project code
+            $projectCode = null;
+            if ($maintenanceRequest->project_type === 'project' && $maintenanceRequest->project) {
+                $projectCode = $maintenanceRequest->project->project_code;
+            } elseif ($maintenanceRequest->project_type === 'rental' && $maintenanceRequest->rental) {
+                $projectCode = $maintenanceRequest->rental->rental_code;
+            }
+
+            // Chuẩn bị approval_info
+            $approvalInfo = null;
+            if ($maintenanceRequest->approved_by && $maintenanceRequest->approvedByUser) {
+                $approvalInfo = [
+                    'approver_name' => $maintenanceRequest->approvedByUser->name,
+                    'approved_at' => $maintenanceRequest->approved_at ? 
+                        $maintenanceRequest->approved_at->format('d/m/Y H:i:s') : null,
+                    'note' => $maintenanceRequest->rejection_reason ?? $maintenanceRequest->notes,
+                ];
+            }
+
+            // Format dữ liệu trả về
+            $data = [
+                'id' => $maintenanceRequest->id,
+                'request_code' => $maintenanceRequest->request_code,
+                'request_date' => $maintenanceRequest->request_date ? 
+                    $maintenanceRequest->request_date->format('Y-m-d') : null,
+                'maintenance_reason' => $maintenanceRequest->maintenance_reason,
+                'maintenance_details' => $maintenanceRequest->maintenance_details,
+                'priority' => $maintenanceRequest->priority,
+                'status' => $maintenanceRequest->status,
+                'project_name' => $maintenanceRequest->project_name,
+                'project_code' => $projectCode,
+                'customer_name' => $maintenanceRequest->customer_name,
+                'customer_phone' => $maintenanceRequest->customer_phone,
+                'customer_email' => $maintenanceRequest->customer_email,
+                'customer_address' => $maintenanceRequest->customer_address,
+                'device_name' => $deviceName,
+                'device_code' => $deviceCode,
+                'device_serial' => $deviceSerial,
+                'approval_info' => $approvalInfo,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('API show customer maintenance request error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy chi tiết phiếu yêu cầu bảo trì: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -406,6 +501,206 @@ class CustomerMaintenanceRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tạo phiếu yêu cầu bảo trì: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Tạo phiếu khách yêu cầu bảo trì (Format mới - theo yêu cầu)
+     * Route: POST /api/customer-maintenance-requests/create
+     */
+    public function apiCreateRequest(Request $request)
+    {
+        try {
+            // Lấy customer_id từ token
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+
+            $customerId = null;
+            if ($user instanceof User && $user->role === 'customer') {
+                $customerId = $user->customer_id;
+            }
+
+            if (!$customerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không xác định được khách hàng từ token.'
+                ], 403);
+            }
+
+            // Validation
+            $rules = [
+                'project_type' => 'required|in:project,rental',
+                'project_id' => 'required|integer',
+                'device_id' => 'required|integer',
+                'serial_number' => 'nullable|string',
+                'priority' => 'required|in:low,medium,high,urgent',
+                'description' => 'required|string',
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:20',
+                'customer_email' => 'required|email|max:255',
+                'customer_address' => 'nullable|string',
+            ];
+
+            // Custom messages tiếng Việt
+            $messages = [
+                'project_type.required' => 'Loại dự án là bắt buộc.',
+                'project_type.in' => 'Loại dự án phải là: project hoặc rental.',
+                'project_id.required' => 'ID dự án là bắt buộc.',
+                'project_id.integer' => 'ID dự án phải là số nguyên.',
+                'device_id.required' => 'ID thiết bị là bắt buộc.',
+                'device_id.integer' => 'ID thiết bị phải là số nguyên.',
+                'priority.required' => 'Mức độ ưu tiên là bắt buộc.',
+                'priority.in' => 'Mức độ ưu tiên không hợp lệ (chỉ chấp nhận: low, medium, high, urgent).',
+                'description.required' => 'Vui lòng nhập mô tả sự cố.',
+                'customer_name.required' => 'Tên khách hàng là bắt buộc.',
+                'customer_phone.required' => 'Số điện thoại khách hàng là bắt buộc.',
+                'customer_email.required' => 'Email khách hàng là bắt buộc.',
+                'customer_email.email' => 'Email khách hàng không hợp lệ.',
+            ];
+
+            $validatedData = $request->validate($rules, $messages);
+
+            // Kiểm tra customer có tồn tại không
+            $customer = Customer::find($customerId);
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Khách hàng không tồn tại.'
+                ], 404);
+            }
+
+            // Kiểm tra trạng thái khách hàng
+            if ($customer->is_locked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tài khoản khách hàng đã bị khóa.'
+                ], 403);
+            }
+
+            // Kiểm tra project/rental có tồn tại không
+            if ($validatedData['project_type'] === 'project') {
+                $project = \App\Models\Project::find($validatedData['project_id']);
+                if (!$project) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Dự án không tồn tại.'
+                    ], 404);
+                }
+                $projectName = $project->project_name;
+                $projectDescription = $project->description ?? '';
+            } else {
+                $rental = \App\Models\Rental::find($validatedData['project_id']);
+                if (!$rental) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Phiếu cho thuê không tồn tại.'
+                    ], 404);
+                }
+                $projectName = $rental->rental_name;
+                $projectDescription = $rental->notes ?? '';
+            }
+
+            // Tạo selected_item từ device_id và serial_number
+            // Format: "product:123:SN-123456" hoặc "product:123" (nếu không có serial)
+            $itemType = 'product'; // Mặc định là product, có thể thêm logic để xác định
+            $selectedItem = $itemType . ':' . $validatedData['device_id'];
+            if (!empty($validatedData['serial_number'])) {
+                $selectedItem .= ':' . $validatedData['serial_number'];
+            }
+
+            // Sử dụng transaction
+            $maintenanceRequest = null;
+            $requestDate = now()->format('Y-m-d');
+            
+            DB::transaction(function () use ($validatedData, $customer, $requestDate, $projectName, $projectDescription, $selectedItem, &$maintenanceRequest) {
+                // Tạo mã phiếu mới
+                $requestCode = $this->generateUniqueRequestCode();
+
+                // Chuẩn bị dữ liệu
+                $data = [
+                    'request_code' => $requestCode,
+                    'request_date' => $requestDate,
+                    'status' => 'pending',
+                    'customer_id' => $customer->id,
+                    'customer_name' => $validatedData['customer_name'],
+                    'customer_phone' => $validatedData['customer_phone'],
+                    'customer_email' => $validatedData['customer_email'],
+                    'customer_address' => $validatedData['customer_address'] ?? '',
+                    'project_name' => $projectName,
+                    'project_description' => $projectDescription,
+                    'maintenance_reason' => $validatedData['description'],
+                    'maintenance_details' => $validatedData['description'],
+                    'priority' => $validatedData['priority'],
+                    'item_source' => $validatedData['project_type'],
+                    'selected_item' => $selectedItem,
+                ];
+
+                // Thêm project_id hoặc rental_id
+                if ($validatedData['project_type'] === 'project') {
+                    $data['project_id'] = $validatedData['project_id'];
+                } else {
+                    $data['rental_id'] = $validatedData['project_id'];
+                }
+
+                // Lưu phiếu yêu cầu
+                $maintenanceRequest = CustomerMaintenanceRequest::create($data);
+            });
+
+            if (!$maintenanceRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.'
+                ], 500);
+            }
+
+            // Gửi thông báo cho tất cả admin
+            $admins = Employee::where('role', 'admin')->where('is_active', true)->get();
+            foreach ($admins as $admin) {
+                Notification::createNotification(
+                    'Phiếu khách yêu cầu bảo trì mới',
+                    'Khách hàng ' . $maintenanceRequest->customer_name . ' đã tạo phiếu yêu cầu bảo trì ' . $maintenanceRequest->project_name,
+                    'info',
+                    $admin->id,
+                    'customer_maintenance_request',
+                    $maintenanceRequest->id,
+                    route('requests.customer-maintenance.show', $maintenanceRequest->id)
+                );
+            }
+
+            // Format created_at theo yêu cầu: dd/mm/YYYY HH:mm:ss
+            $createdAt = $maintenanceRequest->created_at ? 
+                $maintenanceRequest->created_at->format('d/m/Y H:i:s') : 
+                now()->format('d/m/Y H:i:s');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tạo phiếu yêu cầu thành công',
+                'data' => [
+                    'request_id' => $maintenanceRequest->id,
+                    'request_code' => $maintenanceRequest->request_code,
+                    'created_at' => $createdAt,
+                    'status' => $maintenanceRequest->status,
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('API create customer maintenance request error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.'
             ], 500);
         }
     }

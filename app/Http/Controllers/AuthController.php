@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 use App\Models\UserLog;
 
 class AuthController extends Controller
@@ -308,6 +309,9 @@ class AuthController extends Controller
             $request->validate([
                 'username' => 'required|string',
                 'password' => 'required|string',
+            ], [
+                'username.required' => 'Vui lòng nhập tên đăng nhập.',
+                'password.required' => 'Vui lòng nhập mật khẩu.',
             ]);
 
             // Thử đăng nhập với nhân viên (Employee)
@@ -398,7 +402,7 @@ class AuthController extends Controller
             // Đăng nhập thất bại
             return response()->json([
                 'success' => false,
-                'message' => 'Tên đăng nhập hoặc mật khẩu không đúng.'
+                'message' => 'Tên đăng nhập hoặc mật khẩu không chính xác.'
             ], 401);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -512,4 +516,208 @@ class AuthController extends Controller
             ], 500);
         }
     }
-} 
+
+    /**
+     * API: Lấy thông tin hồ sơ người dùng hiện tại
+     */
+    public function apiProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+                'error_code' => 'AUTH_001'
+            ], 401);
+        }
+
+        if ($user instanceof User) {
+            $user->loadMissing('customer');
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'fullname' => $user->name ?? $user->fullname ?? $user->username,
+            'phone' => $this->resolveUserPhone($user),
+            'email' => $user->email,
+            'avatar_url' => $this->resolveAvatarUrl($user),
+        ]);
+    }
+
+    /**
+     * Xác định số điện thoại phù hợp cho phản hồi API profile
+     */
+    protected function resolveUserPhone($user): ?string
+    {
+        if (!empty($user->phone)) {
+            return $user->phone;
+        }
+
+        if ($user instanceof User && $user->customer) {
+            return $user->customer->phone ?? $user->customer->company_phone;
+        }
+
+        return null;
+    }
+
+    /**
+     * Xây dựng URL avatar đầy đủ nếu có lưu trong hệ thống
+     */
+    protected function resolveAvatarUrl($user): ?string
+    {
+        $avatarPath = $user->avatar ?? null;
+
+        if (!$avatarPath) {
+            return null;
+        }
+
+        if (filter_var($avatarPath, FILTER_VALIDATE_URL)) {
+            return $avatarPath;
+        }
+
+        if (Storage::disk('public')->exists($avatarPath)) {
+            return asset(Storage::url($avatarPath));
+        }
+
+        return asset($avatarPath);
+    }
+
+    /**
+     * API: Đổi mật khẩu
+     * Route: PUT /api/user/change-password
+     */
+    public function apiChangePassword(Request $request)
+    {
+        try {
+            // Validation
+            $validator = \Validator::make($request->all(), [
+                'current_password' => 'required|string',
+                'new_password' => [
+                    'required',
+                    'string',
+                    'min:8',
+                    'confirmed',
+                ],
+                'new_password_confirmation' => 'required|string',
+            ], [
+                'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại.',
+                'new_password.required' => 'Vui lòng nhập mật khẩu mới.',
+                'new_password.min' => 'Mật khẩu mới phải có ít nhất 8 ký tự.',
+                'new_password.confirmed' => 'Mật khẩu xác nhận không khớp.',
+                'new_password_confirmation.required' => 'Vui lòng nhập lại mật khẩu mới.',
+            ]);
+
+            // Custom validation cho password complexity
+            $validator->after(function ($validator) use ($request) {
+                $password = $request->new_password;
+                
+                if ($password) {
+                    if (!preg_match('/[a-z]/', $password)) {
+                        $validator->errors()->add('new_password', 'Mật khẩu mới phải chứa ít nhất 1 ký tự thường.');
+                    }
+                    if (!preg_match('/[A-Z]/', $password)) {
+                        $validator->errors()->add('new_password', 'Mật khẩu mới phải chứa ít nhất 1 ký tự in hoa.');
+                    }
+                    if (!preg_match('/[0-9]/', $password)) {
+                        $validator->errors()->add('new_password', 'Mật khẩu mới phải chứa ít nhất 1 số.');
+                    }
+                    if (!preg_match('/[@$!%*#?&]/', $password)) {
+                        $validator->errors()->add('new_password', 'Mật khẩu mới phải chứa ít nhất 1 ký tự đặc biệt (@$!%*#?&).');
+                    }
+                }
+            });
+
+            if ($validator->fails()) {
+                throw new \Illuminate\Validation\ValidationException($validator);
+            }
+
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy người dùng.'
+                ], 401);
+            }
+
+            // Kiểm tra mật khẩu hiện tại
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mật khẩu hiện tại không chính xác.'
+                ], 400);
+            }
+
+            // Kiểm tra mật khẩu mới không trùng với mật khẩu cũ
+            if (Hash::check($request->new_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mật khẩu mới không được trùng với mật khẩu hiện tại.'
+                ], 400);
+            }
+
+            // Cập nhật mật khẩu
+            if ($user instanceof Employee) {
+                // Cập nhật cho nhân viên
+                DB::table('employees')
+                    ->where('id', $user->id)
+                    ->update(['password' => Hash::make($request->new_password)]);
+
+                // Ghi log
+                UserLog::logActivity(
+                    $user->id,
+                    'update',
+                    'auth',
+                    'Đổi mật khẩu thành công qua API (nhân viên)',
+                    null,
+                    ['username' => $user->username]
+                );
+            } elseif ($user instanceof User && $user->role === 'customer') {
+                // Cập nhật cho khách hàng
+                DB::table('users')
+                    ->where('id', $user->id)
+                    ->update(['password' => Hash::make($request->new_password)]);
+
+                // Cập nhật mật khẩu gốc trong bảng customers
+                if ($user->customer_id) {
+                    DB::table('customers')
+                        ->where('id', $user->customer_id)
+                        ->update(['account_password' => $request->new_password]);
+                }
+
+                // Ghi log
+                UserLog::logActivity(
+                    $user->id,
+                    'update',
+                    'auth',
+                    'Đổi mật khẩu thành công qua API (khách hàng)',
+                    null,
+                    ['username' => $user->username]
+                );
+            }
+
+            // Xóa tất cả token hiện tại để bắt buộc đăng nhập lại
+            $user->tokens()->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('API change password error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi đổi mật khẩu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+}

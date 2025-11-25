@@ -22,6 +22,9 @@ Route::post('/login', [App\Http\Controllers\AuthController::class, 'apiLogin'])-
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [App\Http\Controllers\AuthController::class, 'apiLogout'])->name('api.logout');
     Route::get('/user', [App\Http\Controllers\AuthController::class, 'apiUser'])->name('api.user');
+    Route::get('/me', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.me');
+    Route::get('/user-profile', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.user-profile');
+    Route::put('/user/change-password', [App\Http\Controllers\AuthController::class, 'apiChangePassword'])->name('api.user.change-password');
 });
 
 Route::get('/export-requests', [RequestExportController::class, 'index']);
@@ -106,9 +109,11 @@ Route::middleware('auth:sanctum')->prefix('maintenance-requests')->group(functio
 
 // Customer Maintenance Request API routes (Khách yêu cầu bảo trì)
 Route::middleware('auth:sanctum')->prefix('customer-maintenance-requests')->group(function () {
-	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
+	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy danh sách (có phân trang)
 	Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
-	Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì
+	Route::get('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiShow'])->name('api.customer-maintenance-requests.show'); // Lấy chi tiết một phiếu
+	Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì (cũ)
+	Route::post('/create', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiCreateRequest'])->name('api.customer-maintenance-requests.create'); // Tạo phiếu khách yêu cầu bảo trì (mới - theo yêu cầu)
 	Route::patch('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate'])->name('api.customer-maintenance-requests.update'); // Cập nhật phiếu khách yêu cầu bảo trì
 	Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
 });
@@ -118,4 +123,38 @@ Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
     Route::get('/search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
     Route::get('/search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->name('api.repairs.search-warehouse-devices');
     Route::get('/repair-history', [App\Http\Controllers\RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
+    
+    // Test endpoint - xóa sau khi debug xong
+    Route::get('/test-warranties', function() {
+        $warranties = \App\Models\Warranty::select('id', 'warranty_code', 'customer_phone', 'customer_name', 'status')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+        
+        // Kiểm tra warranty cụ thể
+        $specificWarranty = \App\Models\Warranty::where('warranty_code', 'BH2025100016')->first();
+        
+        return response()->json([
+            'total_warranties' => \App\Models\Warranty::count(),
+            'sample_warranties' => $warranties,
+            'specific_warranty_BH2025100016' => $specificWarranty ? [
+                'id' => $specificWarranty->id,
+                'warranty_code' => $specificWarranty->warranty_code,
+                'customer_phone' => $specificWarranty->customer_phone,
+                'customer_name' => $specificWarranty->customer_name,
+                'customer_email' => $specificWarranty->customer_email,
+                'status' => $specificWarranty->status,
+            ] : null,
+            'phone_search_test' => [
+                'searching_for' => '0123456789',
+                'exact_match' => \App\Models\Warranty::where('customer_phone', '0123456789')->count(),
+                'like_match' => \App\Models\Warranty::where('customer_phone', 'LIKE', '%0123456789%')->count(),
+            ]
+        ]);
+    });
+});
+
+// Warranty API routes (token protected)
+Route::middleware('auth:sanctum')->prefix('warranties')->group(function () {
+    Route::get('/{warranty_code}/export-pdf', [App\Http\Controllers\WarrantyController::class, 'exportPdf'])->name('api.warranties.export-pdf');
 });
