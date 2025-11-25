@@ -118,9 +118,14 @@ Route::middleware('auth:sanctum')->prefix('customer-maintenance-requests')->grou
 	Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
 });
 
-// Repair API routes (token protected)
-Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
+// Repair API routes - Public (no auth required)
+Route::prefix('repairs')->group(function () {
+    // Public API - Tra cứu thông tin bảo hành (không cần auth)
     Route::get('/search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarrantyApi'])->name('api.repairs.search-warranty');
+});
+
+// Repair API routes - Protected (token required)
+Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
     Route::get('/search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->name('api.repairs.search-warehouse-devices');
     Route::get('/repair-history', [App\Http\Controllers\RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
     
@@ -154,7 +159,8 @@ Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
     });
 });
 
-// Warranty API routes (token protected)
-Route::middleware('auth:sanctum')->prefix('warranties')->group(function () {
+// Warranty API routes - Public (no auth required)
+Route::prefix('warranties')->group(function () {
+    // Public API - Tải PDF Phiếu Bảo hành (không cần auth)
     Route::get('/{warranty_code}/export-pdf', [App\Http\Controllers\WarrantyController::class, 'exportPdf'])->name('api.warranties.export-pdf');
 });
