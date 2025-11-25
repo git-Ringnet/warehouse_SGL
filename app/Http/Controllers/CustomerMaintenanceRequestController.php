@@ -28,6 +28,9 @@ class CustomerMaintenanceRequestController extends Controller
     /**
      * API: Lấy danh sách phiếu khách yêu cầu bảo trì (có phân trang)
      * Route: GET /api/customer-maintenance-requests/all
+     * Query params:
+     *   - per_page: số bản ghi mỗi trang (mặc định 15, tối đa 100)
+     *   - status: lọc theo trạng thái (pending, approved, rejected, completed)
      */
     public function apiGetAll(Request $request)
     {
@@ -43,6 +46,16 @@ class CustomerMaintenanceRequestController extends Controller
             // Nếu là customer, chỉ lấy phiếu của customer đó
             if ($user && $user instanceof User && $user->role === 'customer' && $user->customer_id) {
                 $query->where('customer_id', $user->customer_id);
+            }
+
+            // Filter theo status nếu có
+            if ($request->has('status') && !empty($request->status)) {
+                $status = $request->status;
+                // Validate status value
+                $validStatuses = ['pending', 'approved', 'rejected', 'completed'];
+                if (in_array($status, $validStatuses)) {
+                    $query->where('status', $status);
+                }
             }
 
             // Sắp xếp theo thời gian tạo mới nhất
