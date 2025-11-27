@@ -25,6 +25,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.me');
     Route::get('/user-profile', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.user-profile');
     Route::put('/user/change-password', [App\Http\Controllers\AuthController::class, 'apiChangePassword'])->name('api.user.change-password');
+    
+    // Notifications API
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'apiIndex'])->name('api.notifications.index');
+    Route::put('/notifications/mark-read', [App\Http\Controllers\NotificationController::class, 'apiMarkAsRead'])->name('api.notifications.mark-read');
 });
 
 Route::get('/export-requests', [RequestExportController::class, 'index']);

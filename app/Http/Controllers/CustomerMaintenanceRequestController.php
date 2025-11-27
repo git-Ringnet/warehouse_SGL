@@ -481,7 +481,15 @@ class CustomerMaintenanceRequestController extends Controller
                     $admin->id,
                     'customer_maintenance_request',
                     $maintenanceRequest->id,
-                    route('requests.customer-maintenance.show', $maintenanceRequest->id)
+                    route('requests.customer-maintenance.show', $maintenanceRequest->id),
+                    [
+                        'request_id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'customer_name' => $maintenanceRequest->customer_name,
+                        'project_name' => $maintenanceRequest->project_name,
+                        'priority' => $maintenanceRequest->priority,
+                        'status' => $maintenanceRequest->status
+                    ]
                 );
             }
 
@@ -682,7 +690,15 @@ class CustomerMaintenanceRequestController extends Controller
                     $admin->id,
                     'customer_maintenance_request',
                     $maintenanceRequest->id,
-                    route('requests.customer-maintenance.show', $maintenanceRequest->id)
+                    route('requests.customer-maintenance.show', $maintenanceRequest->id),
+                    [
+                        'request_id' => $maintenanceRequest->id,
+                        'request_code' => $maintenanceRequest->request_code,
+                        'customer_name' => $maintenanceRequest->customer_name,
+                        'project_name' => $maintenanceRequest->project_name,
+                        'priority' => $maintenanceRequest->priority,
+                        'status' => $maintenanceRequest->status
+                    ]
                 );
             }
 

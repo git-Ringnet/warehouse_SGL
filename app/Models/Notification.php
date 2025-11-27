@@ -13,6 +13,7 @@ class Notification extends Model
         'title',
         'message',
         'type',
+        'data',
         'icon',
         'link',
         'user_id',
@@ -23,6 +24,7 @@ class Notification extends Model
 
     protected $casts = [
         'is_read' => 'boolean',
+        'data' => 'array',
     ];
 
     /**
@@ -61,7 +63,7 @@ class Notification extends Model
     /**
      * Tạo thông báo mới
      */
-    public static function createNotification($title, $message, $type = 'info', $userId = null, $relatedType = null, $relatedId = null, $link = null)
+    public static function createNotification($title, $message, $type = 'info', $userId = null, $relatedType = null, $relatedId = null, $link = null, $data = null)
     {
         $icon = self::getIconByType($type);
         
@@ -69,6 +71,7 @@ class Notification extends Model
             'title' => $title,
             'message' => $message,
             'type' => $type,
+            'data' => $data,
             'icon' => $icon,
             'link' => $link,
             'user_id' => $userId,
