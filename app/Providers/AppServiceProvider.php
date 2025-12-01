@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Material;
 use App\Models\Good;
 use App\Observers\ProjectObserver;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,7 +32,7 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production') || true) {
             URL::forceScheme('https');
         }
-        
+
         // Register morphMap for polymorphic relations
         Relation::morphMap([
             'project' => Project::class,
