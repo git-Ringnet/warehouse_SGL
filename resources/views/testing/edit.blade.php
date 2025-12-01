@@ -997,6 +997,58 @@
             const form = document.querySelector('form');
             const autoSaveInterval = 2000; // 2 seconds - giảm thời gian để lưu nhanh hơn
             let autoSaveTimer;
+            
+            /**
+             * Hàm tối ưu: Chỉ gửi serial_results có giá trị "fail"
+             * Mặc định tất cả serial_results là "pass", chỉ gửi những cái "fail"
+             * Giảm 90-95% payload khi có nhiều vật tư (500-2000 items)
+             */
+            function optimizeSerialResults(data) {
+                if (!data.serial_results) {
+                    return data;
+                }
+                
+                const optimizedSerialResults = {};
+                let totalSerials = 0;
+                let failSerials = 0;
+                
+                // Chỉ giữ lại những serial_results có giá trị "fail"
+                for (const itemId in data.serial_results) {
+                    const itemSerials = data.serial_results[itemId];
+                    
+                    if (typeof itemSerials === 'object' && itemSerials !== null) {
+                        const failOnlySerials = {};
+                        
+                        for (const label in itemSerials) {
+                            totalSerials++;
+                            const value = itemSerials[label];
+                            
+                            // Chỉ gửi nếu giá trị là "fail"
+                            if (value === 'fail') {
+                                failOnlySerials[label] = value;
+                                failSerials++;
+                            }
+                        }
+                        
+                        // Chỉ thêm vào nếu có ít nhất 1 serial fail
+                        if (Object.keys(failOnlySerials).length > 0) {
+                            optimizedSerialResults[itemId] = failOnlySerials;
+                        }
+                    }
+                }
+                
+                // Log để theo dõi hiệu quả tối ưu
+                if (totalSerials > 0) {
+                    const reduction = ((totalSerials - failSerials) / totalSerials * 100).toFixed(1);
+                    console.log(`🚀 Tối ưu serial_results: ${totalSerials} → ${failSerials} (giảm ${reduction}%)`);
+                }
+                
+                // Thay thế serial_results bằng phiên bản tối ưu
+                data.serial_results = optimizedSerialResults;
+                
+                return data;
+            }
+            
             window.triggerAutoSave = function() {
                 clearTimeout(autoSaveTimer);
                 autoSaveTimer = setTimeout(() => {
@@ -1028,6 +1080,9 @@
                             data[key] = value;
                         }
                     }
+                    
+                    // ✨ ÁP DỤNG TỐI ƯU: Chỉ gửi serial_results có giá trị "fail"
+                    optimizeSerialResults(data);
 
                     fetch(form.action, {
                         method: 'POST',
@@ -1094,6 +1149,53 @@
             
             // TEMPORARILY DISABLE AUTO-SAVE TO DEBUG CONSOLIDATED SERIAL ISSUE
             console.log('Auto-save temporarily disabled for debugging');
+            
+            /**
+             * ✨ TỐI ƯU CHO FORM SUBMIT THÔNG THƯỜNG
+             * Áp dụng tối ưu serial_results khi người dùng nhấn nút "Lưu thay đổi"
+             */
+            form.addEventListener('submit', function(e) {
+                // Chỉ áp dụng tối ưu nếu không phải là auto-save
+                // Auto-save đã được tối ưu ở hàm triggerAutoSave
+                
+                // Đếm số lượng serial_results trước khi tối ưu
+                const allSerialSelects = form.querySelectorAll('select[name^="serial_results"]');
+                let totalCount = allSerialSelects.length;
+                let failCount = 0;
+                
+                // Xóa các serial_results có giá trị "pass" hoặc "pending" khỏi form
+                allSerialSelects.forEach(select => {
+                    const value = select.value;
+                    
+                    if (value === 'fail') {
+                        failCount++;
+                        // Giữ lại select này
+                    } else if (value === 'pass' || value === 'pending' || value === '') {
+                        // Xóa select này khỏi form để không gửi lên server
+                        select.disabled = true;
+                    }
+                });
+                
+                // Log để theo dõi hiệu quả tối ưu
+                if (totalCount > 0) {
+                    const reduction = ((totalCount - failCount) / totalCount * 100).toFixed(1);
+                    console.log(`🚀 Tối ưu form submit: ${totalCount} serial_results → ${failCount} (giảm ${reduction}%)`);
+                    
+                    // Hiển thị thông báo cho người dùng
+                    if (totalCount > 100) {
+                        const notification = document.createElement('div');
+                        notification.className = 'fixed top-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 bg-blue-500 shadow-lg';
+                        notification.innerHTML = `<i class="fas fa-rocket mr-2"></i>Đang tối ưu và lưu ${failCount}/${totalCount} kết quả...`;
+                        document.body.appendChild(notification);
+                        
+                        setTimeout(() => {
+                            if (notification.parentNode) {
+                                notification.remove();
+                            }
+                        }, 3000);
+                    }
+                }
+            });
         });
 
         function addTestItemForItem(itemId) {
