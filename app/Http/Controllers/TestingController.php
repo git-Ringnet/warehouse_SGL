@@ -431,9 +431,7 @@ public function show(Testing $testing)
                 $query->select([
                     'id',
                     'code',
-                    'product_id',
-                    'project_id',
-                    'assigned_to'
+                    'project_id'
                 ]);
             },
             'assembly.products' => function($query) {
