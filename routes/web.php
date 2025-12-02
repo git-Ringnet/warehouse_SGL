@@ -484,6 +484,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::post('/testing', [TestingController::class, 'store'])->name('testing.store');
         });
         Route::get('/testing/{testing}', [TestingController::class, 'show'])->name('testing.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.view_detail');
+        Route::get('/testing/{testing}/load-more', [TestingController::class, 'loadMoreUnits'])->name('testing.load-more')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.view_detail');
         Route::get('/testing/{testing}/print', [TestingController::class, 'print'])->name('testing.print')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.print');
         Route::get('/testing/{testing}/check-pending', [TestingController::class, 'checkPending'])->name('testing.check-pending');
 

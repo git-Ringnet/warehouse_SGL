@@ -734,16 +734,8 @@
                         <td class="px-3 py-2 text-sm text-gray-700">{{ $asmMaterial->quantity }}</td>
                         <td class="px-3 py-2 text-sm text-gray-700">
                             @php
-                                // Check if this material should have consolidated serials
-                                $shouldConsolidate = false;
-                                if ($materialUnit) {
-                                    $lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'Km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
-                                    $weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
-                                    $areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
-                                    $volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
-                                    $consolidateUnits = array_merge($lengthUnits, $weightUnits, $areaUnits, $volumeUnits);
-                                    $shouldConsolidate = in_array($materialUnit, $consolidateUnits);
-                                }
+                                // Sử dụng flag từ controller (đã được pre-process)
+                                $shouldConsolidate = $asmMaterial->should_consolidate_serial ?? false;
                             @endphp
                             
                             @if ($shouldConsolidate)
@@ -779,10 +771,10 @@
                                     @foreach($serialsRow as $s)
                                     <div class="mb-0.5">{{ $s }}</div>
                                     @endforeach
-                                    @for($i = 0; $i < $noSerialCount; $i++)
-                                        <div class="mb-0.5 text-gray-400">N/A
-                                </div>
-                                @endfor
+                                    {{-- Chỉ hiển thị tổng số N/A, không render từng dòng --}}
+                                    @if($noSerialCount > 0)
+                                    <div class="mb-0.5 text-gray-400">{{ $noSerialCount }} N/A</div>
+                                    @endif
                                 <div class="text-gray-400">{{ $serialCount }} serial{{ $serialCount > 1 ? 's' : '' }}{{ $noSerialCount > 0 ? ', ' . $noSerialCount . ' N/A' : '' }}</div>
             </div>
             @else
@@ -791,15 +783,13 @@
             @endphp
             @if($quantity > 0)
             <div class="text-xs text-gray-700">
-                @for($i = 0; $i < $quantity; $i++)
-                    <div class="mb-0.5 text-gray-400">N/A</div>
-            @endfor
-            <div class="text-gray-400">{{ $quantity }} N/A</div>
-        </div>
-        @else
-        N/A
-        @endif
-        @endif
+                {{-- Chỉ hiển thị tổng số, không render từng dòng --}}
+                <div class="text-gray-400">{{ $quantity }} N/A</div>
+            </div>
+            @else
+            N/A
+            @endif
+            @endif
                             @endif
                         </td>
     <td class="px-3 py-2 text-sm text-gray-700">
@@ -955,6 +945,41 @@
     </div>
     </div>
     @endforeach
+    
+    {{-- Thông báo nếu có nhiều materials bị giới hạn --}}
+    @if(isset($testing->has_many_materials) && $testing->has_many_materials)
+    <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-info-circle text-yellow-600 text-2xl"></i>
+                <div>
+                    <div class="font-medium text-yellow-800">Hiển thị giới hạn để tăng tốc độ tải trang</div>
+                    <div class="text-sm text-yellow-700 mt-1">
+                        Đang hiển thị 50 đơn vị đầu tiên trong tổng số {{ $testing->total_materials }} đơn vị.
+                        <span id="remaining-count">{{ $testing->total_materials - 50 }}</span> đơn vị còn lại.
+                    </div>
+                </div>
+            </div>
+            <button 
+                onclick="loadAllUnits()" 
+                id="load-more-btn"
+                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                <i class="fas fa-download"></i>
+                <span>Tải tất cả</span>
+            </button>
+        </div>
+        <div id="load-progress" class="mt-3 hidden">
+            <div class="flex items-center gap-2 text-sm text-yellow-700">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Đang tải thêm dữ liệu... <span id="load-progress-text">0%</span></span>
+            </div>
+            <div class="w-full bg-yellow-200 rounded-full h-2 mt-2">
+                <div id="load-progress-bar" class="bg-yellow-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+    @endif
+    
     @else
     <div class="mt-6 text-center text-gray-500 py-4">Không có vật tư lắp ráp cho thành phẩm này</div>
     @endif
@@ -1531,45 +1556,37 @@
             $assemblyMaterialsFail = 0;
             $assemblyMaterialsTotal = 0;
 
-            if ($testing->test_type == 'finished_product' && $testing->assembly) {
-            // Tổng slot kiểm thử của vật tư lắp ráp (serial + N/A)
-            $assemblyMaterialsTotal = 0;
-            foreach ($testing->assembly->materials as $assemblyMaterial) {
-            $assemblyMaterialsTotal += (int) ($assemblyMaterial->quantity ?? 0);
-            }
+            if ($testing->test_type == 'finished_product') {
+                // ✨ TỐI ƯU: Đếm trực tiếp từ serial_results của testing items (material type)
+                // Không dùng $testing->assembly->materials vì có thể bị giới hạn 50 items
+                // Mỗi testing item có serial_results là JSON {"A":"pass","B":"fail",...}
+                $serialPass = 0;
+                $serialFail = 0;
+                $serialTotal = 0;
+                
+                foreach ($testing->items as $item) {
+                    if ($item->item_type == 'material') {
+                        // Tính total từ quantity của testing item
+                        $serialTotal += (int)($item->quantity ?? 0);
+                        
+                        if (!empty($item->serial_results)) {
+                            $serialResults = is_array($item->serial_results) 
+                                ? $item->serial_results 
+                                : json_decode($item->serial_results, true);
+                            if (is_array($serialResults)) {
+                                foreach ($serialResults as $val) {
+                                    if ($val === 'pass') $serialPass++;
+                                    elseif ($val === 'fail') $serialFail++;
+                                }
+                            }
+                        }
+                    }
+                }
 
-            // 1) Đếm từ dropdown serial
-            $serialPass = 0; $serialFail = 0;
-            foreach ($testing->items as $item) {
-            if ($item->item_type == 'material' && !empty($item->serial_results)) {
-            $serialResults = is_array($item->serial_results) ? $item->serial_results : json_decode($item->serial_results, true);
-            if (is_array($serialResults)) {
-            foreach ($serialResults as $val) {
-            if ($val === 'pass') $serialPass++;
-            elseif ($val === 'fail') $serialFail++;
-            }
-            }
-            }
-            }
-
-            // 2) Lấy số N/A đạt đã nhập theo từng đơn vị từ notes
-            $naPassFromNotes = 0;
-            if (!empty($testing->notes)) {
-            $notesData = json_decode($testing->notes, true);
-            if (is_array($notesData) && isset($notesData['no_serial_pass_quantity']) && is_array($notesData['no_serial_pass_quantity'])) {
-            foreach ($notesData['no_serial_pass_quantity'] as $byItem) {
-            if (is_array($byItem)) {
-            foreach ($byItem as $v) { $naPassFromNotes += (int) $v; }
-            } else {
-            $naPassFromNotes += (int) $byItem;
-            }
-            }
-            }
-            }
-
-            // 3) Tổng hợp: phần chưa nhập coi là Không đạt
-            $assemblyMaterialsPass = min($assemblyMaterialsTotal, $serialPass + $naPassFromNotes);
-            $assemblyMaterialsFail = max(0, $assemblyMaterialsTotal - $assemblyMaterialsPass);
+                // Tổng hợp: sử dụng giá trị đã đếm từ serial_results
+                $assemblyMaterialsTotal = $serialTotal;
+                $assemblyMaterialsPass = $serialPass;
+                $assemblyMaterialsFail = $serialFail;
             }
             @endphp
 
@@ -2052,6 +2069,20 @@
             return materialResults;
         }
 
+        // Helper function để hiển thị thông báo
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white text-sm z-50 ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
         // Thêm xử lý cho form lưu kết quả kiểm thử
         document.addEventListener('DOMContentLoaded', function() {
             const testItemForm = document.getElementById('test-item-form');
@@ -2065,42 +2096,110 @@
                 });
 
                 testItemForm.addEventListener('submit', function(event) {
-                    // Log ra để debug
-                    console.log('Form kiểm thử đang được submit...');
-
-                    // Kiểm tra và hiển thị các kết quả kiểm thử
-                    const materialResults = validateTestResults();
-
-                    // Thu thập tất cả dữ liệu form để debug
-                    const formData = new FormData(testItemForm);
-                    const formDataObj = {};
-
-                    formData.forEach((value, key) => {
-                        formDataObj[key] = value;
-                        // Đặc biệt log các trường kết quả kiểm thử
-                        if (key.startsWith('item_results')) {
-                            console.log(`Kết quả kiểm thử ${key}: ${value}`);
-                        }
-                    });
-
-                    console.log('Dữ liệu form kiểm thử:', formDataObj);
-
-                    // Kiểm tra các trường material_id có được đặt đúng không
-                    const materialSelects = document.querySelectorAll('select[name^="item_results"]');
-                    console.log(`Tìm thấy ${materialSelects.length} trường select kết quả kiểm thử`);
-                    materialSelects.forEach(select => {
-                        console.log(`Select name: ${select.name}, value: ${select.value}`);
-                    });
-
-                    // Hiển thị thông báo
+                    event.preventDefault();
+                    
+                    // ✨ TỐI ƯU V2: Chỉ gửi serial_results có giá trị "fail" lên backend
+                    // Backend sẽ tự động set "pass" cho tất cả items/serials không được gửi
+                    // Điều này giảm 90-99% payload khi có 500-2000 vật tư
+                    // 
+                    // QUAN TRỌNG: Gửi thêm "_touched_items[]" để backend biết items nào đã được xử lý
+                    // Nếu một item có tất cả serial = pass, vẫn cần gửi item_id vào _touched_items
+                    
+                    console.log('🚀 Bắt đầu tối ưu hóa payload V2 trước khi gửi...');
+                    
                     const submitButton = document.querySelector('.test-item-submit-button');
                     if (submitButton) {
                         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang lưu...';
                         submitButton.disabled = true;
                     }
-
-                    // Tiếp tục submit form
-                    return true;
+                    
+                    // Thu thập dữ liệu form
+                    const formData = new FormData(testItemForm);
+                    
+                    // Tạo object để theo dõi items đã được touch
+                    const touchedItems = new Set();
+                    let totalSerials = 0;
+                    let failSerials = 0;
+                    let removedSerials = 0;
+                    
+                    // Lọc chỉ giữ lại serial_results có giá trị "fail"
+                    // Đồng thời thu thập danh sách item_ids đã được touch
+                    const serialSelects = testItemForm.querySelectorAll('select[name^="serial_results"]');
+                    serialSelects.forEach(select => {
+                        totalSerials++;
+                        const value = select.value;
+                        
+                        // Parse item_id từ name: serial_results[ITEM_ID][LABEL]
+                        const match = select.name.match(/serial_results\[([^\]]+)\]/);
+                        if (match) {
+                            touchedItems.add(match[1]);
+                        }
+                        
+                        // Chỉ gửi nếu giá trị là "fail"
+                        // Backend sẽ tự động set "pass" cho các serials không được gửi
+                        if (value === 'fail') {
+                            failSerials++;
+                            // Giữ nguyên trong formData
+                        } else {
+                            // Xóa khỏi formData để giảm payload (pass và pending đều bỏ)
+                            formData.delete(select.name);
+                            removedSerials++;
+                        }
+                    });
+                    
+                    // ✨ TỐI ƯU V3: Thay vì gửi danh sách touched items (có thể rất lớn),
+                    // chỉ gửi flag "_optimized_submit=1" để backend biết:
+                    // - Tất cả items đều được touch
+                    // - Chỉ có fail items được gửi lên
+                    // - Backend cần set pass cho tất cả items/serials không có trong request
+                    formData.append('_optimized_submit', '1');
+                    formData.append('_total_touched_items', touchedItems.size.toString());
+                    
+                    const optimizationRate = totalSerials > 0 ? Math.round((removedSerials / totalSerials) * 100) : 0;
+                    console.log(`📊 Tối ưu hóa V3: ${totalSerials} serial → ${failSerials} fail, ${touchedItems.size} items touched (giảm ${optimizationRate}% payload)`);
+                    
+                    // Gửi request với AJAX thay vì form submit thông thường
+                    fetch(testItemForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || 'Có lỗi xảy ra');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Đã lưu kết quả kiểm thử thành công!', 'success');
+                            // Reload trang sau 1 giây để hiển thị kết quả mới
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showNotification('Có lỗi khi lưu kết quả: ' + (data.message || 'Lỗi không xác định'), 'error');
+                            if (submitButton) {
+                                submitButton.innerHTML = '<i class="fas fa-save mr-2"></i> Lưu kết quả kiểm thử';
+                                submitButton.disabled = false;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Có lỗi khi lưu kết quả: ' + error.message, 'error');
+                        if (submitButton) {
+                            submitButton.innerHTML = '<i class="fas fa-save mr-2"></i> Lưu kết quả kiểm thử';
+                            submitButton.disabled = false;
+                        }
+                    });
+                    
+                    return false;
                 });
             }
         });
@@ -2533,6 +2632,127 @@
                 select.dispatchEvent(new Event('change'));
             });
         });
+    </script>
+
+    <!-- 🚀 PROGRESSIVE RENDERING SCRIPT -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Starting progressive rendering...');
+        
+        const startTime = performance.now();
+        
+        // Tìm tất cả các unit containers (đơn vị thành phẩm)
+        const allUnits = document.querySelectorAll('[class*="mt-6 mb-4 rounded-lg"]');
+        
+        if (allUnits.length > 20) {
+            console.log(`📊 Found ${allUnits.length} units - enabling progressive rendering`);
+            
+            // Ẩn tất cả units ban đầu
+            allUnits.forEach((unit, index) => {
+                if (index >= 5) { // Giữ 5 units đầu tiên visible
+                    unit.style.display = 'none';
+                    unit.setAttribute('data-lazy-index', index);
+                }
+            });
+            
+            // Hiển thị loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'progressive-loading';
+            loadingDiv.className = 'text-center py-8 text-gray-600';
+            loadingDiv.innerHTML = `
+                <div class="flex items-center justify-center gap-3">
+                    <i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i>
+                    <div>
+                        <div class="font-medium">Đang tải dữ liệu...</div>
+                        <div class="text-sm text-gray-500">Đã hiển thị <span id="loaded-count">5</span>/${allUnits.length} đơn vị</div>
+                    </div>
+                </div>
+            `;
+            
+            // Thêm loading indicator sau unit cuối cùng visible
+            if (allUnits.length > 5) {
+                allUnits[4].parentNode.insertBefore(loadingDiv, allUnits[5]);
+            }
+            
+            // Progressive loading - hiển thị từng batch
+            let currentIndex = 5;
+            const batchSize = 10; // Hiển thị 10 units mỗi lần
+            
+            function loadNextBatch() {
+                const endIndex = Math.min(currentIndex + batchSize, allUnits.length);
+                
+                for (let i = currentIndex; i < endIndex; i++) {
+                    allUnits[i].style.display = 'block';
+                }
+                
+                currentIndex = endIndex;
+                
+                // Update progress
+                const loadedCount = document.getElementById('loaded-count');
+                if (loadedCount) {
+                    loadedCount.textContent = currentIndex;
+                }
+                
+                if (currentIndex < allUnits.length) {
+                    // Continue loading
+                    requestAnimationFrame(loadNextBatch);
+                } else {
+                    // Done loading
+                    const loadingIndicator = document.getElementById('progressive-loading');
+                    if (loadingIndicator) {
+                        loadingIndicator.remove();
+                    }
+                    
+                    const totalTime = ((performance.now() - startTime) / 1000).toFixed(2);
+                    console.log(`✅ Progressive rendering complete in ${totalTime}s`);
+                    console.log(`📊 LCP improved: Initial content shown immediately, rest loaded progressively`);
+                }
+            }
+            
+            // Start loading after a short delay (let initial content paint first)
+            setTimeout(() => {
+                loadNextBatch();
+            }, 100);
+            
+        } else {
+            console.log(`ℹ️ Only ${allUnits.length} units - no need for progressive rendering`);
+        }
+    });
+    
+    // Function để load tất cả units
+    function loadAllUnits() {
+        const btn = document.getElementById('load-more-btn');
+        const progress = document.getElementById('load-progress');
+        const progressBar = document.getElementById('load-progress-bar');
+        const progressText = document.getElementById('load-progress-text');
+        
+        // Hiển thị progress
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        progress.classList.remove('hidden');
+        
+        // Reload trang với parameter để load tất cả
+        const url = new URL(window.location.href);
+        url.searchParams.set('load_all', '1');
+        
+        // Simulate progress (vì reload sẽ mất vài giây)
+        let percent = 0;
+        const interval = setInterval(() => {
+            percent += 10;
+            if (percent <= 90) {
+                progressBar.style.width = percent + '%';
+                progressText.textContent = percent + '%';
+            }
+        }, 200);
+        
+        // Redirect sau 1 giây
+        setTimeout(() => {
+            clearInterval(interval);
+            progressBar.style.width = '100%';
+            progressText.textContent = '100%';
+            window.location.href = url.toString();
+        }, 1000);
+    }
     </script>
 </body>
 
