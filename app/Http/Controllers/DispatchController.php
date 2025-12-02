@@ -942,61 +942,26 @@ class DispatchController extends Controller
                 }
 
                 // Tạo virtual serial cho thiết bị không có serial
+                // SỬ DỤNG RANDOM SUFFIX ĐỂ ĐẢM BẢO DUY NHẤT TOÀN CỤC
+                // Giải thích: Thay vì N/A-0, N/A-1 (dễ trùng giữa các project),
+                // ta dùng N/A-A1B2C3 (random) để tránh xung đột khi cùng thiết bị
+                // xuất hiện ở nhiều project khác nhau.
                 $quantity = (int)$item['quantity'];
                 $serialCount = count($serialNumbers);
                 
                 if ($quantity > $serialCount) {
-                    // Cần tạo virtual serial
-                    // Lấy virtual serial counter hiện tại của project/rental
-                    $virtualCounter = 0;
-                    
-                    if ($dispatch->dispatch_type === 'project' && $dispatch->project_id) {
-                        // Lấy tất cả virtual serial đã tồn tại trong project
-                        $existingVirtuals = DispatchItem::whereHas('dispatch', function($q) use ($dispatch) {
-                            $q->where('dispatch_type', 'project')
-                              ->where('project_id', $dispatch->project_id);
-                        })->get()
-                          ->pluck('serial_numbers')
-                          ->flatten()
-                          ->filter(function($s) {
-                              return is_string($s) && strpos($s, 'N/A-') === 0;
-                          })
-                          ->map(function($s) {
-                              return (int)str_replace('N/A-', '', $s);
-                          })
-                          ->toArray();
-                        
-                        $virtualCounter = !empty($existingVirtuals) ? max($existingVirtuals) + 1 : 0;
-                    } elseif ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
-                        // Lấy tất cả virtual serial đã tồn tại trong rental
-                        $existingVirtuals = DispatchItem::whereHas('dispatch', function($q) use ($dispatch) {
-                            $q->where('dispatch_type', 'rental')
-                              ->where('project_id', $dispatch->project_id);
-                        })->get()
-                          ->pluck('serial_numbers')
-                          ->flatten()
-                          ->filter(function($s) {
-                              return is_string($s) && strpos($s, 'N/A-') === 0;
-                          })
-                          ->map(function($s) {
-                              return (int)str_replace('N/A-', '', $s);
-                          })
-                          ->toArray();
-                        
-                        $virtualCounter = !empty($existingVirtuals) ? max($existingVirtuals) + 1 : 0;
-                    }
-                    
-                    // Thêm virtual serial vào mảng
+                    // Cần tạo virtual serial với random suffix (duy nhất toàn cục)
                     $needCount = $quantity - $serialCount;
-                    for ($i = 0; $i < $needCount; $i++) {
-                        $serialNumbers[] = "N/A-{$virtualCounter}";
-                        $virtualCounter++;
-                    }
+                    
+                    // Sử dụng SerialHelper để tạo virtual serial duy nhất
+                    $newVirtualSerials = \App\Helpers\SerialHelper::generateUniqueVirtualSerials($needCount);
+                    $serialNumbers = array_merge($serialNumbers, $newVirtualSerials);
                     
                     Log::info("Added virtual serials for item $index:", [
                         'quantity' => $quantity,
                         'real_serial_count' => $serialCount,
                         'virtual_serial_count' => $needCount,
+                        'new_virtual_serials' => $newVirtualSerials,
                         'final_serials' => $serialNumbers
                     ]);
                 }
@@ -2277,13 +2242,10 @@ class DispatchController extends Controller
                 $dispatch->load('items');
                 
                 // Tính virtual serial counter cho dự án/rental này
-                $virtualSerialCounter = 0;
-                if ($dispatch->dispatch_type === 'project' && $dispatch->project_id) {
-                    $virtualSerialCounter = \App\Helpers\SerialHelper::getMaxVirtualSerialCounter($dispatch->project_id);
-                } elseif ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
-                    // Với rental, sử dụng rental_id làm project_id
-                    $virtualSerialCounter = \App\Helpers\SerialHelper::getMaxVirtualSerialCounter($dispatch->project_id);
-                }
+                // SỬ DỤNG RANDOM SUFFIX ĐỂ ĐẢM BẢO DUY NHẤT TOÀN CỤC
+                // Giải thích: Khi duyệt phiếu, nếu thiết bị chưa có serial,
+                // ta tạo virtual serial với random suffix (N/A-A1B2C3) thay vì
+                // index tuần tự (N/A-0, N/A-1) để tránh trùng lặp giữa các project.
                 
                 foreach ($dispatch->items as $dispatchItem) {
                     $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
@@ -2294,10 +2256,9 @@ class DispatchController extends Controller
                     if ($quantity > $currentSerialCount) {
                         $needNewVirtuals = $quantity - $currentSerialCount;
                         
-                        for ($i = 0; $i < $needNewVirtuals; $i++) {
-                            $serialNumbers[] = "N/A-{$virtualSerialCounter}";
-                            $virtualSerialCounter++;
-                        }
+                        // Sử dụng SerialHelper để tạo virtual serial duy nhất toàn cục
+                        $newVirtualSerials = \App\Helpers\SerialHelper::generateUniqueVirtualSerials($needNewVirtuals);
+                        $serialNumbers = array_merge($serialNumbers, $newVirtualSerials);
                         
                         // Lưu virtual serial vào DB
                         $dispatchItem->serial_numbers = $serialNumbers;
@@ -2308,6 +2269,7 @@ class DispatchController extends Controller
                             'quantity' => $quantity,
                             'real_serials' => $currentSerialCount,
                             'virtual_serials' => $needNewVirtuals,
+                            'new_virtual_serials' => $newVirtualSerials,
                             'total_serials' => count($serialNumbers)
                         ]);
                     }

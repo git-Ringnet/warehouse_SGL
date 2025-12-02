@@ -997,9 +997,13 @@
                                     let displayText;
                                     
                                     if (isVirtual) {
-                                        // Virtual serial: hiển thị "Không có Serial #X"
-                                        const virtualIndex = parseInt(serialStr.replace('N/A-', ''));
-                                        displayText = `${itemCode} - ${itemName} - Không có Serial #${virtualIndex}`;
+                                        // Virtual serial: hiển thị "Không có Serial (SUFFIX)"
+                                        // Hỗ trợ cả format cũ (N/A-0) và format mới (N/A-A1B2C3)
+                                        const suffix = serialStr.replace('N/A-', '');
+                                        const isLegacyFormat = /^\d+$/.test(suffix);
+                                        displayText = isLegacyFormat 
+                                            ? `${itemCode} - ${itemName} - Không có Serial #${suffix}`
+                                            : `${itemCode} - ${itemName} - Không có Serial (${suffix})`;
                                     } else {
                                         // Serial thật
                                         displayText = `${itemCode} - ${itemName} - Serial ${serialStr}`;
