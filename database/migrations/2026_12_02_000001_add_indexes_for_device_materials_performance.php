@@ -58,9 +58,7 @@ return new class extends Migration
         }
         
         if (!$indexExists('dispatch_items', 'idx_dispatch_items_assembly')) {
-            Schema::table('dispatch_items', function (Blueprint $table) {
-                $table->index(['assembly_id'], 'idx_dispatch_items_assembly');
-            });
+            DB::statement('ALTER TABLE dispatch_items ADD INDEX idx_dispatch_items_assembly (assembly_id(191))');
         }
 
         // Index cho material_replacement_history
@@ -123,9 +121,7 @@ return new class extends Migration
         }
         
         if ($indexExists('dispatch_items', 'idx_dispatch_items_assembly')) {
-            Schema::table('dispatch_items', function (Blueprint $table) {
-                $table->dropIndex('idx_dispatch_items_assembly');
-            });
+            DB::statement('ALTER TABLE dispatch_items DROP INDEX idx_dispatch_items_assembly');
         }
 
         if ($indexExists('material_replacement_history', 'idx_material_replacement_device_material_date')) {
