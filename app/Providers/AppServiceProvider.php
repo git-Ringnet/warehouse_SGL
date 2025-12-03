@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Ép buộc toàn bộ link phải chạy HTTPS
-        if (request()->secure() || str_starts_with(request()->header('X-Forwarded-Proto', ''), 'https')) {
+        if ($this->app->environment('production') || true) {
             URL::forceScheme('https');
         }
 
