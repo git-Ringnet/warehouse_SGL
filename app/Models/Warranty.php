@@ -87,17 +87,17 @@ class Warranty extends Model
 
     public function material()
     {
-        return $this->belongsTo(Material::class, 'item_id')->where('item_type', 'material');
+        return $this->belongsTo(Material::class, 'item_id');
     }
 
     public function product()
     {
-        return $this->belongsTo(Product::class, 'item_id')->where('item_type', 'product');
+        return $this->belongsTo(Product::class, 'item_id');
     }
 
     public function good()
     {
-        return $this->belongsTo(Good::class, 'item_id')->where('item_type', 'good');
+        return $this->belongsTo(Good::class, 'item_id');
     }
 
     /**

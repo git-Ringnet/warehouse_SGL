@@ -15,6 +15,7 @@ use App\Models\Warranty;
 use App\Models\Repair;
 use App\Models\RepairItem;
 use App\Models\Warehouse;
+use App\Models\DeviceCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -160,10 +161,8 @@ class MaintenanceRequestController extends Controller
                                 $deviceName = $dispatchItem->good->name;
                                 $deviceType = 'Hàng hoá';
                             }
-                            $serial = 'N/A';
-                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
-                                $serial = $dispatchItem->serial_numbers[$index] ?? 'N/A';
-                            }
+                            // Lấy serial hiện tại (ưu tiên từ DeviceCode nếu có chỉnh sửa)
+                            $serial = $this->getCurrentSerial($dispatchItem, (int)$index, $dispatchItem->category ?? 'contract');
                             MaintenanceRequestProduct::create([
                                 'maintenance_request_id' => $maintenanceRequest->id,
                                 'product_id' => $dispatchItem->item_id,
@@ -292,10 +291,8 @@ class MaintenanceRequestController extends Controller
                                 $deviceName = $dispatchItem->good->name;
                                 $deviceType = 'Hàng hoá';
                             }
-                            $serial = 'N/A';
-                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
-                                $serial = $dispatchItem->serial_numbers[$index] ?? 'N/A';
-                            }
+                            // Lấy serial hiện tại (ưu tiên từ DeviceCode nếu có chỉnh sửa)
+                            $serial = $this->getCurrentSerial($dispatchItem, (int)$index, $dispatchItem->category ?? 'contract');
                             MaintenanceRequestProduct::create([
                                 'maintenance_request_id' => $maintenanceRequest->id,
                                 'product_id' => $dispatchItem->item_id,
@@ -842,11 +839,8 @@ class MaintenanceRequestController extends Controller
                             $deviceType = 'Hàng hoá';
                         }
                         
-                        // Lấy serial number
-                        $serialNumber = 'N/A';
-                        if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
-                            $serialNumber = $dispatchItem->serial_numbers[$index] ?? 'N/A';
-                        }
+                        // Lấy serial hiện tại (ưu tiên từ DeviceCode nếu có chỉnh sửa)
+                        $serialNumber = $this->getCurrentSerial($dispatchItem, (int)$index, $dispatchItem->category ?? 'contract');
                         
                         // Tạo MaintenanceRequestProduct
                         MaintenanceRequestProduct::create([
@@ -1093,11 +1087,8 @@ class MaintenanceRequestController extends Controller
                                 $deviceType = 'Hàng hoá';
                             }
                             
-                            // Lấy serial number
-                            $serialNumber = 'N/A';
-                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
-                                $serialNumber = $dispatchItem->serial_numbers[$index] ?? 'N/A';
-                            }
+                            // Lấy serial hiện tại (ưu tiên từ DeviceCode nếu có chỉnh sửa)
+                            $serialNumber = $this->getCurrentSerial($dispatchItem, (int)$index, $dispatchItem->category ?? 'contract');
                             
                             Log::info('Creating MaintenanceRequestProduct - Code: ' . $deviceCode . ', Name: ' . $deviceName);
                             
@@ -1420,20 +1411,15 @@ class MaintenanceRequestController extends Controller
             '/repairs/' . $repair->id
         );
         
-        // Lấy danh sách thiết bị từ warranty để thêm vào repair items
-        $dispatchItems = collect([]);
-        if ($warranty && $warranty->dispatch && $warranty->dispatch->items) {
-            $dispatchItems = $warranty->dispatch->items->where('item_type', 'product');
-        }
-        
-        // Nếu không có dispatch items, sử dụng danh sách products từ phiếu bảo trì
-        if ($dispatchItems->isEmpty() && $maintenanceRequest->products->isNotEmpty()) {
+        // Luôn ưu tiên sử dụng danh sách thiết bị từ phiếu đề xuất bảo trì
+        // vì đó là những thiết bị người dùng đã chọn cần bảo trì
+        if ($maintenanceRequest->products->isNotEmpty()) {
             foreach ($maintenanceRequest->products as $product) {
                 RepairItem::create([
                     'repair_id' => $repair->id,
                     'device_code' => $product->product_code,
                     'device_name' => $product->product_name,
-                    'device_serial' => $product->serial_number ?? '', // Sửa: truyền serial_number
+                    'device_serial' => $product->serial_number ?? '',
                     'device_quantity' => $product->quantity,
                     'device_status' => 'selected',
                     'device_notes' => '',
@@ -1441,30 +1427,6 @@ class MaintenanceRequestController extends Controller
                     'device_parts' => [],
                     'device_type' => 'product',
                 ]);
-            }
-        } else {
-            // Thêm các thiết bị từ dispatch items vào repair items
-            foreach ($dispatchItems as $item) {
-                if ($item->product) {
-                    // Lấy serial number từ serial_numbers array
-                    $serialNumber = '';
-                    if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                        $serialNumber = $item->serial_numbers[0] ?? '';
-                    }
-                    
-                    RepairItem::create([
-                        'repair_id' => $repair->id,
-                        'device_code' => $item->product->code,
-                        'device_name' => $item->product->name,
-                        'device_serial' => $serialNumber,
-                        'device_quantity' => 1,
-                        'device_status' => 'selected',
-                        'device_notes' => '',
-                        'device_images' => [],
-                        'device_parts' => [],
-                        'device_type' => 'product',
-                    ]);
-                }
             }
         }
         
@@ -1755,11 +1717,17 @@ class MaintenanceRequestController extends Controller
                 if (!empty($sn) && in_array($sn, $returnedSerials)) {
                     continue;
                 }
+                // Lấy serial hiện tại từ DeviceCode nếu có chỉnh sửa
+                $currentSerial = $this->getUpdatedSerialFromDeviceCode($item, $sn);
+                // Kiểm tra xem serial đã cập nhật có bị trả lại không
+                if (!empty($currentSerial) && $currentSerial !== $sn && in_array($currentSerial, $returnedSerials)) {
+                    continue;
+                }
                 $devices[] = [
                     'id' => $item->id . '_' . $idx,
                     'code' => $code,
                     'name' => $name,
-                    'serial_number' => !empty($sn) ? $sn : 'N/A',
+                    'serial_number' => !empty($currentSerial) ? $currentSerial : 'N/A',
                     'type' => $typeLabel,
                     'quantity' => 1,
                     'item_id' => $itemId, // Thêm item_id (device_id)
@@ -1779,6 +1747,29 @@ class MaintenanceRequestController extends Controller
                 ];
             }
         }
+    }
+
+    /**
+     * Lấy serial đã cập nhật từ DeviceCode nếu có
+     * Sử dụng SerialDisplayHelper để đảm bảo logic nhất quán
+     * 
+     * @param \App\Models\DispatchItem $item
+     * @param string $originalSerial Serial gốc từ DispatchItem
+     * @return string Serial hiện tại (đã cập nhật hoặc gốc)
+     */
+    private function getUpdatedSerialFromDeviceCode($item, string $originalSerial): string
+    {
+        if (empty($originalSerial)) {
+            return $originalSerial;
+        }
+
+        // Sử dụng SerialDisplayHelper để lấy serial hiển thị
+        return \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+            $item->dispatch_id,
+            $item->item_id,
+            $item->item_type,
+            $originalSerial
+        );
     }
 
     /**
@@ -2004,5 +1995,53 @@ class MaintenanceRequestController extends Controller
             Log::error('Lỗi khi lấy serial thiết bị: ' . $e->getMessage());
             return response()->json(['error' => 'Có lỗi xảy ra khi lấy serial thiết bị: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Lấy serial hiện tại của thiết bị, ưu tiên từ DeviceCode nếu có chỉnh sửa
+     * 
+     * @param \App\Models\DispatchItem $dispatchItem
+     * @param int $index Index của serial trong mảng serial_numbers
+     * @param string $type Loại category (contract, backup, general)
+     * @return string Serial number
+     */
+    private function getCurrentSerial($dispatchItem, int $index, string $type = 'contract'): string
+    {
+        // Lấy serial gốc từ DispatchItem
+        $originalSerial = 'N/A';
+        if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
+            $originalSerial = $dispatchItem->serial_numbers[$index] ?? 'N/A';
+        }
+
+        // Nếu không có serial gốc, trả về N/A
+        if ($originalSerial === 'N/A' || empty($originalSerial)) {
+            return 'N/A';
+        }
+
+        // Tìm DeviceCode tương ứng để lấy serial đã chỉnh sửa (nếu có)
+        $deviceCode = DeviceCode::where('dispatch_id', $dispatchItem->dispatch_id)
+            ->where('product_id', $dispatchItem->item_id)
+            ->where('type', $type)
+            ->where('old_serial', $originalSerial)
+            ->first();
+
+        // Nếu tìm thấy DeviceCode và có serial_main khác, trả về serial mới
+        if ($deviceCode && !empty($deviceCode->serial_main)) {
+            return $deviceCode->serial_main;
+        }
+
+        // Fallback: tìm theo serial_main nếu old_serial không khớp
+        $deviceCode = DeviceCode::where('dispatch_id', $dispatchItem->dispatch_id)
+            ->where('product_id', $dispatchItem->item_id)
+            ->where('type', $type)
+            ->where('serial_main', $originalSerial)
+            ->first();
+
+        if ($deviceCode && !empty($deviceCode->serial_main)) {
+            return $deviceCode->serial_main;
+        }
+
+        // Trả về serial gốc nếu không có chỉnh sửa
+        return $originalSerial;
     }
 }

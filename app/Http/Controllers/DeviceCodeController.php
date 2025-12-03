@@ -522,11 +522,25 @@ class DeviceCodeController extends Controller
                 $serialComponents = null; // Default null
                 if (isset($deviceCode['serial_components']) && $deviceCode['serial_components'] !== null) {
                     if (is_array($deviceCode['serial_components'])) {
-                        // Nếu là array, encode thành JSON string: ["1","2","3"]
-                        $serialComponents = json_encode($deviceCode['serial_components']);
+                        // Lọc bỏ các phần tử rỗng trước khi encode
+                        $filteredComponents = array_values(array_filter($deviceCode['serial_components'], function($item) {
+                            return !empty($item) && trim($item) !== '';
+                        }));
+                        // Chỉ encode nếu còn phần tử sau khi lọc
+                        $serialComponents = !empty($filteredComponents) ? json_encode($filteredComponents) : null;
                     } else {
-                        // Nếu đã là string, sử dụng trực tiếp
-                        $serialComponents = $deviceCode['serial_components'];
+                        // Nếu đã là string, kiểm tra xem có phải JSON array không
+                        $decoded = json_decode($deviceCode['serial_components'], true);
+                        if (is_array($decoded)) {
+                            // Lọc bỏ các phần tử rỗng
+                            $filteredComponents = array_values(array_filter($decoded, function($item) {
+                                return !empty($item) && trim($item) !== '';
+                            }));
+                            $serialComponents = !empty($filteredComponents) ? json_encode($filteredComponents) : null;
+                        } else {
+                            // Nếu không phải JSON, sử dụng trực tiếp
+                            $serialComponents = $deviceCode['serial_components'];
+                        }
                     }
                 }
 

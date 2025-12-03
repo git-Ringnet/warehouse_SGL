@@ -52,7 +52,141 @@ class WarrantyController extends Controller
      */
     public function show(Warranty $warranty)
     {
-        $warranty->load(['dispatch.project.customer', 'dispatchItem', 'creator']);
+        // Eager load tất cả relationships cần thiết để tránh N+1 query
+        $warranty->load([
+            'dispatch.project.customer',
+            'dispatch.items' => function($query) {
+                $query->where('category', '!=', 'backup')
+                      ->whereIn('item_type', ['product', 'good']);
+            },
+            'dispatch.items.product',
+            'dispatch.items.good',
+            'dispatchItem',
+            'creator',
+            'product',  // Cho single item warranty
+            'material', // Cho single item warranty
+            'good'      // Cho single item warranty
+        ]);
+
+        // Pre-load project items và product materials để tránh N+1 query trong view
+        $projectItems = [];
+        $productMaterials = [];
+        
+        if ($warranty->item_type === 'project' && $warranty->item_id) {
+            // Load tất cả dispatches của project một lần
+            $projectDispatches = \App\Models\Dispatch::where('project_id', $warranty->item_id)
+                ->whereIn('status', ['approved', 'completed'])
+                ->when($warranty->dispatch, function($query) use ($warranty) {
+                    if ($warranty->dispatch->dispatch_type) {
+                        $query->where('dispatch_type', $warranty->dispatch->dispatch_type);
+                    }
+                })
+                ->with(['items' => function($query) {
+                    $query->where('category', '!=', 'backup');
+                }, 'items.product', 'items.good', 'items.material'])
+                ->get();
+
+            // Build project items
+            foreach ($projectDispatches as $dispatch) {
+                foreach ($dispatch->items as $dispatchItem) {
+                    $itemDetails = null;
+                    switch ($dispatchItem->item_type) {
+                        case 'material':
+                            $itemDetails = $dispatchItem->material;
+                            break;
+                        case 'product':
+                            $itemDetails = $dispatchItem->product;
+                            break;
+                        case 'good':
+                            $itemDetails = $dispatchItem->good;
+                            break;
+                    }
+
+                    if ($itemDetails) {
+                        $projectItems[] = [
+                            'code' => $itemDetails->code,
+                            'name' => $itemDetails->name,
+                            'quantity' => $dispatchItem->quantity,
+                            'type' => $dispatchItem->item_type,
+                            'serial_numbers' => $dispatchItem->serial_numbers,
+                            'dispatch_item_id' => $dispatchItem->id,
+                            'dispatch_id' => $dispatch->id,
+                        ];
+                    }
+                }
+            }
+
+            // Build product materials với batch query
+            $productItems = collect($projectItems)->where('type', 'product');
+            if ($productItems->isNotEmpty()) {
+                // Collect tất cả serial numbers
+                $allSerials = [];
+                foreach ($productItems as $item) {
+                    if (!empty($item['serial_numbers'])) {
+                        $serials = is_array($item['serial_numbers']) ? $item['serial_numbers'] : [$item['serial_numbers']];
+                        $allSerials = array_merge($allSerials, $serials);
+                    }
+                }
+                $allSerials = array_unique(array_filter($allSerials));
+
+                // Batch load assembly products có chứa serial numbers cần tìm
+                if (!empty($allSerials)) {
+                    // Tìm tất cả AssemblyProduct có chứa serial trong danh sách
+                    $serialConditions = [];
+                    foreach ($allSerials as $serial) {
+                        $serialConditions[] = "FIND_IN_SET('" . addslashes($serial) . "', serials) > 0";
+                    }
+                    
+                    $assemblyProducts = \App\Models\AssemblyProduct::whereRaw('(' . implode(' OR ', $serialConditions) . ')')
+                        ->with(['assembly.materials.material'])
+                        ->get();
+
+                    // Group materials by serial
+                    $materialsBySerial = [];
+                    foreach ($assemblyProducts as $assemblyProduct) {
+                        $serials = $assemblyProduct->serials ? explode(',', $assemblyProduct->serials) : [];
+                        foreach ($serials as $serial) {
+                            $serial = trim($serial);
+                            if (in_array($serial, $allSerials) && $assemblyProduct->assembly) {
+                                if (!isset($materialsBySerial[$serial])) {
+                                    $materialsBySerial[$serial] = [
+                                        'product' => $assemblyProduct,
+                                        'materials' => []
+                                    ];
+                                }
+                                // Lấy materials từ assembly
+                                foreach ($assemblyProduct->assembly->materials as $am) {
+                                    if ($am->material) {
+                                        $materialsBySerial[$serial]['materials'][$am->material->code] = [
+                                            'code' => $am->material->code,
+                                            'name' => $am->material->name,
+                                            'quantity' => $am->quantity,
+                                            'assembly_code' => $assemblyProduct->assembly->code ?? 'N/A',
+                                            'serial' => $am->serial ?? 'N/A'
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Build product materials array
+                    foreach ($productItems as $item) {
+                        $serials = is_array($item['serial_numbers']) ? $item['serial_numbers'] : [$item['serial_numbers']];
+                        foreach ($serials as $serial) {
+                            if (!empty($serial) && isset($materialsBySerial[$serial])) {
+                                $productMaterials[] = [
+                                    'product_code' => $item['code'],
+                                    'product_name' => $item['name'],
+                                    'serial_number' => $serial,
+                                    'materials' => array_values($materialsBySerial[$serial]['materials'])
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Ghi nhật ký xem chi tiết bảo hành
         if (Auth::check()) {
@@ -66,7 +200,7 @@ class WarrantyController extends Controller
             );
         }
 
-        return view('warranties.show', compact('warranty'));
+        return view('warranties.show', compact('warranty', 'projectItems', 'productMaterials'));
     }
 
     /**

@@ -47,18 +47,17 @@
                                     @if ($warranty->item_type === 'project')
                                         <span class="mx-2 text-gray-300">|</span>
                                         <p class="text-gray-600">Số lượng thiết bị: <span
-                                                class="font-medium">{{ collect($warranty->project_items)->sum('quantity') }}</span></p>
+                                                class="font-medium">{{ collect($projectItems ?? [])->sum('quantity') }}</span></p>
                                     @endif
 
                                     @php
-                                        // Tính danh sách serial hiển thị dựa theo phiếu xuất gốc (loại trừ backup)
+                                        // Sử dụng dữ liệu đã pre-load từ controller để tránh N+1 query
                                         $headerSerials = [];
                                         if ($warranty->item_type === 'project') {
+                                            // Lấy serial từ dispatch items đã được eager load
                                             $dispatch = $warranty->dispatch;
-                                            if ($dispatch) {
-                                                $itemsQ = $dispatch->relationLoaded('items') ? $dispatch->items : $dispatch->items()->get();
-                                                $itemsQ = $itemsQ->filter(function ($it) { return $it->category !== 'backup' && in_array($it->item_type, ['product','good']); });
-                                                foreach ($itemsQ as $it) {
+                                            if ($dispatch && $dispatch->relationLoaded('items')) {
+                                                foreach ($dispatch->items as $it) {
                                                     $sns = is_array($it->serial_numbers) ? $it->serial_numbers : (array) $it->serial_numbers;
                                                     foreach ($sns as $s) { if (!empty($s)) { $headerSerials[] = (string) $s; } }
                                                 }
@@ -144,17 +143,17 @@
                                 </div>
 
                                 @php
-                                    // Ưu tiên hiển thị tổng hợp từ TẤT CẢ phiếu xuất đã duyệt của dự án
-                                    $projectItems = collect($warranty->project_items ?? [])->filter(function ($it) {
+                                    // Sử dụng biến $projectItems đã được pre-load từ controller để tránh N+1 query
+                                    $displayItems = collect($projectItems ?? [])->filter(function ($it) {
                                         return isset($it['type']) && in_array($it['type'], ['product', 'good']);
                                     });
                                 @endphp
 
-                                @if ($projectItems->count() > 0)
+                                @if ($displayItems->count() > 0)
                                     <div class="border-t border-gray-200 pt-4">
                                         <p class="text-sm text-gray-500 mb-3">Danh sách thiết bị trong bảo hành (tổng hợp tất cả phiếu xuất đã duyệt)</p>
                                         <div class="space-y-3">
-                                            @foreach ($projectItems as $item)
+                                            @foreach ($displayItems as $item)
                                                 <div class="bg-gray-50 rounded-lg p-4">
                                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                         <div>
@@ -181,17 +180,13 @@
                                 @else
                                     @php
                                         // Fallback: hiển thị theo phiếu gốc nếu chưa có tổng hợp
+                                        // Sử dụng dữ liệu đã eager load từ controller, không query thêm
                                         $dispatch = $warranty->dispatch;
                                         $warrantyItems = collect();
                                         if ($dispatch && $dispatch->relationLoaded('items')) {
                                             $warrantyItems = $dispatch->items
                                                 ->filter(function ($it) {
                                                     return $it->category !== 'backup' && in_array($it->item_type, ['product', 'good']);
-                                                });
-                                        } elseif ($dispatch) {
-                                            $warrantyItems = $dispatch->items()->where('category', '!=', 'backup')->get()
-                                                ->filter(function ($it) {
-                                                    return in_array($it->item_type, ['product', 'good']);
                                                 });
                                         }
                                     @endphp
@@ -238,7 +233,7 @@
                                     @endif
                                 @endif
 
-                                @if (!empty($warranty->product_materials))
+                                @if (!empty($productMaterials))
                                     <div class="border-t border-gray-200 pt-4 mt-4">
                                         <div class="flex items-center justify-between mb-3">
                                             <p class="text-sm text-gray-500">Chi tiết vật tư/linh kiện trong thành phẩm
@@ -250,7 +245,7 @@
                                         </div>
 
                                         <div id="materials-section" class="hidden space-y-4">
-                                            @foreach ($warranty->product_materials as $productMaterial)
+                                            @foreach ($productMaterials as $productMaterial)
                                                 <div class="bg-blue-50 rounded-lg p-4">
                                                     <div class="flex items-center justify-between mb-3">
                                                         <h5 class="font-medium text-gray-900">
@@ -307,12 +302,27 @@
                             </div>
                         @else
                             <!-- Single item warranty -->
+                            @php
+                                // Sử dụng relationship đã eager load thay vì accessor để tránh N+1 query
+                                $singleItem = null;
+                                switch ($warranty->item_type) {
+                                    case 'product':
+                                        $singleItem = $warranty->relationLoaded('product') ? $warranty->product : null;
+                                        break;
+                                    case 'material':
+                                        $singleItem = $warranty->relationLoaded('material') ? $warranty->material : null;
+                                        break;
+                                    case 'good':
+                                        $singleItem = $warranty->relationLoaded('good') ? $warranty->good : null;
+                                        break;
+                                }
+                            @endphp
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-6">
                                 <div>
                                     <p class="text-sm text-gray-500">Tên thiết bị</p>
                                     <p class="text-gray-900 font-medium">
-                                        @if ($warranty->item)
-                                            {{ $warranty->item->name ?? 'Không xác định' }}
+                                        @if ($singleItem)
+                                            {{ $singleItem->name ?? 'Không xác định' }}
                                         @else
                                             {{ ucfirst($warranty->item_type) }} ID: {{ $warranty->item_id }}
                                         @endif
@@ -321,8 +331,8 @@
                                 <div>
                                     <p class="text-sm text-gray-500">Mã thiết bị</p>
                                     <p class="text-gray-900 font-medium">
-                                        @if ($warranty->item && isset($warranty->item->code))
-                                            {{ $warranty->item->code }}
+                                        @if ($singleItem && isset($singleItem->code))
+                                            {{ $singleItem->code }}
                                         @else
                                             {{ $warranty->warranty_code }}
                                         @endif
