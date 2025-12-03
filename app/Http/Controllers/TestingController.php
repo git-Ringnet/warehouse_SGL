@@ -1984,6 +1984,11 @@ private function preprocessSerialData($testing)
                             route('assemblies.show', $assembly->id)
                         );
                     }
+
+                    // Tạo phiếu xuất kho thành phẩm và warranty nếu mục đích là xuất đi dự án
+                    if ($assembly->purpose === 'project' && $assembly->project_id && $totalPassQuantity > 0) {
+                        $this->createProductDispatchAndWarranty($assembly, $testing, $totalPassQuantity);
+                    }
                 }
             }
 
@@ -5097,5 +5102,307 @@ private function preprocessSerialData($testing)
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Tạo phiếu xuất kho thành phẩm và phiếu bảo hành điện tử khi hoàn thành kiểm thử
+     * Chỉ áp dụng cho phiếu lắp ráp có mục đích xuất đi dự án (purpose = 'project')
+     */
+    private function createProductDispatchAndWarranty(Assembly $assembly, Testing $testing, int $totalPassQuantity)
+    {
+        try {
+            // Load relationships nếu chưa có
+            if (!$assembly->relationLoaded('products')) {
+                $assembly->load('products.product');
+            }
+            if (!$assembly->relationLoaded('project')) {
+                $assembly->load('project.customer');
+            }
+
+            // Kiểm tra điều kiện
+            if ($assembly->purpose !== 'project' || !$assembly->project_id) {
+                Log::info('Bỏ qua tạo dispatch/warranty: không phải xuất đi dự án hoặc không có project_id', [
+                    'assembly_id' => $assembly->id,
+                    'purpose' => $assembly->purpose,
+                    'project_id' => $assembly->project_id
+                ]);
+                return null;
+            }
+
+            // Kiểm tra xem đã có phiếu xuất kho thành phẩm chưa
+            $existingDispatch = Dispatch::where('dispatch_note', 'like', '%phiếu lắp ráp ' . $assembly->code . '%')
+                ->where('dispatch_type', 'project')
+                ->where('project_id', $assembly->project_id)
+                ->whereHas('items', function($q) {
+                    $q->where('item_type', 'product');
+                })
+                ->first();
+
+            if ($existingDispatch) {
+                Log::info('Đã có phiếu xuất kho thành phẩm, bỏ qua tạo mới', [
+                    'assembly_id' => $assembly->id,
+                    'existing_dispatch_id' => $existingDispatch->id
+                ]);
+                return $existingDispatch;
+            }
+
+            // Lấy thông tin dự án
+            $project = $assembly->project;
+            $projectName = $project ? $project->project_name : 'Dự án';
+            $projectCode = $project ? $project->project_code : 'N/A';
+            $customerName = $project && $project->customer ? ($project->customer->name ?? $project->customer->company_name ?? 'N/A') : 'N/A';
+
+            // Tạo mã phiếu xuất kho
+            $dispatchCode = Dispatch::generateDispatchCode();
+
+            // Tạo project_receiver theo định dạng chuẩn
+            $projectReceiver = $projectCode . ' - ' . $projectName . ' (' . $customerName . ')';
+
+            // Lấy warranty_period từ project nếu có
+            $warrantyPeriod = null;
+            if ($project && $project->warranty_period) {
+                $warrantyPeriod = $project->warranty_period . ' tháng';
+            } else {
+                $warrantyPeriod = '12 tháng'; // Mặc định 12 tháng
+            }
+
+            // Tạo phiếu xuất kho thành phẩm
+            $dispatch = Dispatch::create([
+                'dispatch_code' => $dispatchCode,
+                'dispatch_date' => now(),
+                'dispatch_type' => 'project',
+                'dispatch_detail' => 'contract',
+                'project_id' => $assembly->project_id,
+                'project_receiver' => $projectReceiver,
+                'warranty_period' => $warrantyPeriod,
+                'company_representative_id' => $assembly->assigned_employee_id,
+                'dispatch_note' => 'Sinh từ phiếu lắp ráp ' . $assembly->code . ' (Xuất thành phẩm đi dự án)',
+                'status' => 'approved', // Tự động duyệt
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'created_by' => Auth::id() ?? 1,
+            ]);
+
+            // Tạo dispatch items cho từng thành phẩm đạt
+            $allSerialNumbers = [];
+            $allItemsInfo = [];
+
+            foreach ($assembly->products as $assemblyProduct) {
+                // Lấy serial numbers từ assembly product
+                $serialNumbers = [];
+                if ($assemblyProduct->serials) {
+                    $serialNumbers = array_filter(explode(',', $assemblyProduct->serials));
+                }
+
+                // Lọc chỉ lấy serial đạt từ testing
+                $passSerials = [];
+                $testingItem = $testing->items->where('item_type', 'product')
+                    ->where('product_id', $assemblyProduct->product_id)
+                    ->first();
+
+                if ($testingItem && !empty($testingItem->serial_results)) {
+                    $serialResults = json_decode($testingItem->serial_results, true);
+                    if (is_array($serialResults)) {
+                        foreach ($serialResults as $label => $result) {
+                            if ($result === 'pass') {
+                                $index = ord(strtoupper($label)) - 65; // A=0, B=1, C=2...
+                                if (isset($serialNumbers[$index])) {
+                                    $passSerials[] = $serialNumbers[$index];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Nếu không có serial_results, sử dụng tất cả serial
+                if (empty($passSerials) && !empty($serialNumbers)) {
+                    $passSerials = $serialNumbers;
+                }
+
+                // Tính số lượng đạt
+                $passQuantity = $testingItem ? (int)($testingItem->pass_quantity ?? 0) : $assemblyProduct->quantity;
+                if ($passQuantity <= 0) {
+                    continue;
+                }
+
+                // Tạo dispatch item
+                DispatchItem::create([
+                    'dispatch_id' => $dispatch->id,
+                    'item_type' => 'product',
+                    'item_id' => $assemblyProduct->product_id,
+                    'quantity' => $passQuantity,
+                    'warehouse_id' => $assembly->target_warehouse_id ?? $assembly->warehouse_id,
+                    'category' => 'contract',
+                    'serial_numbers' => !empty($passSerials) ? $passSerials : null,
+                    'assembly_id' => $assembly->id,
+                    'product_unit' => $assemblyProduct->product_unit,
+                    'notes' => 'Thành phẩm đạt từ phiếu lắp ráp ' . $assembly->code,
+                ]);
+
+                // Thu thập thông tin cho warranty
+                $allSerialNumbers = array_merge($allSerialNumbers, $passSerials);
+                $product = $assemblyProduct->product;
+                if ($product) {
+                    $allItemsInfo[] = "{$product->code} - {$product->name} (SL: {$passQuantity})";
+                }
+            }
+
+            // Ghi nhật ký tạo phiếu xuất kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'dispatches',
+                    'Tạo phiếu xuất kho thành phẩm từ kiểm thử: ' . $dispatch->dispatch_code,
+                    null,
+                    $dispatch->toArray()
+                );
+            }
+
+            // Tạo phiếu bảo hành điện tử
+            $this->createWarrantyForDispatch($dispatch, $allSerialNumbers, $allItemsInfo, $warrantyPeriod);
+
+            Log::info('Đã tạo phiếu xuất kho thành phẩm và warranty', [
+                'assembly_id' => $assembly->id,
+                'testing_id' => $testing->id,
+                'dispatch_id' => $dispatch->id,
+                'dispatch_code' => $dispatch->dispatch_code,
+                'project_id' => $assembly->project_id,
+                'total_pass_quantity' => $totalPassQuantity
+            ]);
+
+            return $dispatch;
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo phiếu xuất kho thành phẩm và warranty: ' . $e->getMessage(), [
+                'assembly_id' => $assembly->id,
+                'testing_id' => $testing->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Tạo phiếu bảo hành điện tử từ phiếu xuất kho
+     */
+    private function createWarrantyForDispatch(Dispatch $dispatch, array $allSerialNumbers, array $allItemsInfo, $warrantyPeriod)
+    {
+        try {
+            // Kiểm tra xem đã có warranty cho project này chưa
+            $existingWarranty = \App\Models\Warranty::where('item_type', 'project')
+                ->whereHas('dispatch', function ($query) use ($dispatch) {
+                    $query->where('project_id', $dispatch->project_id)
+                        ->where('dispatch_type', 'project');
+                })
+                ->first();
+
+            if ($existingWarranty) {
+                Log::info('Đã có warranty cho project, cập nhật thêm items', [
+                    'dispatch_id' => $dispatch->id,
+                    'existing_warranty_id' => $existingWarranty->id
+                ]);
+
+                // Cập nhật serial numbers và notes
+                $currentSerials = $existingWarranty->serial_number ? explode(', ', $existingWarranty->serial_number) : [];
+                $newSerials = array_unique(array_merge($currentSerials, $allSerialNumbers));
+                
+                $existingWarranty->update([
+                    'serial_number' => !empty($newSerials) ? implode(', ', $newSerials) : null,
+                    'notes' => $existingWarranty->notes . "\nCập nhật từ phiếu xuất {$dispatch->dispatch_code}: " . implode(', ', $allItemsInfo),
+                ]);
+
+                return ['action' => 'updated', 'warranty_code' => $existingWarranty->warranty_code, 'items_count' => count($allItemsInfo)];
+            }
+
+            // Parse warranty period
+            $warrantyPeriodMonths = 12;
+            if ($warrantyPeriod) {
+                preg_match('/(\d+)/', $warrantyPeriod, $matches);
+                if (!empty($matches[1])) {
+                    $warrantyPeriodMonths = (int) $matches[1];
+                }
+            }
+
+            // Tính ngày bảo hành
+            $warrantyStartDate = Carbon::parse($dispatch->dispatch_date);
+            $warrantyEndDate = $warrantyStartDate->copy()->addMonths($warrantyPeriodMonths);
+
+            // Tạo warranty mới
+            $warranty = \App\Models\Warranty::create([
+                'warranty_code' => \App\Models\Warranty::generateWarrantyCode(),
+                'dispatch_id' => $dispatch->id,
+                'dispatch_item_id' => $dispatch->items->first() ? $dispatch->items->first()->id : null,
+                'item_type' => 'project',
+                'item_id' => $dispatch->project_id,
+                'serial_number' => !empty($allSerialNumbers) ? implode(', ', array_unique($allSerialNumbers)) : null,
+                'customer_name' => $dispatch->project_receiver,
+                'customer_phone' => null,
+                'customer_email' => null,
+                'customer_address' => null,
+                'project_name' => $dispatch->project_receiver,
+                'purchase_date' => $dispatch->dispatch_date,
+                'warranty_start_date' => $warrantyStartDate,
+                'warranty_end_date' => $warrantyEndDate,
+                'warranty_period_months' => $warrantyPeriodMonths,
+                'warranty_type' => 'standard',
+                'status' => 'active',
+                'warranty_terms' => $this->getProjectWarrantyTerms($allItemsInfo),
+                'notes' => "Bảo hành tự động tạo từ phiếu xuất {$dispatch->dispatch_code}\nBao gồm các sản phẩm: " . implode(', ', $allItemsInfo),
+                'created_by' => Auth::id() ?? 1,
+                'activated_at' => now(),
+            ]);
+
+            // Generate QR code
+            $warranty->generateQRCode();
+
+            // Ghi nhật ký
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'warranties',
+                    'Tạo bảo hành điện tử từ kiểm thử: ' . $warranty->warranty_code,
+                    null,
+                    $warranty->toArray()
+                );
+            }
+
+            Log::info('Đã tạo warranty mới', [
+                'dispatch_id' => $dispatch->id,
+                'warranty_id' => $warranty->id,
+                'warranty_code' => $warranty->warranty_code
+            ]);
+
+            return ['action' => 'created', 'warranty_code' => $warranty->warranty_code];
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo warranty: ' . $e->getMessage(), [
+                'dispatch_id' => $dispatch->id,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Tạo điều khoản bảo hành cho dự án
+     */
+    private function getProjectWarrantyTerms(array $itemsInfo)
+    {
+        $terms = "ĐIỀU KHOẢN BẢO HÀNH DỰ ÁN\n\n";
+        $terms .= "1. Phạm vi bảo hành:\n";
+        $terms .= "   - Bảo hành các lỗi do nhà sản xuất\n";
+        $terms .= "   - Bảo hành các lỗi kỹ thuật trong quá trình lắp đặt\n\n";
+        $terms .= "2. Không bảo hành:\n";
+        $terms .= "   - Hư hỏng do sử dụng sai cách\n";
+        $terms .= "   - Hư hỏng do thiên tai, hỏa hoạn\n";
+        $terms .= "   - Sản phẩm đã qua sửa chữa bởi bên thứ ba\n\n";
+        $terms .= "3. Danh sách sản phẩm được bảo hành:\n";
+        foreach ($itemsInfo as $info) {
+            $terms .= "   - {$info}\n";
+        }
+        return $terms;
     }
 }

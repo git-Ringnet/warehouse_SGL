@@ -4518,9 +4518,12 @@
                     currentType
                 });
 
-                // Nếu không có assembly ở dòng này và serial rỗng (N/A), bắt buộc trả về rỗng để tránh lấy nhầm từ dòng khác
-                if ((!assemblyIdForRow || String(assemblyIdForRow).trim() === '' || String(assemblyIdForRow) === '0') && (!serial || String(serial).trim() === '')) {
-                    return [];
+                // Không return rỗng ngay lập tức khi không có assembly_id và serial rỗng
+                // Thay vào đó, tiếp tục tìm kiếm materials từ product_materials (fallback từ backend)
+                // Điều này cho phép hiển thị form nhập serial vật tư cho phiếu xuất kho tạo từ phiếu đề xuất dự án
+                const noAssemblyAndNoSerial = (!assemblyIdForRow || String(assemblyIdForRow).trim() === '' || String(assemblyIdForRow) === '0') && (!serial || String(serial).trim() === '');
+                if (noAssemblyAndNoSerial) {
+                    console.log('getMaterialsForRow: No assembly_id and no serial, will try to find fallback materials from product_materials');
                 }
                 
                 // Ưu tiên 1: Lấy từ key có suffix theo category (ví dụ: 109_backup)

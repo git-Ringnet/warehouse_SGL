@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -32,6 +33,7 @@ class NotificationController extends Controller
      * Query params:
      *   - page: số trang (mặc định 1)
      *   - limit: số bản ghi mỗi trang (mặc định 10)
+     *   - filter: lọc tình trạng (all, unread, read) - mặc định: all
      */
     public function apiIndex(Request $request)
     {
@@ -50,17 +52,29 @@ class NotificationController extends Controller
             // Lấy params
             $page = max(1, (int)$request->get('page', 1));
             $limit = max(1, min(100, (int)$request->get('limit', 10))); // Giới hạn từ 1 đến 100
+            $filter = $request->get('filter', 'all'); // all, unread, read
 
             // Query notifications của user
             $query = Notification::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc');
 
+            // Áp dụng filter
+            if ($filter === 'unread') {
+                $query->where('is_read', false);
+            } elseif ($filter === 'read') {
+                $query->where('is_read', true);
+            }
+
             // Phân trang
             $notifications = $query->paginate($limit, ['*'], 'page', $page);
 
-            // Đếm số thông báo chưa đọc
+            // Đếm số thông báo theo từng loại
+            $allCount = Notification::where('user_id', $user->id)->count();
             $unreadCount = Notification::where('user_id', $user->id)
                 ->where('is_read', false)
+                ->count();
+            $readCount = Notification::where('user_id', $user->id)
+                ->where('is_read', true)
                 ->count();
 
             // Format dữ liệu trả về
@@ -71,7 +85,7 @@ class NotificationController extends Controller
                     'content' => $notification->message ?? '',
                     'type' => $notification->type,
                     'data' => $notification->data ?? null,
-                    'is_read' => $notification->is_read,
+                    'is_read' => (bool)$notification->is_read,
                     'created_at' => $notification->created_at ? $notification->created_at->format('d/m/Y H:i:s') : null,
                     'icon' => $notification->icon ?? '',
                 ];
@@ -86,11 +100,15 @@ class NotificationController extends Controller
                     'total_items' => $notifications->total(),
                     'per_page' => $notifications->perPage(),
                 ],
-                'unread_count' => $unreadCount
+                'counts' => [
+                    'all' => $allCount,
+                    'unread' => $unreadCount,
+                    'read' => $readCount,
+                ]
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('API get notifications error: ' . $e->getMessage());
+            Log::error('API get notifications error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi lấy danh sách thông báo: ' . $e->getMessage()
@@ -129,14 +147,13 @@ class NotificationController extends Controller
 
             // Trường hợp đánh dấu tất cả
             if ($notificationId === 'all') {
-                $updatedCount = Notification::where('user_id', $user->id)
+                Notification::where('user_id', $user->id)
                     ->where('is_read', false)
                     ->update(['is_read' => true]);
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Đã đánh dấu đã đọc thành công.',
-                    'updated_count' => $updatedCount
+                    'message' => 'Đã đánh dấu đã đọc thành công.'
                 ]);
             }
 
@@ -168,7 +185,7 @@ class NotificationController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('API mark notification as read error: ' . $e->getMessage());
+            Log::error('API mark notification as read error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi đánh dấu thông báo: ' . $e->getMessage()

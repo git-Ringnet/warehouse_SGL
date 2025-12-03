@@ -1086,6 +1086,12 @@ class RepairController extends Controller
     {
         $materials = [];
         
+        // Cache key để tránh query lặp lại trong cùng request
+        $cacheKey = "device_materials_{$productCode}_{$deviceSerial}_{$warrantyCode}";
+        if (isset($GLOBALS[$cacheKey])) {
+            return $GLOBALS[$cacheKey];
+        }
+        
         try {
             // Tìm product theo code
             $product = Product::where('code', $productCode)->first();
@@ -1094,16 +1100,113 @@ class RepairController extends Controller
                 return $materials;
             }
             
-            // 0) ƯU TIÊN: Lấy serial vật tư theo lắp ráp/Testing (mapping serial theo đơn vị thành phẩm)
+            // FAST PATH 1: Tìm theo TestingItem finished_product có serial_number (query nhanh với index)
             try {
+                $finishedProductItem = \App\Models\TestingItem::where('item_type', 'finished_product')
+                    ->where('serial_number', $deviceSerial)
+                    ->orderByDesc('id')
+                    ->first();
+                if ($finishedProductItem) {
+                    $siblingMaterialItems = \App\Models\TestingItem::where('testing_id', $finishedProductItem->testing_id)
+                        ->where('item_type', 'material')
+                        ->with('material')
+                        ->get();
+
+                    $byCode = [];
+                    foreach ($siblingMaterialItems as $mi) {
+                        if (!$mi->material) {
+                            continue;
+                        }
+                        $code = $mi->material->code;
+                        $name = $mi->material->name;
+                        if (!isset($byCode[$code])) {
+                            $byCode[$code] = [
+                                'id' => $mi->material->id,
+                                'code' => $code,
+                                'name' => $name,
+                                'quantity' => 0,
+                                'serials' => [],
+                            ];
+                        }
+                        $byCode[$code]['quantity'] += (int)($mi->quantity ?? 1);
+                        if (!empty($mi->serial_number)) {
+                            $byCode[$code]['serials'][] = trim($mi->serial_number);
+                        }
+                    }
+
+                    foreach ($byCode as $code => $entry) {
+                        $serials = array_values(array_unique(array_filter($entry['serials'])));
+                        $materials[] = [
+                            'id' => $entry['id'],
+                            'code' => $entry['code'],
+                            'name' => $entry['name'],
+                            'quantity' => $entry['quantity'] > 0 ? $entry['quantity'] : 1,
+                            'serial' => implode(',', $serials),
+                            'current_serials' => $serials,
+                            'status' => 'active'
+                        ];
+                    }
+
+                    if (!empty($materials)) {
+                        $GLOBALS[$cacheKey] = $materials;
+                        return $materials;
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Finished product TestingItem lookup failed: ' . $e->getMessage());
+            }
+            
+            // FAST PATH 2: Tìm theo AssemblyProduct với LIKE (nhanh hơn JSON_SEARCH)
+            try {
+                $ap = \App\Models\AssemblyProduct::where('product_id', $product->id)
+                    ->where('serials', 'like', '%' . $deviceSerial . '%')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($ap) {
+                    $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $ap->assembly_id)
+                        ->where(function ($q) use ($product) {
+                            $q->where('target_product_id', $product->id)
+                              ->orWhereNull('target_product_id');
+                        })
+                        ->with(['material', 'serial'])
+                        ->get();
+                    foreach ($assemblyMaterials as $am) {
+                        if ($am->material) {
+                            $serials = [];
+                            if (!empty($am->serial)) {
+                                $serials = array_values(array_filter(array_map('trim', explode(',', (string)$am->serial))));
+                            }
+                            if (!empty($am->serial_id) && $am->serial && !in_array((string)$am->serial->serial_number, $serials, true)) {
+                                $serials[] = (string)$am->serial->serial_number;
+                            }
+                            $materials[] = [
+                                'id' => $am->material->id,
+                                'code' => $am->material->code,
+                                'name' => $am->material->name,
+                                'quantity' => (int)($am->quantity ?? 1),
+                                'serial' => implode(',', $serials),
+                                'current_serials' => $serials,
+                                'status' => 'active'
+                            ];
+                        }
+                    }
+                    if (!empty($materials)) {
+                        $GLOBALS[$cacheKey] = $materials;
+                        return $materials;
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Assembly mapping lookup failed: ' . $e->getMessage());
+            }
+            
+            // SLOW PATH: Lấy serial vật tư theo lắp ráp/Testing với JSON_SEARCH (chỉ khi cần)
+            try {
+                // Sử dụng LIKE trước để filter nhanh, sau đó mới dùng JSON_SEARCH
                 $testingItems = \App\Models\TestingItem::where('item_type', 'material')
                     ->whereHas('testing', function ($q) {
                         $q->whereIn('status', ['completed', 'approved', 'received']);
                     })
-                    ->where(function ($q) use ($deviceSerial) {
-                        $q->whereRaw('JSON_SEARCH(serial_results, "one", ?) IS NOT NULL', [$deviceSerial])
-                          ->orWhereRaw('JSON_SEARCH(serial_results, "all", ?) IS NOT NULL', [$deviceSerial]);
-                    })
+                    ->where('serial_results', 'like', '%' . $deviceSerial . '%')
                     ->with('material')
                     ->get();
 
@@ -1186,114 +1289,12 @@ class RepairController extends Controller
                     }
                     $materials = array_values($materialsByCode);
                     if (!empty($materials)) {
+                        $GLOBALS[$cacheKey] = $materials;
                         return $materials; // Found exact mapping from assembly/testing
                     }
                 }
-
-                // Fallback B: Tìm theo TestingItem của thành phẩm (finished_product) có đúng serial, rồi gom serial vật tư từ các TestingItem (material) cùng testing_id
-                try {
-                    $finishedProductItem = \App\Models\TestingItem::where('item_type', 'finished_product')
-                        ->where('serial_number', $deviceSerial)
-                        ->orderByDesc('id')
-                        ->first();
-                    if ($finishedProductItem) {
-                        $siblingMaterialItems = \App\Models\TestingItem::where('testing_id', $finishedProductItem->testing_id)
-                            ->where('item_type', 'material')
-                            ->with('material')
-                            ->get();
-
-                        $byCode = [];
-                        foreach ($siblingMaterialItems as $mi) {
-                            if (!$mi->material) {
-                                continue;
-                            }
-                            $code = $mi->material->code;
-                            $name = $mi->material->name;
-                            if (!isset($byCode[$code])) {
-                                $byCode[$code] = [
-                                    'id' => $mi->material->id,
-                                    'code' => $code,
-                                    'name' => $name,
-                                    'quantity' => 0,
-                                    'serials' => [],
-                                ];
-                            }
-                            $byCode[$code]['quantity'] += (int)($mi->quantity ?? 1);
-                            if (!empty($mi->serial_number)) {
-                                $byCode[$code]['serials'][] = trim($mi->serial_number);
-                            }
-                        }
-
-                        foreach ($byCode as $code => $entry) {
-                            $serials = array_values(array_unique(array_filter($entry['serials'])));
-                            $materials[] = [
-                                'id' => $entry['id'],
-                                'code' => $entry['code'],
-                                'name' => $entry['name'],
-                                'quantity' => $entry['quantity'] > 0 ? $entry['quantity'] : 1,
-                                'serial' => implode(',', $serials),
-                                'current_serials' => $serials,
-                                'status' => 'active'
-                            ];
-                        }
-
-                        if (!empty($materials)) {
-                            return $materials;
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Finished product TestingItem fallback failed: ' . $e->getMessage());
-                }
             } catch (\Exception $e) {
                 Log::warning('Testing mapping lookup failed: ' . $e->getMessage());
-            }
-
-            // Fallback C: Tra cứu theo lắp ráp - tìm AssemblyProduct có chứa serial thành phẩm này
-            try {
-                $ap = \App\Models\AssemblyProduct::where('product_id', $product->id)
-                    ->where(function ($q) use ($deviceSerial) {
-                        // cột serials có thể là JSON hoặc chuỗi phân tách dấu phẩy
-                        $q->orWhereRaw('JSON_SEARCH(serials, "one", ?) IS NOT NULL', [$deviceSerial])
-                            ->orWhere('serials', 'like', '%' . $deviceSerial . '%');
-                    })
-                    ->orderByDesc('id')
-                    ->first();
-                if ($ap) {
-                    $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $ap->assembly_id)
-                        // Một số dữ liệu có thể không ghi target_product_id; khi đó lấy tất cả vật tư của assembly
-                        ->where(function ($q) use ($product) {
-                            $q->where('target_product_id', $product->id)
-                              ->orWhereNull('target_product_id');
-                        })
-                        ->with(['material', 'serial'])
-                        ->get();
-                    foreach ($assemblyMaterials as $am) {
-                        if ($am->material) {
-                            // serial có thể lưu ở cột serial (text, nhiều, phân tách phẩy) hoặc qua khóa ngoại serial_id
-                            $serials = [];
-                            if (!empty($am->serial)) {
-                                $serials = array_values(array_filter(array_map('trim', explode(',', (string)$am->serial))));
-                            }
-                            if (!empty($am->serial_id) && $am->serial && !in_array((string)$am->serial->serial_number, $serials, true)) {
-                                $serials[] = (string)$am->serial->serial_number;
-                            }
-                            $materials[] = [
-                                'id' => $am->material->id,
-                                'code' => $am->material->code,
-                                'name' => $am->material->name,
-                                'quantity' => (int)($am->quantity ?? 1),
-                                'serial' => implode(',', $serials),
-                                'current_serials' => $serials,
-                                'status' => 'active'
-                            ];
-                        }
-                    }
-                    if (!empty($materials)) {
-                        return $materials;
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::warning('Assembly mapping lookup failed: ' . $e->getMessage());
             }
 
             // Tìm trong bảng serials để lấy vật tư theo serial cụ thể
@@ -1348,6 +1349,9 @@ class RepairController extends Controller
         } catch (\Exception $e) {
             Log::error("Error getting materials for product {$productCode} with serial {$deviceSerial}: " . $e->getMessage());
         }
+        
+        // Cache kết quả
+        $GLOBALS[$cacheKey] = $materials;
         return $materials;
     }
 

@@ -1195,7 +1195,9 @@ class ProjectRequestController extends Controller
                 'project_request_id' => $projectRequest->id,
                 'item_type' => $projectRequest->item_type,
                 'equipments_count' => $projectRequest->equipments->count(),
-                'equipments' => $projectRequest->equipments->toArray()
+                'equipments' => $projectRequest->equipments->toArray(),
+                'project_id' => $projectRequest->project_id,
+                'rental_id' => $projectRequest->rental_id
             ]);
             
             // Tạo mã phiếu lắp ráp
@@ -1232,6 +1234,9 @@ class ProjectRequestController extends Controller
                 throw new \Exception('Không tìm thấy kho mặc định');
             }
             
+            // Lấy project_id từ phiếu đề xuất (ưu tiên project_id, nếu không có thì null)
+            $assemblyProjectId = $projectRequest->project_id;
+            
             // Tạo phiếu lắp ráp
             $assembly = \App\Models\Assembly::create([
                 'code' => $assemblyCode,
@@ -1241,7 +1246,7 @@ class ProjectRequestController extends Controller
                 'assigned_employee_id' => $projectRequest->assembly_leader_id, // Người phụ trách lắp ráp
                 'tester_id' => $projectRequest->tester_id, // Người tiếp nhận kiểm thử
                 'purpose' => 'project', // Mục đích: xuất đi dự án
-                'project_id' => null,
+                'project_id' => $assemblyProjectId, // FIX: Lấy project_id từ phiếu đề xuất thay vì null
                 'status' => 'pending', // Trạng thái: Chờ xử lý
                 'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id . ' - ' . $projectRequest->project_name,
             ]);
@@ -1272,44 +1277,71 @@ class ProjectRequestController extends Controller
                     ->where('is_hidden', false)
                     ->find($item->item_id);
                     
-                    if ($product) {
-                        // Thêm sản phẩm vào phiếu lắp ráp
-                        \App\Models\AssemblyProduct::create([
-                            'assembly_id' => $assembly->id,
-                            'product_id' => $product->id,
-                        'quantity' => $item->quantity,
-                            'serials' => null,
-                        ]);
-                        
-                        $productsAdded = true;
-                        
-                        // Lấy danh sách vật tư của sản phẩm
-                        $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)->get();
-                        
-                        // Thêm các vật tư vào phiếu lắp ráp
+                if ($product) {
+                    $productQty = intval($item->quantity);
+                    
+                    // FIX: Tạo array product_unit [0, 1, 2, ...] dựa trên quantity
+                    $productUnits = [];
+                    for ($i = 0; $i < $productQty; $i++) {
+                        $productUnits[] = $i;
+                    }
+                    
+                    // Thêm sản phẩm vào phiếu lắp ráp với product_unit
+                    \App\Models\AssemblyProduct::create([
+                        'assembly_id' => $assembly->id,
+                        'product_id' => $product->id,
+                        'quantity' => $productQty,
+                        'serials' => null,
+                        'product_unit' => $productUnits, // FIX: Thêm product_unit array
+                    ]);
+                    
+                    $productsAdded = true;
+                    
+                    // Lấy danh sách vật tư của sản phẩm
+                    $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)->get();
+                    
+                    // FIX: Tạo vật tư riêng cho từng đơn vị thành phẩm (product_unit)
+                    // Thay vì dồn tất cả vật tư về 1 record, tạo riêng cho mỗi unit
+                    for ($unitIndex = 0; $unitIndex < $productQty; $unitIndex++) {
                         foreach ($productMaterials as $material) {
+                            // Tìm kho có tồn kho vật tư này
+                            $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $material->material_id)
+                                ->where('quantity', '>=', $material->quantity)
+                                ->whereHas('warehouse', function($q) {
+                                    $q->where('status', 'active')->where('is_hidden', false);
+                                })
+                                ->orderByDesc('quantity')
+                                ->first();
+                            
+                            $materialWarehouseId = $warehouseMaterial ? $warehouseMaterial->warehouse_id : $defaultWarehouse->id;
+                            
                             \App\Models\AssemblyMaterial::create([
                                 'assembly_id' => $assembly->id,
                                 'material_id' => $material->material_id,
-                            'quantity' => $material->quantity * $item->quantity, // Số lượng vật tư = số lượng cần cho 1 sản phẩm * số lượng sản phẩm
+                                'target_product_id' => $product->id, // FIX: Sử dụng target_product_id thay vì product_id
+                                'product_unit' => $unitIndex, // FIX: Gán product_unit cho từng đơn vị thành phẩm
+                                'quantity' => $material->quantity, // Số lượng vật tư cho 1 đơn vị thành phẩm
                                 'serial' => null,
-                                'product_id' => $product->id // Liên kết vật tư với sản phẩm
+                                'warehouse_id' => $materialWarehouseId, // FIX: Map kho xuất dựa trên tồn kho vật tư
                             ]);
                         }
-                        
-                        // Log thông tin
-                        \Illuminate\Support\Facades\Log::info('Đã thêm sản phẩm và vật tư vào phiếu lắp ráp', [
-                            'assembly_code' => $assembly->code,
-                            'product_id' => $product->id,
-                            'product_name' => $product->name,
-                        'quantity' => $item->quantity,
-                            'materials_count' => $productMaterials->count()
-                        ]);
-                    } else {
-                        \Illuminate\Support\Facades\Log::warning('Không tìm thấy sản phẩm', [
+                    }
+                    
+                    // Log thông tin
+                    \Illuminate\Support\Facades\Log::info('Đã thêm sản phẩm và vật tư vào phiếu lắp ráp', [
+                        'assembly_code' => $assembly->code,
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'quantity' => $productQty,
+                        'materials_count' => $productMaterials->count(),
+                        'total_material_records' => $productMaterials->count() * $productQty,
+                        'project_id' => $assemblyProjectId
+                    ]);
+                } else {
+                    \Illuminate\Support\Facades\Log::warning('Không tìm thấy sản phẩm', [
                         'item_id' => $item->item_id,
                         'item' => $item->toArray()
-                        ]);
+                    ]);
                 }
             }
             
@@ -1326,17 +1358,31 @@ class ProjectRequestController extends Controller
                         'product_id' => $defaultProduct->id,
                         'quantity' => 1,
                         'serials' => null,
+                        'product_unit' => [0], // FIX: Thêm product_unit cho sản phẩm mặc định
                     ]);
                     
                     // Lấy và thêm vật tư của sản phẩm mặc định
                     $defaultProductMaterials = \App\Models\ProductMaterial::where('product_id', $defaultProduct->id)->get();
                     foreach ($defaultProductMaterials as $material) {
+                        // Tìm kho có tồn kho vật tư này
+                        $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $material->material_id)
+                            ->where('quantity', '>=', $material->quantity)
+                            ->whereHas('warehouse', function($q) {
+                                $q->where('status', 'active')->where('is_hidden', false);
+                            })
+                            ->orderByDesc('quantity')
+                            ->first();
+                        
+                        $materialWarehouseId = $warehouseMaterial ? $warehouseMaterial->warehouse_id : $defaultWarehouse->id;
+                        
                         \App\Models\AssemblyMaterial::create([
                             'assembly_id' => $assembly->id,
                             'material_id' => $material->material_id,
+                            'target_product_id' => $defaultProduct->id, // FIX: Sử dụng target_product_id
+                            'product_unit' => 0, // FIX: Gán product_unit = 0 cho sản phẩm mặc định
                             'quantity' => $material->quantity,
                             'serial' => null,
-                            'product_id' => $defaultProduct->id
+                            'warehouse_id' => $materialWarehouseId, // FIX: Map kho xuất
                         ]);
                     }
                     
@@ -1344,7 +1390,8 @@ class ProjectRequestController extends Controller
                         'assembly_code' => $assembly->code,
                         'product_id' => $defaultProduct->id,
                         'product_name' => $defaultProduct->name,
-                        'materials_count' => $defaultProductMaterials->count()
+                        'materials_count' => $defaultProductMaterials->count(),
+                        'project_id' => $assemblyProjectId
                     ]);
                 }
             }
@@ -1644,15 +1691,156 @@ class ProjectRequestController extends Controller
                     'warehouse_stock' => $wm->quantity
                 ]);
 
-            DispatchItem::create([
-                'dispatch_id' => $dispatch->id,
+                // Tìm assembly_id và product_unit cho sản phẩm nếu là product
+                $assemblyIds = [];
+                $productUnits = [];
+                $serialNumbers = [];
+                
+                if ($itemType === 'product') {
+                    // Tìm các Testing đã hoàn thành cho product này với kho lưu thành phẩm đạt = kho hiện tại
+                    $testings = \App\Models\Testing::where('status', 'completed')
+                        ->where('success_warehouse_id', $wm->warehouse_id)
+                        ->whereNotNull('assembly_id')
+                        ->whereHas('items', function($q) use ($itemId) {
+                            $q->where('product_id', $itemId);
+                        })
+                        ->orderBy('id', 'asc')
+                        ->get();
+                    
+                    Log::info('Tìm Testing cho product:', [
+                        'product_id' => $itemId,
+                        'warehouse_id' => $wm->warehouse_id,
+                        'testings_count' => $testings->count(),
+                    ]);
+                    
+                    // Lấy các cặp đã xuất trong các phiếu xuất đã duyệt
+                    $usedPairs = [];
+                    $approvedDispatchItems = \App\Models\DispatchItem::whereHas('dispatch', function($q) {
+                            $q->where('status', 'approved');
+                        })
+                        ->where('item_type', 'product')
+                        ->where('item_id', $itemId)
+                        ->whereNotNull('assembly_id')
+                        ->get();
+                    
+                    foreach ($approvedDispatchItems as $di) {
+                        $aIds = array_map('trim', explode(',', (string) $di->assembly_id));
+                        $pUnits = [];
+                        if (is_string($di->product_unit)) {
+                            $decoded = json_decode($di->product_unit, true);
+                            if (is_array($decoded)) {
+                                $pUnits = array_map('intval', $decoded);
+                            } else {
+                                $pUnits = array_map('intval', array_map('trim', explode(',', $di->product_unit)));
+                            }
+                        }
+                        
+                        $len = min(count($aIds), count($pUnits));
+                        for ($ii = 0; $ii < $len; $ii++) {
+                            if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
+                                $usedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
+                            }
+                        }
+                    }
+                    
+                    Log::info('Các cặp assembly:product_unit đã xuất:', [
+                        'product_id' => $itemId,
+                        'used_pairs' => array_keys($usedPairs),
+                    ]);
+                    
+                    // Lấy các cặp chưa xuất từ assembly_products thông qua Testing
+                    $availablePairs = [];
+                    foreach ($testings as $testing) {
+                        // Lấy assembly_products cho assembly_id của testing này
+                        $assemblyProduct = \App\Models\AssemblyProduct::where('assembly_id', $testing->assembly_id)
+                            ->where('product_id', $itemId)
+                            ->first();
+                        
+                        if ($assemblyProduct) {
+                            // Lấy product_unit - có thể đã là array do accessor trong model
+                            $productUnitValue = $assemblyProduct->product_unit;
+                            $apProductUnits = [];
+                            
+                            if (is_array($productUnitValue)) {
+                                $apProductUnits = array_map('intval', $productUnitValue);
+                            } elseif (is_string($productUnitValue)) {
+                                $decoded = json_decode($productUnitValue, true);
+                                if (is_array($decoded)) {
+                                    $apProductUnits = array_map('intval', $decoded);
+                                } else {
+                                    $apProductUnits = array_map('intval', array_map('trim', explode(',', $productUnitValue)));
+                                }
+                            } elseif ($productUnitValue !== null) {
+                                $apProductUnits = [intval($productUnitValue)];
+                            }
+                            
+                            if (empty($apProductUnits)) {
+                                $apProductUnits = [0];
+                            }
+                            
+                            // Parse serial từ assembly_products
+                            $apSerials = [];
+                            if (!empty($assemblyProduct->serials)) {
+                                $apSerials = array_map('trim', explode(',', $assemblyProduct->serials));
+                            }
+                            
+                            Log::info('Assembly product details from Testing:', [
+                                'testing_id' => $testing->id,
+                                'assembly_id' => $testing->assembly_id,
+                                'product_id' => $itemId,
+                                'product_units_parsed' => $apProductUnits,
+                                'serials' => $apSerials,
+                            ]);
+                            
+                            foreach ($apProductUnits as $idx => $pu) {
+                                $pairKey = $testing->assembly_id . ':' . $pu;
+                                if (!isset($usedPairs[$pairKey])) {
+                                    $availablePairs[] = [
+                                        'assembly_id' => $testing->assembly_id,
+                                        'product_unit' => $pu,
+                                        'serial' => $apSerials[$idx] ?? ''
+                                    ];
+                                    $usedPairs[$pairKey] = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    Log::info('Các cặp assembly:product_unit khả dụng:', [
+                        'product_id' => $itemId,
+                        'available_pairs_count' => count($availablePairs),
+                        'available_pairs' => array_slice($availablePairs, 0, 10),
+                    ]);
+                    
+                    // Lấy đủ số lượng cần thiết
+                    for ($i = 0; $i < $takeQty && $i < count($availablePairs); $i++) {
+                        $assemblyIds[] = $availablePairs[$i]['assembly_id'];
+                        $productUnits[] = $availablePairs[$i]['product_unit'];
+                        if (!empty($availablePairs[$i]['serial'])) {
+                            $serialNumbers[] = $availablePairs[$i]['serial'];
+                        }
+                    }
+                    
+                    Log::info('Gán assembly_id và product_unit cho dispatch item:', [
+                        'product_id' => $itemId,
+                        'take_qty' => $takeQty,
+                        'assembly_ids' => $assemblyIds,
+                        'product_units' => $productUnits,
+                        'serial_numbers' => $serialNumbers,
+                    ]);
+                }
+
+                DispatchItem::create([
+                    'dispatch_id' => $dispatch->id,
                     'warehouse_id' => $wm->warehouse_id,
-                'item_type' => $itemType,
-                'item_id' => $itemId,
+                    'item_type' => $itemType,
+                    'item_id' => $itemId,
                     'quantity' => $takeQty,
                     'category' => 'contract',
-                'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
-                'serial_numbers' => null
+                    'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
+                    'serial_numbers' => !empty($serialNumbers) ? json_encode($serialNumbers) : null,
+                    'assembly_id' => !empty($assemblyIds) ? implode(',', $assemblyIds) : null,
+                    'product_unit' => !empty($productUnits) ? json_encode($productUnits) : null,
                 ]);
 
                 $remaining -= $takeQty;
@@ -1675,6 +1863,109 @@ class ProjectRequestController extends Controller
                     'default_warehouse_name' => $defaultWarehouse->name
                 ]);
                 
+                // Tìm assembly_id và product_unit cho phần còn thiếu nếu là product
+                $fallbackAssemblyIds = [];
+                $fallbackProductUnits = [];
+                $fallbackSerialNumbers = [];
+                
+                if ($itemType === 'product') {
+                    // Tìm các Testing đã hoàn thành cho product này với kho lưu thành phẩm đạt = kho mặc định
+                    $testings = \App\Models\Testing::where('status', 'completed')
+                        ->where('success_warehouse_id', $defaultWarehouse->id)
+                        ->whereNotNull('assembly_id')
+                        ->whereHas('items', function($q) use ($itemId) {
+                            $q->where('product_id', $itemId);
+                        })
+                        ->orderBy('id', 'asc')
+                        ->get();
+                    
+                    // Lấy các cặp đã xuất
+                    $usedPairs = [];
+                    $approvedDispatchItems = \App\Models\DispatchItem::whereHas('dispatch', function($q) {
+                            $q->where('status', 'approved');
+                        })
+                        ->where('item_type', 'product')
+                        ->where('item_id', $itemId)
+                        ->whereNotNull('assembly_id')
+                        ->get();
+                    
+                    foreach ($approvedDispatchItems as $di) {
+                        $aIds = array_map('trim', explode(',', (string) $di->assembly_id));
+                        $pUnits = [];
+                        if (is_string($di->product_unit)) {
+                            $decoded = json_decode($di->product_unit, true);
+                            if (is_array($decoded)) {
+                                $pUnits = array_map('intval', $decoded);
+                            } else {
+                                $pUnits = array_map('intval', array_map('trim', explode(',', $di->product_unit)));
+                            }
+                        }
+                        
+                        $len = min(count($aIds), count($pUnits));
+                        for ($ii = 0; $ii < $len; $ii++) {
+                            if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
+                                $usedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
+                            }
+                        }
+                    }
+                    
+                    // Lấy các cặp chưa xuất từ assembly_products thông qua Testing
+                    $availablePairs = [];
+                    foreach ($testings as $testing) {
+                        $assemblyProduct = \App\Models\AssemblyProduct::where('assembly_id', $testing->assembly_id)
+                            ->where('product_id', $itemId)
+                            ->first();
+                        
+                        if ($assemblyProduct) {
+                            $productUnitValue = $assemblyProduct->product_unit;
+                            $apProductUnits = [];
+                            
+                            if (is_array($productUnitValue)) {
+                                $apProductUnits = array_map('intval', $productUnitValue);
+                            } elseif (is_string($productUnitValue)) {
+                                $decoded = json_decode($productUnitValue, true);
+                                if (is_array($decoded)) {
+                                    $apProductUnits = array_map('intval', $decoded);
+                                } else {
+                                    $apProductUnits = array_map('intval', array_map('trim', explode(',', $productUnitValue)));
+                                }
+                            } elseif ($productUnitValue !== null) {
+                                $apProductUnits = [intval($productUnitValue)];
+                            }
+                            
+                            if (empty($apProductUnits)) {
+                                $apProductUnits = [0];
+                            }
+                            
+                            $apSerials = [];
+                            if (!empty($assemblyProduct->serials)) {
+                                $apSerials = array_map('trim', explode(',', $assemblyProduct->serials));
+                            }
+                            
+                            foreach ($apProductUnits as $idx => $pu) {
+                                $pairKey = $testing->assembly_id . ':' . $pu;
+                                if (!isset($usedPairs[$pairKey])) {
+                                    $availablePairs[] = [
+                                        'assembly_id' => $testing->assembly_id,
+                                        'product_unit' => $pu,
+                                        'serial' => $apSerials[$idx] ?? ''
+                                    ];
+                                    $usedPairs[$pairKey] = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Lấy đủ số lượng cần thiết
+                    for ($i = 0; $i < $remaining && $i < count($availablePairs); $i++) {
+                        $fallbackAssemblyIds[] = $availablePairs[$i]['assembly_id'];
+                        $fallbackProductUnits[] = $availablePairs[$i]['product_unit'];
+                        if (!empty($availablePairs[$i]['serial'])) {
+                            $fallbackSerialNumbers[] = $availablePairs[$i]['serial'];
+                        }
+                    }
+                }
+                
                 DispatchItem::create([
                     'dispatch_id' => $dispatch->id,
                     'warehouse_id' => $defaultWarehouse->id,
@@ -1683,7 +1974,9 @@ class ProjectRequestController extends Controller
                     'quantity' => $remaining,
                     'category' => 'contract',
                     'notes' => 'Phần còn thiếu cần xử lý tồn kho thủ công - tạo từ phiếu đề xuất #' . $projectRequest->id,
-                    'serial_numbers' => null
+                    'serial_numbers' => !empty($fallbackSerialNumbers) ? json_encode($fallbackSerialNumbers) : null,
+                    'assembly_id' => !empty($fallbackAssemblyIds) ? implode(',', $fallbackAssemblyIds) : null,
+                    'product_unit' => !empty($fallbackProductUnits) ? json_encode($fallbackProductUnits) : null,
                 ]);
                 $remaining = 0;
             }
