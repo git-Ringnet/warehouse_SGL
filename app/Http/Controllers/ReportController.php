@@ -23,21 +23,36 @@ use Illuminate\Support\Facades\Log;
 class ReportController extends Controller
 {
     /**
+     * Parse date từ nhiều format khác nhau sang Y-m-d
+     * Hỗ trợ: d/m/Y, Y-m-d
+     */
+    private function parseDateToYmd(?string $date): ?string
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        // Nếu đã là format Y-m-d
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+
+        // Thử parse từ d/m/Y
+        try {
+            return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * Hiển thị báo cáo tổng hợp xuất nhập tồn kho (trang chính)
      */
     public function index(Request $request)
     {
-        // Lấy tham số lọc
-        $dateFrom = $request->get('from_date');
-        $dateTo = $request->get('to_date');
-        
-        // Chuyển đổi định dạng từ dd/mm/YYYY sang Y-m-d nếu có
-        if ($dateFrom) {
-            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $dateFrom)->format('Y-m-d');
-        }
-        if ($dateTo) {
-            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $dateTo)->format('Y-m-d');
-        }
+        // Lấy tham số lọc và chuyển đổi định dạng ngày
+        $dateFrom = $this->parseDateToYmd($request->get('from_date'));
+        $dateTo = $this->parseDateToYmd($request->get('to_date'));
         $search = $request->get('search');
         $category = $request->get('category_filter');
         $timeFilter = $request->get('time_filter');
@@ -94,17 +109,21 @@ class ReportController extends Controller
         // Mặc định timeFilter là null
         $timeFilter = null;
 
-        return view('reports.index', compact(
-            'reportData',
-            'stats',
-            'chartData',
-            'dateFrom',
-            'dateTo',
-            'search',
-            'category',
-            'categories',
-            'timeFilter'
-        ));
+        // Chuyển đổi date về format d/m/Y để hiển thị trong view
+        $dateFromDisplay = Carbon::parse($dateFrom)->format('d/m/Y');
+        $dateToDisplay = Carbon::parse($dateTo)->format('d/m/Y');
+
+        return view('reports.index', [
+            'reportData' => $reportData,
+            'stats' => $stats,
+            'chartData' => $chartData,
+            'dateFrom' => $dateFromDisplay,
+            'dateTo' => $dateToDisplay,
+            'search' => $search,
+            'category' => $category,
+            'categories' => $categories,
+            'timeFilter' => $timeFilter,
+        ]);
     }
 
     /**
@@ -113,17 +132,9 @@ class ReportController extends Controller
     public function filterAjax(Request $request)
     {
         try {
-            // Lấy tham số lọc
-            $dateFrom = $request->get('from_date');
-            $dateTo = $request->get('to_date');
-            
-            // Chuyển đổi định dạng từ dd/mm/YYYY sang Y-m-d nếu có
-            if ($dateFrom) {
-                $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $dateFrom)->format('Y-m-d');
-            }
-            if ($dateTo) {
-                $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $dateTo)->format('Y-m-d');
-            }
+            // Lấy tham số lọc và chuyển đổi định dạng ngày
+            $dateFrom = $this->parseDateToYmd($request->get('from_date'));
+            $dateTo = $this->parseDateToYmd($request->get('to_date'));
             $search = $request->get('search');
             $category = $request->get('category_filter');
             $timeFilter = $request->get('time_filter');
@@ -283,7 +294,131 @@ class ReportController extends Controller
     }
 
     /**
-     * Lấy dữ liệu báo cáo vật tư
+     * Batch query: Lấy số lượng vật tư hư hỏng cho nhiều material cùng lúc
+     */
+    private function getBatchDamagedMaterialsQuantity(array $materialIds, $dateFrom, $dateTo)
+    {
+        $result = [];
+        foreach ($materialIds as $id) {
+            $result[$id] = 0;
+        }
+
+        $testingItems = \App\Models\TestingItem::join('testings', 'testing_items.testing_id', '=', 'testings.id')
+            ->whereIn('testing_items.material_id', $materialIds)
+            ->where('testing_items.item_type', 'material')
+            ->where('testings.status', 'completed')
+            ->whereDate('testings.test_date', '>=', $dateFrom)
+            ->whereDate('testings.test_date', '<=', $dateTo)
+            ->select('testing_items.material_id', 'testing_items.serial_results', 'testing_items.quantity')
+            ->get();
+
+        foreach ($testingItems as $item) {
+            if (!empty($item->serial_results)) {
+                try {
+                    $serialResults = json_decode($item->serial_results, true);
+                    if (is_array($serialResults)) {
+                        foreach ($serialResults as $serial => $resultValue) {
+                            if ($resultValue === 'fail') {
+                                $result[$item->material_id] = ($result[$item->material_id] ?? 0) + 1;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Batch query: Lấy xuất gián tiếp qua assembly trong kỳ
+     */
+    private function getBatchIndirectExports(array $materialIds, array $warehouseIds, $dateFrom, $dateTo)
+    {
+        $result = [];
+        foreach ($materialIds as $id) {
+            $result[$id] = 0;
+        }
+
+        // Lấy tất cả phiếu xuất thành phẩm trong kỳ
+        $productExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatch_items.item_type', 'product')
+            ->whereIn('dispatch_items.warehouse_id', $warehouseIds)
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+            ->select('dispatch_items.item_id as product_id', 'dispatch_items.quantity')
+            ->get();
+
+        if ($productExports->isEmpty()) {
+            return $result;
+        }
+
+        $productIds = $productExports->pluck('product_id')->unique()->toArray();
+
+        // Lấy tất cả assembly materials cho các product này
+        $assemblyMaterials = AssemblyMaterial::join('assembly_products', 'assembly_materials.assembly_id', '=', 'assembly_products.assembly_id')
+            ->whereIn('assembly_products.product_id', $productIds)
+            ->whereIn('assembly_materials.material_id', $materialIds)
+            ->select('assembly_products.product_id', 'assembly_materials.material_id', 'assembly_materials.quantity')
+            ->get()
+            ->groupBy('product_id');
+
+        foreach ($productExports as $export) {
+            $productMaterials = $assemblyMaterials->get($export->product_id, collect());
+            foreach ($productMaterials as $mat) {
+                $result[$mat->material_id] = ($result[$mat->material_id] ?? 0) + ($mat->quantity * $export->quantity);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Batch query: Lấy xuất gián tiếp qua assembly từ ngày cụ thể đến hiện tại
+     */
+    private function getBatchIndirectExportsAfterDate(array $materialIds, array $warehouseIds, $dateFrom)
+    {
+        $result = [];
+        foreach ($materialIds as $id) {
+            $result[$id] = 0;
+        }
+
+        $productExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatch_items.item_type', 'product')
+            ->whereIn('dispatch_items.warehouse_id', $warehouseIds)
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+            ->select('dispatch_items.item_id as product_id', 'dispatch_items.quantity')
+            ->get();
+
+        if ($productExports->isEmpty()) {
+            return $result;
+        }
+
+        $productIds = $productExports->pluck('product_id')->unique()->toArray();
+
+        $assemblyMaterials = AssemblyMaterial::join('assembly_products', 'assembly_materials.assembly_id', '=', 'assembly_products.assembly_id')
+            ->whereIn('assembly_products.product_id', $productIds)
+            ->whereIn('assembly_materials.material_id', $materialIds)
+            ->select('assembly_products.product_id', 'assembly_materials.material_id', 'assembly_materials.quantity')
+            ->get()
+            ->groupBy('product_id');
+
+        foreach ($productExports as $export) {
+            $productMaterials = $assemblyMaterials->get($export->product_id, collect());
+            foreach ($productMaterials as $mat) {
+                $result[$mat->material_id] = ($result[$mat->material_id] ?? 0) + ($mat->quantity * $export->quantity);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Lấy dữ liệu báo cáo vật tư (đã tối ưu performance)
      */
     private function getMaterialsReportData($dateFrom, $dateTo, $search = null, $category = null, $sortColumn = null, $sortDirection = null)
     {
@@ -308,72 +443,116 @@ class ReportController extends Controller
         }
 
         $materials = $materialsQuery->get();
+        $materialIds = $materials->pluck('id')->toArray();
+        
+        if (empty($materialIds)) {
+            return collect([]);
+        }
+
+        // Cache danh sách warehouses (chỉ query 1 lần)
+        $warehouses = Warehouse::where('status', 'active')
+            ->where('is_hidden', false)
+            ->get();
+        $warehouseIds = $warehouses->pluck('id')->toArray();
+
+        // Batch query: Tồn kho hiện tại theo material
+        $currentStockByMaterial = WarehouseMaterial::whereIn('material_id', $materialIds)
+            ->where('item_type', 'material')
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->select('material_id', DB::raw('SUM(quantity) as total_quantity'))
+            ->groupBy('material_id')
+            ->pluck('total_quantity', 'material_id')
+            ->toArray();
+
+        // Batch query: Nhập trong kỳ theo material
+        $importsInPeriod = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->whereIn('inventory_import_materials.material_id', $materialIds)
+            ->where('inventory_import_materials.item_type', 'material')
+            ->whereIn('inventory_import_materials.warehouse_id', $warehouseIds)
+            ->whereDate('inventory_imports.import_date', '>=', $dateFrom)
+            ->whereDate('inventory_imports.import_date', '<=', $dateTo)
+            ->select('inventory_import_materials.material_id', DB::raw('SUM(inventory_import_materials.quantity) as total_quantity'))
+            ->groupBy('inventory_import_materials.material_id')
+            ->pluck('total_quantity', 'material_id')
+            ->toArray();
+
+        // Batch query: Nhập từ ngày dateFrom đến hiện tại (để tính tồn đầu kỳ)
+        $importsAfterDate = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->whereIn('inventory_import_materials.material_id', $materialIds)
+            ->where('inventory_import_materials.item_type', 'material')
+            ->whereIn('inventory_import_materials.warehouse_id', $warehouseIds)
+            ->whereDate('inventory_imports.import_date', '>=', $dateFrom)
+            ->select('inventory_import_materials.material_id', DB::raw('SUM(inventory_import_materials.quantity) as total_quantity'))
+            ->groupBy('inventory_import_materials.material_id')
+            ->pluck('total_quantity', 'material_id')
+            ->toArray();
+
+        // Batch query: Xuất trực tiếp trong kỳ theo material
+        $directExportsInPeriod = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->whereIn('dispatch_items.item_id', $materialIds)
+            ->where('dispatch_items.item_type', 'material')
+            ->whereIn('dispatch_items.warehouse_id', $warehouseIds)
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+            ->select('dispatch_items.item_id as material_id', DB::raw('SUM(dispatch_items.quantity) as total_quantity'))
+            ->groupBy('dispatch_items.item_id')
+            ->pluck('total_quantity', 'material_id')
+            ->toArray();
+
+        // Batch query: Xuất trực tiếp từ ngày dateFrom đến hiện tại
+        $directExportsAfterDate = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->whereIn('dispatch_items.item_id', $materialIds)
+            ->where('dispatch_items.item_type', 'material')
+            ->whereIn('dispatch_items.warehouse_id', $warehouseIds)
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+            ->select('dispatch_items.item_id as material_id', DB::raw('SUM(dispatch_items.quantity) as total_quantity'))
+            ->groupBy('dispatch_items.item_id')
+            ->pluck('total_quantity', 'material_id')
+            ->toArray();
+
+        // Batch query: Vật tư hư hỏng trong kỳ
+        $damagedByMaterial = $this->getBatchDamagedMaterialsQuantity($materialIds, $dateFrom, $dateTo);
+
+        // Tính xuất gián tiếp qua assembly (batch query)
+        $indirectExportsInPeriod = $this->getBatchIndirectExports($materialIds, $warehouseIds, $dateFrom, $dateTo);
+        $indirectExportsAfterDate = $this->getBatchIndirectExportsAfterDate($materialIds, $warehouseIds, $dateFrom);
 
         foreach ($materials as $material) {
-            // Tổng hợp tất cả các kho cho vật tư này
-            $totalOpeningStock = 0;
-            $totalImports = 0;
-            $totalExports = 0;
-            $totalCurrentStock = 0;
-
-            $warehouses = Warehouse::where('status', 'active')
-                ->where('is_hidden', false)
-                ->get();
-
-            foreach ($warehouses as $warehouse) {
-                // Tồn đầu kỳ
-                $openingStock = $this->getOpeningStock($material->id, 'material', $warehouse->id, $dateFrom);
-
-                // Nhập trong kỳ
-                $imports = $this->getImportsInPeriod($material->id, 'material', $warehouse->id, $dateFrom, $dateTo);
-
-                // Xuất trong kỳ
-                $exports = $this->getExportsInPeriod($material->id, 'material', $warehouse->id, $dateFrom, $dateTo);
-
-                // Tồn cuối kỳ (tính theo công thức: Tồn đầu + Nhập - Xuất)
-                $calculatedClosingStock = $openingStock + $imports - $exports;
-
-                // Tồn kho hiện tại thực tế
-                $currentStock = $this->getCurrentStock($material->id, 'material', $warehouse->id);
-
-                $totalOpeningStock += $openingStock;
-                $totalImports += $imports;
-                $totalExports += $exports;
-                $totalCurrentStock += $currentStock;
-            }
+            $materialId = $material->id;
+            
+            // Tồn kho hiện tại
+            $totalCurrentStock = $currentStockByMaterial[$materialId] ?? 0;
+            
+            // Nhập trong kỳ
+            $totalImports = $importsInPeriod[$materialId] ?? 0;
+            
+            // Xuất trong kỳ (trực tiếp + gián tiếp)
+            $totalExports = ($directExportsInPeriod[$materialId] ?? 0) + ($indirectExportsInPeriod[$materialId] ?? 0);
+            
+            // Tính tồn đầu kỳ: Tồn hiện tại - Nhập từ dateFrom + Xuất từ dateFrom
+            $importsAfter = $importsAfterDate[$materialId] ?? 0;
+            $exportsAfter = ($directExportsAfterDate[$materialId] ?? 0) + ($indirectExportsAfterDate[$materialId] ?? 0);
+            $totalOpeningStock = $totalCurrentStock - $importsAfter + $exportsAfter;
 
             // Tính tồn cuối kỳ theo công thức
             $calculatedClosingStock = $totalOpeningStock + $totalImports - $totalExports;
 
-            // Tính số lượng vật tư hư hỏng từ kiểm thử
-            $damagedQuantity = $this->getDamagedMaterialsQuantity($material->id, $dateFrom, $dateTo);
+            // Số lượng vật tư hư hỏng
+            $damagedQuantity = $damagedByMaterial[$materialId] ?? 0;
 
             // Kiểm tra xem vật tư có hoạt động thực sự liên quan đến kỳ được chọn không
             $hasActivityBeforeOrInPeriod = false;
 
-            // Có nhập/xuất trong kỳ được chọn
             if ($totalImports > 0 || $totalExports > 0) {
                 $hasActivityBeforeOrInPeriod = true;
-            }
-            // Hoặc có nhập/xuất trước kỳ được chọn (tạo ra tồn đầu kỳ thực sự)
-            elseif ($totalOpeningStock > 0) {
-                // Kiểm tra xem có giao dịch trước kỳ được chọn không
-                $warehouses = Warehouse::where('status', 'active')
-                    ->where('is_hidden', false)
-                    ->get();
-
-                foreach ($warehouses as $warehouse) {
-                    $importsBefore = $this->getImportsAfterDate($material->id, 'material', $warehouse->id, $dateFrom);
-                    $exportsBefore = $this->getExportsAfterDate($material->id, 'material', $warehouse->id, $dateFrom);
-
-                    if ($importsBefore > 0 || $exportsBefore > 0) {
-                        $hasActivityBeforeOrInPeriod = true;
-                        break;
-                    }
+            } elseif ($totalOpeningStock > 0) {
+                // Có tồn đầu kỳ nghĩa là có giao dịch trước đó
+                if ($importsAfter > 0 || $exportsAfter > 0) {
+                    $hasActivityBeforeOrInPeriod = true;
                 }
-            }
-            // Hoặc có vật tư hư hỏng trong kỳ
-            elseif ($damagedQuantity > 0) {
+            } elseif ($damagedQuantity > 0) {
                 $hasActivityBeforeOrInPeriod = true;
             }
 
@@ -389,9 +568,9 @@ class ReportController extends Controller
                     'opening_stock' => $totalOpeningStock,
                     'imports' => $totalImports,
                     'exports' => $totalExports,
-                    'closing_stock' => $calculatedClosingStock, // Sử dụng tồn cuối kỳ tính theo công thức
-                    'current_stock' => $totalCurrentStock, // Tồn kho hiện tại thực tế
-                    'damaged_quantity' => $damagedQuantity, // Số lượng vật tư hư hỏng
+                    'closing_stock' => $calculatedClosingStock,
+                    'current_stock' => $totalCurrentStock,
+                    'damaged_quantity' => $damagedQuantity,
                 ];
             }
         }
@@ -1338,17 +1517,10 @@ class ReportController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        $dateFrom = $request->get('from_date');
-        $dateTo = $request->get('to_date');
+        $dateFrom = $this->parseDateToYmd($request->get('from_date')) ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $dateTo = $this->parseDateToYmd($request->get('to_date')) ?? Carbon::now()->format('Y-m-d');
         $search = $request->get('search');
         $category = $request->get('category_filter');
-
-        if (!$dateFrom) {
-            $dateFrom = Carbon::now()->startOfMonth()->format('Y-m-d');
-        }
-        if (!$dateTo) {
-            $dateTo = Carbon::now()->format('Y-m-d');
-        }
 
         $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
 
@@ -1489,17 +1661,10 @@ class ReportController extends Controller
     public function exportPdf(Request $request)
     {
         try {
-            $dateFrom = $request->get('from_date');
-            $dateTo = $request->get('to_date');
+            $dateFrom = $this->parseDateToYmd($request->get('from_date')) ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+            $dateTo = $this->parseDateToYmd($request->get('to_date')) ?? Carbon::now()->format('Y-m-d');
             $search = $request->get('search');
             $category = $request->get('category_filter');
-
-            if (!$dateFrom) {
-                $dateFrom = Carbon::now()->startOfMonth()->format('Y-m-d');
-            }
-            if (!$dateTo) {
-                $dateTo = Carbon::now()->format('Y-m-d');
-            }
 
             $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
             $stats = $this->getFilteredInventoryStats($dateFrom, $dateTo, $search, $category);
