@@ -182,8 +182,8 @@ class DispatchController extends Controller
             if ($request->dispatch_type === 'project') {
                 $validationRules['project_id'] = 'required|exists:projects,id';
             } else if ($request->dispatch_type === 'rental') {
-                // For rental type, project_id is optional or can be a rental_id
-                $validationRules['project_id'] = 'nullable';
+                // For rental type, project_id is required and must be a valid rental_id
+                $validationRules['project_id'] = 'required|exists:rentals,id';
             } else {
                 $validationRules['project_id'] = 'nullable|exists:projects,id';
             }
@@ -2379,9 +2379,26 @@ class DispatchController extends Controller
 
             // Tạo/Cập nhật bảo hành điện tử khi duyệt (nếu không phải backup-only)
             $warrantyAction = null;
+            $dispatch->load('items'); // Load items trước khi kiểm tra isBackupOnlyDispatch
+            
+            Log::info("Checking warranty creation for dispatch", [
+                'dispatch_id' => $dispatch->id,
+                'dispatch_type' => $dispatch->dispatch_type,
+                'dispatch_detail' => $dispatch->dispatch_detail,
+                'project_id' => $dispatch->project_id,
+                'items_count' => $dispatch->items->count(),
+                'is_backup_only' => $this->isBackupOnlyDispatch($dispatch)
+            ]);
+            
             if (!$this->isBackupOnlyDispatch($dispatch)) {
-                $dispatch->load('items');
                 $firstDispatchItem = $dispatch->items->first();
+                
+                Log::info('First dispatch item for warranty', [
+                    'has_first_item' => $firstDispatchItem ? true : false,
+                    'first_item_id' => $firstDispatchItem ? $firstDispatchItem->id : null,
+                    'first_item_type' => $firstDispatchItem ? $firstDispatchItem->item_type : null,
+                    'first_item_category' => $firstDispatchItem ? $firstDispatchItem->category : null
+                ]);
 
                 if ($firstDispatchItem) {
                     try {
@@ -2847,6 +2864,11 @@ class DispatchController extends Controller
      */
     private function createWarrantyForDispatchItem(Dispatch $dispatch, DispatchItem $dispatchItem, Request $request)
     {
+        // Initialize default values
+        $warrantyPeriodMonths = 12; // Default 12 months
+        $warrantyStartDate = $dispatch->dispatch_date;
+        $warrantyEndDate = null;
+
         // Determine warranty period
         if ($dispatch->dispatch_type === 'rental') {
             // Lấy thời gian từ phiếu cho thuê
@@ -2857,25 +2879,35 @@ class DispatchController extends Controller
                 $warrantyPeriodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
                 $warrantyStartDate = $startDate;
                 $warrantyEndDate   = $endDate;
+                
+                Log::info('Rental warranty dates calculated', [
+                    'rental_id' => $rental->id,
+                    'rental_date' => $rental->rental_date,
+                    'due_date' => $rental->due_date,
+                    'warranty_period_months' => $warrantyPeriodMonths,
+                    'warranty_start_date' => $warrantyStartDate,
+                    'warranty_end_date' => $warrantyEndDate
+                ]);
+            } else {
+                Log::warning('Rental not found for dispatch, using default warranty period', [
+                    'dispatch_id' => $dispatch->id,
+                    'project_id' => $dispatch->project_id
+                ]);
             }
         } else {
             // Parse warranty period from request or use default
-        $warrantyPeriodMonths = 12; // Default 12 months
-        if ($request->warranty_period) {
-            // Extract number from warranty period string (e.g., "12 tháng" -> 12)
-            preg_match('/(\d+)/', $request->warranty_period, $matches);
-            if (!empty($matches[1])) {
-                $warrantyPeriodMonths = (int) $matches[1];
+            if ($request->warranty_period) {
+                // Extract number from warranty period string (e.g., "12 tháng" -> 12)
+                preg_match('/(\d+)/', $request->warranty_period, $matches);
+                if (!empty($matches[1])) {
+                    $warrantyPeriodMonths = (int) $matches[1];
+                }
             }
         }
 
-        // Calculate warranty dates
-        $warrantyStartDate = $dispatch->dispatch_date;
-        if (!isset($warrantyEndDate)) {
-            // For non-rental or fallback when rental not found
-            $warrantyEndDate = $warrantyStartDate->copy()->addMonths($warrantyPeriodMonths);
-        }
-
+        // Calculate warranty end date if not already set (for non-rental or rental not found)
+        if (!$warrantyEndDate) {
+            $warrantyEndDate = Carbon::parse($warrantyStartDate)->copy()->addMonths($warrantyPeriodMonths);
         }
 
         // Get item details
@@ -3018,6 +3050,19 @@ class DispatchController extends Controller
                 'total_serial_numbers' => count($allSerialNumbers)
             ]);
 
+            // Xác định project_name dựa trên dispatch_type
+            $projectNameForWarranty = $dispatch->project_receiver;
+            $notesExtra = '';
+            if ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
+                $rental = Rental::find($dispatch->project_id);
+                if ($rental) {
+                    $projectNameForWarranty = $rental->rental_name;
+                    $notesExtra = " - Cho thuê: {$rental->rental_name}";
+                }
+            } elseif ($dispatch->project_id && $dispatch->project) {
+                $notesExtra = " - Dự án: {$dispatch->project->project_name}";
+            }
+
             $warranty = Warranty::create([
                 'warranty_code' => Warranty::generateWarrantyCode(),
                 'dispatch_id' => $dispatch->id,
@@ -3029,7 +3074,7 @@ class DispatchController extends Controller
                 'customer_phone' => null, // Can be added to form later
                 'customer_email' => null, // Can be added to form later
                 'customer_address' => null, // Can be added to form later
-                'project_name' => $dispatch->project_receiver,
+                'project_name' => $projectNameForWarranty,
                 'purchase_date' => $dispatch->dispatch_date,
                 'warranty_start_date' => $warrantyStartDate,
                 'warranty_end_date' => $warrantyEndDate,
@@ -3037,9 +3082,7 @@ class DispatchController extends Controller
                 'warranty_type' => 'standard',
                 'status' => 'active',
                 'warranty_terms' => $this->getProjectWarrantyTerms($allItemsInfo),
-                'notes' => "Bảo hành tự động tạo từ phiếu xuất {$dispatch->dispatch_code}" .
-                    ($dispatch->project_id && $dispatch->dispatch_type !== 'rental' ? " - Dự án: {$dispatch->project->project_name}" : "") .
-                    ($dispatch->dispatch_type === 'rental' ? " - Cho thuê ID: {$dispatch->project_id}" : "") .
+                'notes' => "Bảo hành tự động tạo từ phiếu xuất {$dispatch->dispatch_code}" . $notesExtra .
                     "\nBao gồm các sản phẩm: " . implode(', ', $allItemsInfo),
                 'created_by' => Auth::id() ?? 1,
                 'activated_at' => now(),
@@ -3230,8 +3273,16 @@ class DispatchController extends Controller
      */
     private function isBackupOnlyDispatch($dispatch)
     {
+        Log::info('isBackupOnlyDispatch check', [
+            'dispatch_id' => $dispatch->id,
+            'dispatch_detail' => $dispatch->dispatch_detail,
+            'items_count' => $dispatch->items->count(),
+            'items_categories' => $dispatch->items->pluck('category')->toArray()
+        ]);
+
         // If dispatch_detail is explicitly 'backup', it's backup-only
         if ($dispatch->dispatch_detail === 'backup') {
+            Log::info('isBackupOnlyDispatch: dispatch_detail is backup, returning true');
             return true;
         }
 
@@ -3244,9 +3295,11 @@ class DispatchController extends Controller
                     break;
                 }
             }
+            Log::info('isBackupOnlyDispatch: dispatch_detail is all, allItemsAreBackup=' . ($allItemsAreBackup ? 'true' : 'false'));
             return $allItemsAreBackup;
         }
 
+        Log::info('isBackupOnlyDispatch: returning false (dispatch_detail=' . $dispatch->dispatch_detail . ')');
         return false;
     }
 

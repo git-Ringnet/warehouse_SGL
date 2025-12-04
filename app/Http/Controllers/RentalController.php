@@ -463,6 +463,9 @@ class RentalController extends Controller
                 'notes' => trim($notes),
             ]);
 
+            // Đồng bộ thông tin warranty khi rental gia hạn
+            $this->syncWarrantiesFromRental($rental);
+
             // Ghi nhật ký gia hạn phiếu cho thuê
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -476,7 +479,7 @@ class RentalController extends Controller
             }
             
             return redirect()->route('rentals.show', $rental->id)
-                ->with('success', 'Phiếu cho thuê đã được gia hạn thành công.');
+                ->with('success', 'Phiếu cho thuê đã được gia hạn thành công. Phiếu bảo hành điện tử đã được cập nhật.');
         } catch (\Exception $e) {
             return back()->with('error', 'Có lỗi xảy ra khi gia hạn phiếu cho thuê: ' . $e->getMessage());
         }

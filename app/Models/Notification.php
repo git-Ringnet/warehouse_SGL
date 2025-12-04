@@ -98,4 +98,19 @@ class Notification extends Model
                 return 'fas fa-info-circle';
         }
     }
+
+    /**
+     * Lấy mã màu dựa vào loại thông báo
+     */
+    public static function getColorByType($type)
+    {
+        $colors = [
+            'success' => '#22c55e',
+            'warning' => '#eab308',
+            'error' => '#ef4444',
+            'info' => '#3b82f6',
+        ];
+
+        return $colors[$type] ?? $colors['info'];
+    }
 }

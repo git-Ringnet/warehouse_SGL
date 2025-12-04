@@ -84,6 +84,7 @@ class NotificationController extends Controller
                     'title' => $notification->title,
                     'content' => $notification->message ?? '',
                     'type' => $notification->type,
+                    'color' => Notification::getColorByType($notification->type),
                     'data' => $notification->data ?? null,
                     'is_read' => (bool)$notification->is_read,
                     'created_at' => $notification->created_at ? $notification->created_at->format('d/m/Y H:i:s') : null,
