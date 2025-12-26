@@ -36,13 +36,13 @@ class DispatchController extends Controller
 
         if ($request->has('search') && !empty($request->search)) {
             $searchTerm = strtolower($request->search);
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->whereRaw('LOWER(dispatch_code) LIKE ?', ['%' . $searchTerm . '%'])
-                  ->orWhereRaw('LOWER(project_receiver) LIKE ?', ['%' . $searchTerm . '%'])
-                  ->orWhereRaw('LOWER(dispatch_note) LIKE ?', ['%' . $searchTerm . '%'])
-                  ->orWhereHas('companyRepresentative', function($q) use ($searchTerm) {
-                      $q->whereRaw('LOWER(name) LIKE ?', ['%' . $searchTerm . '%']);
-                  });
+                    ->orWhereRaw('LOWER(project_receiver) LIKE ?', ['%' . $searchTerm . '%'])
+                    ->orWhereRaw('LOWER(dispatch_note) LIKE ?', ['%' . $searchTerm . '%'])
+                    ->orWhereHas('companyRepresentative', function ($q) use ($searchTerm) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ['%' . $searchTerm . '%']);
+                    });
             });
         }
 
@@ -177,7 +177,7 @@ class DispatchController extends Controller
                 'items.*.warehouse_id' => 'required|exists:warehouses,id',
                 'items.*.category' => 'sometimes|in:contract,backup,general',
             ];
-            
+
             // Validation for project_id depends on dispatch_type
             if ($request->dispatch_type === 'project') {
                 $validationRules['project_id'] = 'required|exists:projects,id';
@@ -242,7 +242,7 @@ class DispatchController extends Controller
                             'categories' => []
                         ];
                     }
-                    $groupedItems[$key]['total_quantity'] += (int)$item['quantity'];
+                    $groupedItems[$key]['total_quantity'] += (int) $item['quantity'];
                     $groupedItems[$key]['categories'][] = $item['category'] ?? 'general';
                 }
 
@@ -260,28 +260,28 @@ class DispatchController extends Controller
 
                         // Tổng tồn kho và serial chưa xuất trong kho
                         $totalInWarehouse = $stockCheck['current_stock'];
-                        
+
                         // Lấy tất cả serial của item này trong kho
                         $allSerials = Serial::where('warehouse_id', $groupedItem['warehouse_id'])
                             ->where('type', $groupedItem['item_type'])
                             ->where('product_id', $groupedItem['item_id'])
                             ->pluck('serial_number')
                             ->toArray();
-                        
+
                         // Lấy serial đã xuất từ dispatch_items của các phiếu approved
-                        $dispatchedSerials = DispatchItem::whereHas('dispatch', function($q) {
-                                $q->where('status', 'approved');
-                            })
+                        $dispatchedSerials = DispatchItem::whereHas('dispatch', function ($q) {
+                            $q->where('status', 'approved');
+                        })
                             ->where('item_type', $groupedItem['item_type'])
                             ->where('item_id', $groupedItem['item_id'])
                             ->where('warehouse_id', $groupedItem['warehouse_id'])
                             ->get()
                             ->pluck('serial_numbers')
                             ->flatten()
-                            ->filter(function($serial) {
+                            ->filter(function ($serial) {
                                 return !empty($serial);
                             })
-                            ->map(function($serialData) {
+                            ->map(function ($serialData) {
                                 if (is_string($serialData)) {
                                     $decoded = json_decode($serialData, true);
                                     return is_array($decoded) ? $decoded : [$serialData];
@@ -291,7 +291,7 @@ class DispatchController extends Controller
                             ->flatten()
                             ->unique()
                             ->toArray();
-                        
+
                         // Serial chưa xuất = tất cả serial - serial đã xuất
                         $availableSerials = array_diff($allSerials, $dispatchedSerials);
                         $serialInWarehouse = count($availableSerials);
@@ -359,14 +359,14 @@ class DispatchController extends Controller
             // Create dispatch items
             Log::info('Creating dispatch items...');
             $firstDispatchItem = null;
-            
+
             // Sắp xếp items: contract trước, backup sau để virtual serial được tạo đúng thứ tự
-            $sortedItems = collect($request->items)->sortBy(function($item) {
+            $sortedItems = collect($request->items)->sortBy(function ($item) {
                 $category = $item['category'] ?? 'general';
                 // contract = 0, backup = 1, general = 2
                 return $category === 'contract' ? 0 : ($category === 'backup' ? 1 : 2);
             })->values()->toArray();
-            
+
             foreach ($sortedItems as $index => $item) {
                 Log::info("Creating dispatch item $index:", $item);
                 Log::info("Raw serial_numbers for item $index:", [
@@ -396,57 +396,57 @@ class DispatchController extends Controller
                     // Re-index array after filtering
                     $serialNumbers = array_values($serialNumbers);
                 }
-                
+
                 // Nếu quantity > số serial, nghĩa là có thiết bị không có serial
                 // Không cần thêm gì vào serial_numbers, chỉ cần giữ nguyên quantity
                 // Logic hiển thị sẽ dựa vào quantity để tạo đúng số bản ghi
                 Log::info("Serial numbers processed for item $index:", [
                     'quantity' => $item['quantity'],
                     'serial_count' => count($serialNumbers),
-                    'has_no_serial_items' => (int)$item['quantity'] > count($serialNumbers)
+                    'has_no_serial_items' => (int) $item['quantity'] > count($serialNumbers)
                 ]);
 
                 // Xử lý assembly_id và product_unit cho sản phẩm
                 $assemblyId = null;
                 $productUnit = null;
-                
+
                 if ($item['item_type'] === 'product') {
                     // Tìm assembly_id từ serial_numbers nếu có - gộp chung nhưng lưu đúng assembly_id và product_unit
                     if (!empty($serialNumbers) && !in_array('N/A', $serialNumbers) && !in_array('NA', $serialNumbers)) {
                         // Có serial cụ thể - tìm assembly_id và product_unit cho từng serial
                         $assemblyIds = [];
                         $productUnits = [];
-                        
+
                         foreach ($serialNumbers as $serialIndex => $serial) {
                             $serialAssemblyId = null;
                             $serialProductUnit = null;
-                            
+
                             // Tìm assembly_id cho serial cụ thể này
                             $assemblyProduct = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
-                                ->where(function($q) use ($serial) {
+                                ->where(function ($q) use ($serial) {
                                     $q->where('serials', $serial)
-                                      ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
+                                        ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
                                 })
                                 ->first();
-                            
+
                             if ($assemblyProduct) {
                                 $serialAssemblyId = $assemblyProduct->assembly_id;
-                                
+
                                 // Tìm product_unit từ assembly_products (ưu tiên) hoặc assembly_materials
                                 $serialProductUnit = 0; // Default value
-                                
+
                                 if ($assemblyProduct->product_unit !== null) {
                                     // Sử dụng accessor của model để lấy product_unit đã được parse
                                     $productUnitValue = $assemblyProduct->product_unit;
-                                    
+
                                     if (is_array($productUnitValue)) {
                                         // Tìm vị trí của serial trong assembly_products.serials
                                         $serialsStr = $assemblyProduct->serials ?? '';
                                         $serialsArray = array_map('trim', explode(',', $serialsStr));
-                                        
+
                                         // Tìm index của serial trong mảng serials của assembly
                                         $serialPositionInAssembly = array_search(trim($serial), $serialsArray);
-                                        
+
                                         if ($serialPositionInAssembly !== false && isset($productUnitValue[$serialPositionInAssembly])) {
                                             // Lấy product_unit tại vị trí tương ứng với serial trong assembly
                                             $serialProductUnit = $productUnitValue[$serialPositionInAssembly];
@@ -454,7 +454,7 @@ class DispatchController extends Controller
                                             // Fallback: nếu không tìm thấy, dùng index đầu tiên hoặc 0
                                             $serialProductUnit = $productUnitValue[0] ?? 0;
                                         }
-                                        
+
                                         Log::info('Using product_unit from assembly_products', [
                                             'assembly_id' => $serialAssemblyId,
                                             'serial' => $serial,
@@ -466,7 +466,7 @@ class DispatchController extends Controller
                                     } else {
                                         // Nếu là single value, dùng luôn
                                         $serialProductUnit = $productUnitValue;
-                                        
+
                                         Log::info('Using product_unit from assembly_products (single value)', [
                                             'assembly_id' => $serialAssemblyId,
                                             'serial' => $serial,
@@ -476,10 +476,10 @@ class DispatchController extends Controller
                                 } else {
                                     // Fallback: tìm từ assembly_materials
                                     $assemblyMaterial = \App\Models\AssemblyMaterial::where('assembly_id', $serialAssemblyId)
-                                    ->where('target_product_id', $item['item_id'])
-                                    ->whereNotNull('product_unit')
-                                    ->first();
-                                if ($assemblyMaterial) {
+                                        ->where('target_product_id', $item['item_id'])
+                                        ->whereNotNull('product_unit')
+                                        ->first();
+                                    if ($assemblyMaterial) {
                                         $serialProductUnit = $assemblyMaterial->product_unit;
                                         Log::info('Using product_unit from assembly_materials', [
                                             'assembly_id' => $serialAssemblyId,
@@ -491,7 +491,7 @@ class DispatchController extends Controller
                                         ]);
                                     }
                                 }
-                                
+
                                 Log::info('Found assembly_id from serial for product', [
                                     'product_id' => $item['item_id'],
                                     'serial' => $serial,
@@ -500,15 +500,15 @@ class DispatchController extends Controller
                                     'product_unit' => $serialProductUnit
                                 ]);
                             }
-                            
+
                             $assemblyIds[] = $serialAssemblyId;
                             $productUnits[] = $serialProductUnit;
                         }
-                        
+
                         // Tính số lượng N/A products cần thêm vào
                         $itemQuantity = (int) ($item['quantity'] ?? 1);
                         $naQuantity = $itemQuantity - count($serialNumbers);
-                        
+
                         // Thêm assembly_id và product_unit cho N/A products
                         if ($naQuantity > 0) {
                             // 1) Kiểm tra tồn kho N/A tại warehouse của dòng này
@@ -519,14 +519,14 @@ class DispatchController extends Controller
                                     ->where('material_id', $item['item_id'])
                                     ->where('item_type', 'product')
                                     ->first();
-                                $totalQty = (int)($wm->quantity ?? 0);
+                                $totalQty = (int) ($wm->quantity ?? 0);
                                 $serialCnt = 0;
                                 if (!empty($wm?->serial_number)) {
                                     $dec = json_decode($wm->serial_number, true);
                                     if (is_array($dec)) {
                                         $serialCnt = count(array_filter(array_map('trim', $dec)));
                                     } else {
-                                        $serialCnt = count(array_filter(array_map('trim', explode(',', (string)$wm->serial_number))));
+                                        $serialCnt = count(array_filter(array_map('trim', explode(',', (string) $wm->serial_number))));
                                     }
                                 }
                                 $naStockAvail = max(0, $totalQty - $serialCnt);
@@ -555,80 +555,82 @@ class DispatchController extends Controller
                                     $serialCountByAssembly[$aid] = ($serialCountByAssembly[$aid] ?? 0) + 1;
                                 }
                             }
-                            
+
                             // Lấy các assembly_id có sẵn cho product_id này
                             // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A
                             $warehouseIdForItem = $item['warehouse_id'] ?? null;
-                            $productIdForItem = (int)$item['item_id'];
+                            $productIdForItem = (int) $item['item_id'];
                             $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $productIdForItem)
                                 ->orderBy('assembly_id')
                                 ->get()
-                                ->filter(function($assembly) use ($warehouseIdForItem, $productIdForItem) {
+                                ->filter(function ($assembly) use ($warehouseIdForItem, $productIdForItem) {
                                     // Chỉ nhận assembly có sức chứa N/A còn lại ở đúng kho xuất theo bản ghi testing
-                                    $capacity = $this->getNaCapacityForAssemblyProduct((int)$assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
-                                    if ($capacity <= 0) { return false; }
+                                    $capacity = $this->getNaCapacityForAssemblyProduct((int) $assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
+                                    if ($capacity <= 0) {
+                                        return false;
+                                    }
                                     return true;
                                 })
-                                ->sortBy(function($assembly) {
+                                ->sortBy(function ($assembly) {
                                     // Ưu tiên assemblies không có serial trước
-                                    $hasSerials = $assembly->serials && 
-                                                 $assembly->serials !== '' && 
-                                                 $assembly->serials !== 'N/A' && 
-                                                 $assembly->serials !== 'NA';
+                                    $hasSerials = $assembly->serials &&
+                                        $assembly->serials !== '' &&
+                                        $assembly->serials !== 'N/A' &&
+                                        $assembly->serials !== 'NA';
                                     return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
                                 })
                                 ->values(); // Reset keys
-                            
+
                             Log::info('Available assemblies for N/A products', [
-                                        'product_id' => $item['item_id'],
+                                'product_id' => $item['item_id'],
                                 'assemblies_count' => $availableAssemblies->count(),
                                 'assemblies' => $availableAssemblies->pluck('assembly_id')->toArray()
                             ]);
-                            
+
                             $assemblyIndex = 0;
                             $currentProductUnitIndex = $usedSerialCount; // Bắt đầu từ product_unit tiếp theo sau serial
-                            
+
                             for ($q = 0; $q < $naQuantity; $q++) {
                                 if ($assemblyIndex < $availableAssemblies->count()) {
                                     $assembly = $availableAssemblies[$assemblyIndex];
                                     $assemblyId = $assembly->assembly_id;
-                                    
+
                                     // Parse product_unit để lấy unit phù hợp
                                     $productUnitValue = $assembly->product_unit;
                                     $assemblyProductUnits = [];
-                                    
+
                                     if (is_string($productUnitValue)) {
                                         $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
                                     } elseif (is_array($productUnitValue)) {
                                         $assemblyProductUnits = $productUnitValue;
-                                } else {
+                                    } else {
                                         $assemblyProductUnits = [$productUnitValue];
                                     }
-                                    
+
                                     // Tìm product_unit phù hợp với index hiện tại
                                     $targetProductUnit = null;
-                                    
-                                if ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') {
-                                    // Assembly có serial trong dữ liệu lắp ráp, chọn unit tiếp theo sau SỐ SERIAL của assembly này
-                                    $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
-                                    $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                                    $assemblySerialCount = is_array($parts) ? count($parts) : 1; // mặc định 1 nếu có chuỗi
-                                    if ($assemblySerialCount < count($assemblyProductUnits)) {
-                                        $targetProductUnit = $assemblyProductUnits[$assemblySerialCount];
-                                    }
-                                } else {
+
+                                    if ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') {
+                                        // Assembly có serial trong dữ liệu lắp ráp, chọn unit tiếp theo sau SỐ SERIAL của assembly này
+                                        $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
+                                        $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
+                                        $assemblySerialCount = is_array($parts) ? count($parts) : 1; // mặc định 1 nếu có chuỗi
+                                        if ($assemblySerialCount < count($assemblyProductUnits)) {
+                                            $targetProductUnit = $assemblyProductUnits[$assemblySerialCount];
+                                        }
+                                    } else {
                                         // Assembly không có serial, lấy product_unit theo thứ tự từ đầu
                                         // Ví dụ: assembly_id = 42 có [0], N/A sẽ dùng 0
                                         $targetProductUnit = $assemblyProductUnits[0] ?? 0;
                                     }
-                                    
+
                                     // Nếu không tìm được product_unit phù hợp, chuyển sang assembly tiếp theo
                                     if ($targetProductUnit === null) {
                                         $assemblyIndex++;
                                         if ($assemblyIndex < $availableAssemblies->count()) {
                                             $assembly = $availableAssemblies[$assemblyIndex];
                                             $assemblyId = $assembly->assembly_id;
-                                            
+
                                             $productUnitValue = $assembly->product_unit;
                                             if (is_string($productUnitValue)) {
                                                 $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
@@ -637,23 +639,23 @@ class DispatchController extends Controller
                                             } else {
                                                 $assemblyProductUnits = [$productUnitValue];
                                             }
-                                            
+
                                             $targetProductUnit = $assemblyProductUnits[0] ?? 0;
                                         }
                                     }
-                                    
+
                                     $assemblyIds[] = $assemblyId;
                                     $productUnits[] = $targetProductUnit;
-                                    
+
                                     Log::info('Assigned assembly and product unit for N/A product', [
                                         'na_index' => $q,
-                                'assembly_id' => $assemblyId,
+                                        'assembly_id' => $assemblyId,
                                         'product_unit' => $targetProductUnit,
                                         'used_serial_count' => $usedSerialCount,
                                         'assembly_serials' => $assembly->serials,
                                         'assembly_product_units' => $assemblyProductUnits
                                     ]);
-                                    
+
                                     // Chuyển sang assembly tiếp theo sau khi đã gán
                                     $assemblyIndex++;
                                 } else {
@@ -666,12 +668,14 @@ class DispatchController extends Controller
                                 }
                             }
                         }
-                        
+
                         // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
                         // Không dùng array_filter để tránh loại bỏ giá trị 0 và null
-                        $assemblyId = implode(',', array_map(function($val) { return $val !== null ? $val : ''; }, $assemblyIds));
-                        $productUnit = implode(',', array_map(function($val) { return $val !== null ? $val : 0; }, $productUnits));
-                        
+                        $assemblyId = implode(',', array_map(function ($val) {
+                            return $val !== null ? $val : ''; }, $assemblyIds));
+                        $productUnit = implode(',', array_map(function ($val) {
+                            return $val !== null ? $val : 0; }, $productUnits));
+
                         Log::info('Combined assembly data for dispatch item', [
                             'product_id' => $item['item_id'],
                             'assembly_ids_array' => $assemblyIds,
@@ -684,16 +688,18 @@ class DispatchController extends Controller
                     } elseif (empty($serialNumbers) || in_array('N/A', $serialNumbers) || in_array('NA', $serialNumbers)) {
                         // Xử lý N/A products với logic ưu tiên serial trước - gộp chung 1 hàng
                         $itemQuantity = (int) ($item['quantity'] ?? 1);
-                        
+
                         // Tính số lượng serial đã sử dụng trong dispatch này để dành product_unit
                         $usedSerialCount = 0;
-                        
+
                         // Đếm số serial đã sử dụng cho cùng product_id trong dispatch này
                         foreach ($request->items as $otherItem) {
-                            if ($otherItem['item_type'] === 'product' && 
-                                $otherItem['item_id'] == $item['item_id'] && 
-                                !empty($otherItem['serial_numbers'])) {
-                                
+                            if (
+                                $otherItem['item_type'] === 'product' &&
+                                $otherItem['item_id'] == $item['item_id'] &&
+                                !empty($otherItem['serial_numbers'])
+                            ) {
+
                                 // Normalize serial_numbers to array
                                 $otherSerialNumbers = [];
                                 if (is_string($otherItem['serial_numbers'])) {
@@ -702,21 +708,23 @@ class DispatchController extends Controller
                                 } elseif (is_array($otherItem['serial_numbers'])) {
                                     $otherSerialNumbers = $otherItem['serial_numbers'];
                                 }
-                                
-                                if (!empty($otherSerialNumbers) && 
-                                    !in_array('N/A', $otherSerialNumbers) && 
-                                    !in_array('NA', $otherSerialNumbers)) {
+
+                                if (
+                                    !empty($otherSerialNumbers) &&
+                                    !in_array('N/A', $otherSerialNumbers) &&
+                                    !in_array('NA', $otherSerialNumbers)
+                                ) {
                                     $usedSerialCount += count($otherSerialNumbers);
                                 }
                             }
                         }
-                        
+
                         Log::info('Processing N/A products with serial priority', [
                             'product_id' => $item['item_id'],
                             'quantity' => $itemQuantity,
                             'used_serial_count' => $usedSerialCount
                         ]);
-                        
+
                         // Kiểm tra tồn kho N/A trong warehouse trước
                         $warehouseId = $item['warehouse_id'] ?? null;
                         $hasNAStock = false;
@@ -726,11 +734,11 @@ class DispatchController extends Controller
                                 ->where('material_id', $item['item_id'])
                                 ->where('item_type', 'product')
                                 ->first();
-                            
+
                             if ($warehouseMaterial) {
                                 $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                                 $serialCount = 0;
-                                
+
                                 // Đếm số serial trong kho
                                 if (!empty($warehouseMaterial->serial_number)) {
                                     $decoded = json_decode($warehouseMaterial->serial_number, true);
@@ -741,11 +749,11 @@ class DispatchController extends Controller
                                         $serialCount = count(array_filter(array_map('trim', $serialParts)));
                                     }
                                 }
-                                
+
                                 // Tồn N/A = tổng số lượng - số serial
                                 $naStock = max(0, $totalQuantity - $serialCount);
                                 $hasNAStock = $naStock > 0;
-                                
+
                                 Log::info('Warehouse N/A stock check', [
                                     'warehouse_id' => $warehouseId,
                                     'product_id' => $item['item_id'],
@@ -756,7 +764,7 @@ class DispatchController extends Controller
                                 ]);
                             }
                         }
-                        
+
                         // Nếu không có tồn N/A trong kho, gán assembly_id = 0
                         if (!$hasNAStock) {
                             Log::info('No N/A stock in warehouse, setting assembly_id to 0', [
@@ -764,168 +772,176 @@ class DispatchController extends Controller
                                 'warehouse_id' => $warehouseId,
                                 'quantity' => $itemQuantity
                             ]);
-                            
+
                             $assemblyId = '0';
                             $productUnit = implode(',', array_fill(0, $itemQuantity, '0'));
-                            
+
                             // Bỏ qua logic tìm assembly, gán trực tiếp
                         } else {
                             // Có tồn N/A, tiếp tục logic tìm assembly như cũ
-                        
-                        // Loại trừ các cặp assembly_id:product_unit đã dùng trong phiếu xuất đã duyệt
-                        $approvedPairs = [];
-                        $approvedItems = DB::table('dispatch_items as di')
-                            ->join('dispatches as d', 'd.id', '=', 'di.dispatch_id')
-                            ->where('di.item_type', 'product')
-                            ->where('di.item_id', $item['item_id'])
-                            ->where('d.status', 'approved')
-                            ->select('di.assembly_id', 'di.product_unit')
-                            ->get();
-                        foreach ($approvedItems as $row) {
-                            $aIds = array_map('trim', explode(',', (string) $row->assembly_id));
-                            $pUnitsRaw = $row->product_unit;
-                            // Parse product_unit (có thể là JSON string hoặc comma-separated string)
-                            $pUnits = [];
-                            if (is_string($pUnitsRaw)) {
-                                $decoded = json_decode($pUnitsRaw, true);
-                                if (is_array($decoded)) {
-                                    $pUnits = array_map('intval', $decoded);
-                                } else {
-                                    $pUnits = array_map('intval', array_map('trim', explode(',', $pUnitsRaw)));
-                                }
-                            } elseif (is_array($pUnitsRaw)) {
-                                $pUnits = array_map('intval', $pUnitsRaw);
-                            }
-                            
-                            $len = min(count($aIds), count($pUnits));
-                            for ($ii = 0; $ii < $len; $ii++) {
-                                if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
-                                    $approvedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
-                                }
-                            }
-                        }
-                        
-                        // Lấy các assembly_id có sẵn cho product_id này
-                        // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A còn trống (chưa dùng trong phiếu đã duyệt)
-                        // QUAN TRỌNG: Chỉ lấy assemblies thuộc kho xuất (warehouse_id của item)
-                        $warehouseId = $item['warehouse_id'] ?? null;
-                        $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
-                            ->with('assembly')
-                            ->orderBy('assembly_id')
-                            ->get()
-                            ->filter(function($assemblyProduct) use ($warehouseId, $item) {
-                                // Sức chứa NA thực sự còn lại theo Testing nhập kho đúng kho xuất
-                                $capacity = $this->getNaCapacityForAssemblyProduct((int)$assemblyProduct->assembly_id, (int)$item['item_id'], $warehouseId, true);
-                                return $capacity > 0;
-                            })
-                            ->sortBy(function($assemblyProduct) {
-                                // Ưu tiên assemblies không có serial trước
-                                $hasSerials = $assemblyProduct->serials && 
-                                             $assemblyProduct->serials !== '' && 
-                                             $assemblyProduct->serials !== 'N/A' && 
-                                             $assemblyProduct->serials !== 'NA';
-                                return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
-                            })
-                            ->values(); // Reset keys
-                        
-                        // approvedPairs đã được lấy ở trên, sử dụng lại
 
-                        // Tính sức chứa N/A còn lại theo từng assembly (để không vượt quá slot)
-                        $assemblyRemaining = [];
-                        foreach ($availableAssemblies as $asm) {
-                            $units = [];
-                            if (is_string($asm->product_unit)) {
-                                $units = json_decode($asm->product_unit, true) ?: [];
-                            } elseif (is_array($asm->product_unit)) {
-                                $units = $asm->product_unit;
-                            } elseif ($asm->product_unit !== null) {
-                                $units = [$asm->product_unit];
-                            }
-
-                            $hasSerials = $asm->serials && $asm->serials !== '' && $asm->serials !== 'N/A' && $asm->serials !== 'NA';
-                            $serialCount = 0;
-                            if ($hasSerials) {
-                                $partsTmp = preg_split('/[\s,;|\/]+/', (string)$asm->serials, -1, PREG_SPLIT_NO_EMPTY);
-                                $serialCount = is_array($partsTmp) ? count($partsTmp) : 1;
-                            }
-                            $capacity = $hasSerials ? max(0, count($units) - $serialCount) : (count($units) > 0 ? count($units) : 1);
-
-                            // Trừ các slot đã dùng ở phiếu đã duyệt cho assembly này
-                            if ($capacity > 0) {
-                                $aidStr = (string)$asm->assembly_id;
-                                $used = 0;
-                                // Tính theo số cặp đã dùng thuộc NA slots của assembly
-                                foreach ($units as $idx => $u) {
-                                    if ($hasSerials && $idx < $serialCount) continue; // chỉ NA slot
-                                    $key = $aidStr . ':' . (int)$u;
-                                    if (isset($approvedPairs[$key])) $used++;
+                            // Loại trừ các cặp assembly_id:product_unit đã dùng trong phiếu xuất đã duyệt
+                            $approvedPairs = [];
+                            $approvedItems = DB::table('dispatch_items as di')
+                                ->join('dispatches as d', 'd.id', '=', 'di.dispatch_id')
+                                ->where('di.item_type', 'product')
+                                ->where('di.item_id', $item['item_id'])
+                                ->where('d.status', 'approved')
+                                ->select('di.assembly_id', 'di.product_unit')
+                                ->get();
+                            foreach ($approvedItems as $row) {
+                                $aIds = array_map('trim', explode(',', (string) $row->assembly_id));
+                                $pUnitsRaw = $row->product_unit;
+                                // Parse product_unit (có thể là JSON string hoặc comma-separated string)
+                                $pUnits = [];
+                                if (is_string($pUnitsRaw)) {
+                                    $decoded = json_decode($pUnitsRaw, true);
+                                    if (is_array($decoded)) {
+                                        $pUnits = array_map('intval', $decoded);
+                                    } else {
+                                        $pUnits = array_map('intval', array_map('trim', explode(',', $pUnitsRaw)));
+                                    }
+                                } elseif (is_array($pUnitsRaw)) {
+                                    $pUnits = array_map('intval', $pUnitsRaw);
                                 }
-                                $capacity = max(0, $capacity - $used);
-                            }
-                            $assemblyRemaining[(int)$asm->assembly_id] = $capacity;
-                        }
-                        
-                        $assemblyIds = [];
-                        $productUnits = [];
-                        $localUsedPairs = [];
-                        
-                        $needed = $itemQuantity;
-                        foreach ($availableAssemblies as $assembly) {
-                            if ($needed <= 0) { break; }
-                            $assemblyId = $assembly->assembly_id;
-                            if (($assemblyRemaining[(int)$assemblyId] ?? 0) <= 0) { continue; }
-                            // Parse product_unit để lấy unit phù hợp
-                            $productUnitValue = $assembly->product_unit;
-                            $assemblyProductUnits = [];
-                            if (is_string($productUnitValue)) {
-                                $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
-                            } elseif (is_array($productUnitValue)) {
-                                $assemblyProductUnits = $productUnitValue;
-                            } else {
-                                $assemblyProductUnits = [$productUnitValue];
-                            }
-                            // Offset theo số serial tồn tại trong assembly này
-                            $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
-                            $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                            $assemblySerialCount = ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') ? (is_array($parts) ? count($parts) : 1) : 0;
-                            
-                            for ($unitIdx = $assemblySerialCount; $unitIdx < count($assemblyProductUnits) && $needed > 0; $unitIdx++) {
-                                $candidateUnit = $assemblyProductUnits[$unitIdx];
-                                $key = $assemblyId . ':' . $candidateUnit;
-                                if (!isset($approvedPairs[$key]) && !isset($localUsedPairs[$key])) {
-                                    $assemblyIds[] = $assemblyId;
-                                    $productUnits[] = $candidateUnit;
-                                    $localUsedPairs[$key] = true;
-                                    $needed--;
-                                    if (isset($assemblyRemaining[(int)$assemblyId])) {
-                                        $assemblyRemaining[(int)$assemblyId] = max(0, $assemblyRemaining[(int)$assemblyId] - 1);
+
+                                $len = min(count($aIds), count($pUnits));
+                                for ($ii = 0; $ii < $len; $ii++) {
+                                    if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
+                                        $approvedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
                                     }
                                 }
                             }
-                        }
-                        // Nếu vẫn thiếu, fill phần còn lại để giữ đúng số lượng
-                        while ($needed > 0) {
-                            $assemblyIds[] = null;
-                            $productUnits[] = null;
-                            $needed--;
-                        }
-                        
-                        after_na_assignment_store:
-                        // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
-                        $assemblyId = implode(',', array_map(function($val) { return $val !== null ? $val : ''; }, $assemblyIds));
-                        $productUnit = implode(',', array_map(function($val) { return $val !== null ? $val : 0; }, $productUnits));
-                        
-                        Log::info('Combined assembly data for N/A dispatch item', [
-                            'product_id' => $item['item_id'],
-                            'assembly_ids_array' => $assemblyIds,
-                            'product_units_array' => $productUnits,
-                            'assembly_ids_string' => $assemblyId,
-                            'product_units_string' => $productUnit,
-                            'quantity' => $itemQuantity
-                        ]);
+
+                            // Lấy các assembly_id có sẵn cho product_id này
+                            // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A còn trống (chưa dùng trong phiếu đã duyệt)
+                            // QUAN TRỌNG: Chỉ lấy assemblies thuộc kho xuất (warehouse_id của item)
+                            $warehouseId = $item['warehouse_id'] ?? null;
+                            $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
+                                ->with('assembly')
+                                ->orderBy('assembly_id')
+                                ->get()
+                                ->filter(function ($assemblyProduct) use ($warehouseId, $item) {
+                                    // Sức chứa NA thực sự còn lại theo Testing nhập kho đúng kho xuất
+                                    $capacity = $this->getNaCapacityForAssemblyProduct((int) $assemblyProduct->assembly_id, (int) $item['item_id'], $warehouseId, true);
+                                    return $capacity > 0;
+                                })
+                                ->sortBy(function ($assemblyProduct) {
+                                    // Ưu tiên assemblies không có serial trước
+                                    $hasSerials = $assemblyProduct->serials &&
+                                        $assemblyProduct->serials !== '' &&
+                                        $assemblyProduct->serials !== 'N/A' &&
+                                        $assemblyProduct->serials !== 'NA';
+                                    return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
+                                })
+                                ->values(); // Reset keys
+
+                            // approvedPairs đã được lấy ở trên, sử dụng lại
+
+                            // Tính sức chứa N/A còn lại theo từng assembly (để không vượt quá slot)
+                            $assemblyRemaining = [];
+                            foreach ($availableAssemblies as $asm) {
+                                $units = [];
+                                if (is_string($asm->product_unit)) {
+                                    $units = json_decode($asm->product_unit, true) ?: [];
+                                } elseif (is_array($asm->product_unit)) {
+                                    $units = $asm->product_unit;
+                                } elseif ($asm->product_unit !== null) {
+                                    $units = [$asm->product_unit];
+                                }
+
+                                $hasSerials = $asm->serials && $asm->serials !== '' && $asm->serials !== 'N/A' && $asm->serials !== 'NA';
+                                $serialCount = 0;
+                                if ($hasSerials) {
+                                    $partsTmp = preg_split('/[\s,;|\/]+/', (string) $asm->serials, -1, PREG_SPLIT_NO_EMPTY);
+                                    $serialCount = is_array($partsTmp) ? count($partsTmp) : 1;
+                                }
+                                $capacity = $hasSerials ? max(0, count($units) - $serialCount) : (count($units) > 0 ? count($units) : 1);
+
+                                // Trừ các slot đã dùng ở phiếu đã duyệt cho assembly này
+                                if ($capacity > 0) {
+                                    $aidStr = (string) $asm->assembly_id;
+                                    $used = 0;
+                                    // Tính theo số cặp đã dùng thuộc NA slots của assembly
+                                    foreach ($units as $idx => $u) {
+                                        if ($hasSerials && $idx < $serialCount)
+                                            continue; // chỉ NA slot
+                                        $key = $aidStr . ':' . (int) $u;
+                                        if (isset($approvedPairs[$key]))
+                                            $used++;
+                                    }
+                                    $capacity = max(0, $capacity - $used);
+                                }
+                                $assemblyRemaining[(int) $asm->assembly_id] = $capacity;
+                            }
+
+                            $assemblyIds = [];
+                            $productUnits = [];
+                            $localUsedPairs = [];
+
+                            $needed = $itemQuantity;
+                            foreach ($availableAssemblies as $assembly) {
+                                if ($needed <= 0) {
+                                    break;
+                                }
+                                $assemblyId = $assembly->assembly_id;
+                                if (($assemblyRemaining[(int) $assemblyId] ?? 0) <= 0) {
+                                    continue;
+                                }
+                                // Parse product_unit để lấy unit phù hợp
+                                $productUnitValue = $assembly->product_unit;
+                                $assemblyProductUnits = [];
+                                if (is_string($productUnitValue)) {
+                                    $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
+                                } elseif (is_array($productUnitValue)) {
+                                    $assemblyProductUnits = $productUnitValue;
+                                } else {
+                                    $assemblyProductUnits = [$productUnitValue];
+                                }
+                                // Offset theo số serial tồn tại trong assembly này
+                                $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
+                                $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
+                                $assemblySerialCount = ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') ? (is_array($parts) ? count($parts) : 1) : 0;
+
+                                for ($unitIdx = $assemblySerialCount; $unitIdx < count($assemblyProductUnits) && $needed > 0; $unitIdx++) {
+                                    $candidateUnit = $assemblyProductUnits[$unitIdx];
+                                    $key = $assemblyId . ':' . $candidateUnit;
+                                    if (!isset($approvedPairs[$key]) && !isset($localUsedPairs[$key])) {
+                                        $assemblyIds[] = $assemblyId;
+                                        $productUnits[] = $candidateUnit;
+                                        $localUsedPairs[$key] = true;
+                                        $needed--;
+                                        if (isset($assemblyRemaining[(int) $assemblyId])) {
+                                            $assemblyRemaining[(int) $assemblyId] = max(0, $assemblyRemaining[(int) $assemblyId] - 1);
+                                        }
+                                    }
+                                }
+                            }
+                            // Nếu vẫn thiếu, fill phần còn lại để giữ đúng số lượng
+                            while ($needed > 0) {
+                                $assemblyIds[] = null;
+                                $productUnits[] = null;
+                                $needed--;
+                            }
+
+                            after_na_assignment_store:
+                            // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
+                            $assemblyId = implode(',', array_map(function ($val) {
+                                return $val !== null ? $val : ''; }, $assemblyIds));
+                            $productUnit = implode(',', array_map(function ($val) {
+                                return $val !== null ? $val : 0; }, $productUnits));
+
+                            Log::info('Combined assembly data for N/A dispatch item', [
+                                'product_id' => $item['item_id'],
+                                'assembly_ids_array' => $assemblyIds,
+                                'product_units_array' => $productUnits,
+                                'assembly_ids_string' => $assemblyId,
+                                'product_units_string' => $productUnit,
+                                'quantity' => $itemQuantity
+                            ]);
                         } // End else: có tồn N/A, đã tìm assembly
                     }
-                    
+
                     // Nếu vẫn chưa có assembly_id, thử tìm từ project context
                     if (!$assemblyId) {
                         $unitInfo = $this->getNextAvailableProductUnitForDispatch($item['item_id'], $dispatch->project_id ?? null);
@@ -946,17 +962,17 @@ class DispatchController extends Controller
                 // Giải thích: Thay vì N/A-0, N/A-1 (dễ trùng giữa các project),
                 // ta dùng N/A-A1B2C3 (random) để tránh xung đột khi cùng thiết bị
                 // xuất hiện ở nhiều project khác nhau.
-                $quantity = (int)$item['quantity'];
+                $quantity = (int) $item['quantity'];
                 $serialCount = count($serialNumbers);
-                
+
                 if ($quantity > $serialCount) {
                     // Cần tạo virtual serial với random suffix (duy nhất toàn cục)
                     $needCount = $quantity - $serialCount;
-                    
+
                     // Sử dụng SerialHelper để tạo virtual serial duy nhất
                     $newVirtualSerials = \App\Helpers\SerialHelper::generateUniqueVirtualSerials($needCount);
                     $serialNumbers = array_merge($serialNumbers, $newVirtualSerials);
-                    
+
                     Log::info("Added virtual serials for item $index:", [
                         'quantity' => $quantity,
                         'real_serial_count' => $serialCount,
@@ -965,7 +981,7 @@ class DispatchController extends Controller
                         'final_serials' => $serialNumbers
                     ]);
                 }
-                
+
                 $dispatchItemData = [
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
@@ -1026,7 +1042,7 @@ class DispatchController extends Controller
     {
         $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
 
-        // Ghi nhật ký xem chi tiết phiếu xuất
+        // Ghi nhật ký xem chi tiết phiếu xuất - chỉ lưu thông tin cơ bản để tránh lỗi max_allowed_packet
         if (Auth::check()) {
             UserLog::logActivity(
                 Auth::id(),
@@ -1034,7 +1050,15 @@ class DispatchController extends Controller
                 'dispatches',
                 'Xem chi tiết phiếu xuất: ' . $dispatch->dispatch_code,
                 null,
-                $dispatch->toArray()
+                [
+                    'id' => $dispatch->id,
+                    'dispatch_code' => $dispatch->dispatch_code,
+                    'dispatch_date' => $dispatch->dispatch_date,
+                    'dispatch_type' => $dispatch->dispatch_type,
+                    'status' => $dispatch->status,
+                    'project_id' => $dispatch->project_id,
+                    'items_count' => $dispatch->items->count(),
+                ]
             );
         }
 
@@ -1059,7 +1083,7 @@ class DispatchController extends Controller
 
         // Lọc dự án theo quyền của nhân viên đang đăng nhập
         $projects = $this->getFilteredProjects();
-        
+
         // Lọc hợp đồng cho thuê theo quyền của nhân viên đang đăng nhập
         $rentals = $this->getFilteredRentals();
 
@@ -1073,7 +1097,7 @@ class DispatchController extends Controller
      */
     public function update(Request $request, Dispatch $dispatch)
     {
-        
+
         if (in_array($dispatch->status, ['completed', 'cancelled'])) {
             return redirect()->route('inventory.dispatch.show', $dispatch->id)
                 ->with('error', 'Không thể cập nhật phiếu xuất đã hoàn thành hoặc đã hủy.');
@@ -1119,7 +1143,8 @@ class DispatchController extends Controller
                 $rules['project_id'] = [
                     'nullable',
                     function ($attribute, $value, $fail) {
-                        if (empty($value)) return; // allow empty
+                        if (empty($value))
+                            return; // allow empty
                         $existsInProjects = DB::table('projects')->where('id', $value)->exists();
                         $existsInRentals = DB::table('rentals')->where('id', $value)->exists();
                         if (!$existsInProjects && !$existsInRentals) {
@@ -1326,7 +1351,7 @@ class DispatchController extends Controller
             if (!$stockCheck['sufficient']) {
                 $stockErrors[] = $stockCheck['message'];
             }
-            
+
             // Kiểm tra tồn kho N/A nếu có serial N/A
             if ($item['item_type'] === 'product' && !empty($item['serial_numbers'])) {
                 $naCount = 0;
@@ -1336,7 +1361,7 @@ class DispatchController extends Controller
                         $naCount++;
                     }
                 }
-                
+
                 if ($naCount > 0) {
                     // Kiểm tra tồn kho N/A trong warehouse
                     $warehouseMaterial = DB::table('warehouse_materials')
@@ -1344,11 +1369,11 @@ class DispatchController extends Controller
                         ->where('material_id', $item['item_id'])
                         ->where('item_type', 'product')
                         ->first();
-                    
+
                     if ($warehouseMaterial) {
                         $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                         $serialCount = 0;
-                        
+
                         // Đếm số serial trong kho
                         if (!empty($warehouseMaterial->serial_number)) {
                             $decoded = json_decode($warehouseMaterial->serial_number, true);
@@ -1359,14 +1384,14 @@ class DispatchController extends Controller
                                 $serialCount = count(array_filter(array_map('trim', $serialParts)));
                             }
                         }
-                        
+
                         // Tồn N/A = tổng số lượng - số serial
                         $naStock = max(0, $totalQuantity - $serialCount);
-                        
+
                         if ($naStock < $naCount) {
                             $itemName = $item['item_id']; // Có thể lấy tên từ product nếu cần
                             $stockErrors[] = "Sản phẩm ID {$item['item_id']} tại kho xuất: Không đủ tồn không serial. Yêu cầu: {$naCount}, Tồn có: {$naStock}";
-                            
+
                             Log::warning('Insufficient N/A stock when updating dispatch', [
                                 'product_id' => $item['item_id'],
                                 'warehouse_id' => $item['warehouse_id'],
@@ -1380,7 +1405,7 @@ class DispatchController extends Controller
                         // Không tìm thấy warehouse_material, không có tồn kho
                         $itemName = $item['item_id'];
                         $stockErrors[] = "Sản phẩm ID {$item['item_id']} tại kho xuất: Không có tồn kho không serial. Yêu cầu: {$naCount}";
-                        
+
                         Log::warning('No warehouse material found when checking N/A stock', [
                             'product_id' => $item['item_id'],
                             'warehouse_id' => $item['warehouse_id'],
@@ -1403,39 +1428,39 @@ class DispatchController extends Controller
             $assemblyId = $item['assembly_id'] ?? null;
             $productUnit = $item['product_unit'] ?? null;
             $serialNumbers = $item['serial_numbers'] ?? [];
-            
+
             // Nếu là sản phẩm và có serial numbers, tách thành các bản ghi riêng
             if ($item['item_type'] === 'product' && !empty($serialNumbers) && !in_array('N/A', $serialNumbers) && !in_array('NA', $serialNumbers)) {
                 $assemblyIds = [];
                 $productUnits = [];
-                
+
                 foreach ($serialNumbers as $serialIndex => $serial) {
                     $serialAssemblyId = null;
                     $serialProductUnit = null;
-                    
+
                     // Tìm assembly_id cho serial cụ thể này
                     $assemblyProduct = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
-                        ->where(function($q) use ($serial) {
+                        ->where(function ($q) use ($serial) {
                             $q->where('serials', $serial)
-                              ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
+                                ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
                         })
                         ->first();
-                    
+
                     if ($assemblyProduct) {
                         $serialAssemblyId = $assemblyProduct->assembly_id;
-                        
+
                         // Tìm product_unit từ assembly_products (ưu tiên) hoặc assembly_materials
                         if ($assemblyProduct->product_unit !== null) {
                             $productUnitValue = $assemblyProduct->product_unit;
-                            
+
                             if (is_array($productUnitValue)) {
                                 // Tìm vị trí của serial trong assembly_products.serials
                                 $serialsStr = $assemblyProduct->serials ?? '';
                                 $serialsArray = array_map('trim', explode(',', $serialsStr));
-                                
+
                                 // Tìm index của serial trong mảng serials của assembly
                                 $serialPositionInAssembly = array_search(trim($serial), $serialsArray);
-                                
+
                                 if ($serialPositionInAssembly !== false && isset($productUnitValue[$serialPositionInAssembly])) {
                                     // Lấy product_unit tại vị trí tương ứng với serial trong assembly
                                     $serialProductUnit = $productUnitValue[$serialPositionInAssembly];
@@ -1457,15 +1482,15 @@ class DispatchController extends Controller
                             }
                         }
                     }
-                    
+
                     $assemblyIds[] = $serialAssemblyId;
                     $productUnits[] = $serialProductUnit;
                 }
-                
+
                 // Tính số lượng N/A products cần thêm vào
                 $itemQuantity = (int) ($item['quantity'] ?? 1);
                 $naQuantity = $itemQuantity - count($serialNumbers);
-                
+
                 // Thêm assembly_id và product_unit cho N/A products
                 if ($naQuantity > 0) {
                     // 1) Kiểm tra tồn kho N/A tại warehouse của dòng này
@@ -1476,14 +1501,14 @@ class DispatchController extends Controller
                             ->where('material_id', $item['item_id'])
                             ->where('item_type', 'product')
                             ->first();
-                        $totalQty = (int)($wm->quantity ?? 0);
+                        $totalQty = (int) ($wm->quantity ?? 0);
                         $serialCnt = 0;
                         if (!empty($wm?->serial_number)) {
                             $dec = json_decode($wm->serial_number, true);
                             if (is_array($dec)) {
                                 $serialCnt = count(array_filter(array_map('trim', $dec)));
                             } else {
-                                $serialCnt = count(array_filter(array_map('trim', explode(',', (string)$wm->serial_number))));
+                                $serialCnt = count(array_filter(array_map('trim', explode(',', (string) $wm->serial_number))));
                             }
                         }
                         $naStockAvail = max(0, $totalQty - $serialCnt);
@@ -1502,40 +1527,40 @@ class DispatchController extends Controller
                         }
                     }
                     $usedSerialCount = count($serialNumbers);
-                    
+
                     // Lấy các assembly_id có sẵn cho product_id này
                     // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A
                     $warehouseIdForItem = $item['warehouse_id'] ?? null;
-                    $productIdForItem = (int)$item['item_id'];
+                    $productIdForItem = (int) $item['item_id'];
                     $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $productIdForItem)
                         ->orderBy('assembly_id')
                         ->get()
-                        ->filter(function($assembly) use ($warehouseIdForItem, $productIdForItem) {
-                            $capacity = $this->getNaCapacityForAssemblyProduct((int)$assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
+                        ->filter(function ($assembly) use ($warehouseIdForItem, $productIdForItem) {
+                            $capacity = $this->getNaCapacityForAssemblyProduct((int) $assembly->assembly_id, $productIdForItem, $warehouseIdForItem, true);
                             return $capacity > 0;
                         })
-                        ->sortBy(function($assembly) {
+                        ->sortBy(function ($assembly) {
                             // Ưu tiên assemblies không có serial trước
-                            $hasSerials = $assembly->serials && 
-                                         $assembly->serials !== '' && 
-                                         $assembly->serials !== 'N/A' && 
-                                         $assembly->serials !== 'NA';
+                            $hasSerials = $assembly->serials &&
+                                $assembly->serials !== '' &&
+                                $assembly->serials !== 'N/A' &&
+                                $assembly->serials !== 'NA';
                             return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
                         })
                         ->values(); // Reset keys
-                    
+
                     $assemblyIndex = 0;
                     $currentProductUnitIndex = $usedSerialCount; // Bắt đầu từ product_unit tiếp theo sau serial
-                    
+
                     for ($q = 0; $q < $naQuantity; $q++) {
                         if ($assemblyIndex < $availableAssemblies->count()) {
                             $assembly = $availableAssemblies[$assemblyIndex];
                             $assemblyId = $assembly->assembly_id;
-                            
+
                             // Parse product_unit để lấy unit phù hợp
                             $productUnitValue = $assembly->product_unit;
                             $assemblyProductUnits = [];
-                            
+
                             if (is_string($productUnitValue)) {
                                 $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
                             } elseif (is_array($productUnitValue)) {
@@ -1543,10 +1568,10 @@ class DispatchController extends Controller
                             } else {
                                 $assemblyProductUnits = [$productUnitValue];
                             }
-                            
+
                             // Tìm product_unit phù hợp với index hiện tại
                             $targetProductUnit = null;
-                            
+
                             if ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') {
                                 // Assembly có serial, tìm product_unit tiếp theo sau serial
                                 // Ví dụ: assembly_id = 41 có [0,1], serial dùng 0, N/A sẽ dùng 1
@@ -1558,14 +1583,14 @@ class DispatchController extends Controller
                                 // Ví dụ: assembly_id = 42 có [0], N/A sẽ dùng 0
                                 $targetProductUnit = $assemblyProductUnits[0] ?? 0;
                             }
-                            
+
                             // Nếu không tìm được product_unit phù hợp, chuyển sang assembly tiếp theo
                             if ($targetProductUnit === null) {
                                 $assemblyIndex++;
                                 if ($assemblyIndex < $availableAssemblies->count()) {
                                     $assembly = $availableAssemblies[$assemblyIndex];
                                     $assemblyId = $assembly->assembly_id;
-                                    
+
                                     $productUnitValue = $assembly->product_unit;
                                     if (is_string($productUnitValue)) {
                                         $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
@@ -1574,14 +1599,14 @@ class DispatchController extends Controller
                                     } else {
                                         $assemblyProductUnits = [$productUnitValue];
                                     }
-                                    
+
                                     $targetProductUnit = $assemblyProductUnits[0] ?? 0;
                                 }
                             }
-                            
+
                             $assemblyIds[] = $assemblyId;
                             $productUnits[] = $targetProductUnit;
-                            
+
                             // Chuyển sang assembly tiếp theo sau khi đã gán
                             $assemblyIndex++;
                         } else {
@@ -1592,24 +1617,28 @@ class DispatchController extends Controller
                     }
                     after_na_assignment_update:
                 }
-                
+
                 // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
                 // Không dùng array_filter để tránh loại bỏ giá trị 0 và null
-                $assemblyId = implode(',', array_map(function($val) { return $val !== null ? $val : ''; }, $assemblyIds));
-                $productUnit = implode(',', array_map(function($val) { return $val !== null ? $val : 0; }, $productUnits));
+                $assemblyId = implode(',', array_map(function ($val) {
+                    return $val !== null ? $val : ''; }, $assemblyIds));
+                $productUnit = implode(',', array_map(function ($val) {
+                    return $val !== null ? $val : 0; }, $productUnits));
             } elseif ($item['item_type'] === 'product' && (empty($serialNumbers) || in_array('N/A', $serialNumbers) || in_array('NA', $serialNumbers))) {
                 // Xử lý N/A products với logic ưu tiên serial trước - gộp chung 1 hàng
                 $itemQuantity = (int) ($item['quantity'] ?? 1);
-                
+
                 // Tính số lượng serial đã sử dụng trong dispatch này để dành product_unit
                 $usedSerialCount = 0;
-                
+
                 // Đếm số serial đã sử dụng cho cùng product_id trong dispatch này
                 foreach ($allItems as $otherItem) {
-                    if ($otherItem['item_type'] === 'product' && 
-                        $otherItem['item_id'] == $item['item_id'] && 
-                        !empty($otherItem['serial_numbers'])) {
-                        
+                    if (
+                        $otherItem['item_type'] === 'product' &&
+                        $otherItem['item_id'] == $item['item_id'] &&
+                        !empty($otherItem['serial_numbers'])
+                    ) {
+
                         // Normalize serial_numbers to array
                         $otherSerialNumbers = [];
                         if (is_string($otherItem['serial_numbers'])) {
@@ -1618,21 +1647,23 @@ class DispatchController extends Controller
                         } elseif (is_array($otherItem['serial_numbers'])) {
                             $otherSerialNumbers = $otherItem['serial_numbers'];
                         }
-                        
-                        if (!empty($otherSerialNumbers) && 
-                            !in_array('N/A', $otherSerialNumbers) && 
-                            !in_array('NA', $otherSerialNumbers)) {
+
+                        if (
+                            !empty($otherSerialNumbers) &&
+                            !in_array('N/A', $otherSerialNumbers) &&
+                            !in_array('NA', $otherSerialNumbers)
+                        ) {
                             $usedSerialCount += count($otherSerialNumbers);
                         }
                     }
                 }
-                
+
                 Log::info('Processing N/A products with serial priority in update', [
                     'product_id' => $item['item_id'],
                     'quantity' => $itemQuantity,
                     'used_serial_count' => $usedSerialCount
                 ]);
-                
+
                 // Kiểm tra tồn kho N/A trong warehouse trước
                 $warehouseId = $item['warehouse_id'] ?? null;
                 $hasNAStock = false;
@@ -1642,11 +1673,11 @@ class DispatchController extends Controller
                         ->where('material_id', $item['item_id'])
                         ->where('item_type', 'product')
                         ->first();
-                    
+
                     if ($warehouseMaterial) {
                         $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                         $serialCount = 0;
-                        
+
                         // Đếm số serial trong kho
                         if (!empty($warehouseMaterial->serial_number)) {
                             $decoded = json_decode($warehouseMaterial->serial_number, true);
@@ -1657,11 +1688,11 @@ class DispatchController extends Controller
                                 $serialCount = count(array_filter(array_map('trim', $serialParts)));
                             }
                         }
-                        
+
                         // Tồn N/A = tổng số lượng - số serial
                         $naStock = max(0, $totalQuantity - $serialCount);
                         $hasNAStock = $naStock > 0;
-                        
+
                         Log::info('Warehouse N/A stock check (update)', [
                             'warehouse_id' => $warehouseId,
                             'product_id' => $item['item_id'],
@@ -1672,7 +1703,7 @@ class DispatchController extends Controller
                         ]);
                     }
                 }
-                
+
                 // Nếu không có tồn N/A trong kho, gán assembly_id = 0
                 if (!$hasNAStock) {
                     Log::info('No N/A stock in warehouse, setting assembly_id to 0 (update)', [
@@ -1680,147 +1711,155 @@ class DispatchController extends Controller
                         'warehouse_id' => $warehouseId,
                         'quantity' => $itemQuantity
                     ]);
-                    
+
                     $assemblyId = '0';
                     $productUnit = implode(',', array_fill(0, $itemQuantity, '0'));
-                    
+
                     // Bỏ qua logic tìm assembly, gán trực tiếp
                 } else {
                     // Có tồn N/A, tiếp tục logic tìm assembly như cũ
-                
-                // Loại trừ các cặp assembly_id:product_unit đã dùng trong phiếu xuất đã duyệt
-                $approvedPairs = [];
-                $approvedItems = DB::table('dispatch_items as di')
-                    ->join('dispatches as d', 'd.id', '=', 'di.dispatch_id')
-                    ->where('di.item_type', 'product')
-                    ->where('di.item_id', $item['item_id'])
-                    ->where('d.status', 'approved')
-                    ->select('di.assembly_id', 'di.product_unit')
-                    ->get();
-                foreach ($approvedItems as $row) {
-                    $aIds = array_map('trim', explode(',', (string) $row->assembly_id));
-                    $pUnitsRaw = $row->product_unit;
-                    // Parse product_unit (có thể là JSON string hoặc comma-separated string)
-                    $pUnits = [];
-                    if (is_string($pUnitsRaw)) {
-                        $decoded = json_decode($pUnitsRaw, true);
-                        if (is_array($decoded)) {
-                            $pUnits = array_map('intval', $decoded);
-                        } else {
-                            $pUnits = array_map('intval', array_map('trim', explode(',', $pUnitsRaw)));
+
+                    // Loại trừ các cặp assembly_id:product_unit đã dùng trong phiếu xuất đã duyệt
+                    $approvedPairs = [];
+                    $approvedItems = DB::table('dispatch_items as di')
+                        ->join('dispatches as d', 'd.id', '=', 'di.dispatch_id')
+                        ->where('di.item_type', 'product')
+                        ->where('di.item_id', $item['item_id'])
+                        ->where('d.status', 'approved')
+                        ->select('di.assembly_id', 'di.product_unit')
+                        ->get();
+                    foreach ($approvedItems as $row) {
+                        $aIds = array_map('trim', explode(',', (string) $row->assembly_id));
+                        $pUnitsRaw = $row->product_unit;
+                        // Parse product_unit (có thể là JSON string hoặc comma-separated string)
+                        $pUnits = [];
+                        if (is_string($pUnitsRaw)) {
+                            $decoded = json_decode($pUnitsRaw, true);
+                            if (is_array($decoded)) {
+                                $pUnits = array_map('intval', $decoded);
+                            } else {
+                                $pUnits = array_map('intval', array_map('trim', explode(',', $pUnitsRaw)));
+                            }
+                        } elseif (is_array($pUnitsRaw)) {
+                            $pUnits = array_map('intval', $pUnitsRaw);
                         }
-                    } elseif (is_array($pUnitsRaw)) {
-                        $pUnits = array_map('intval', $pUnitsRaw);
-                    }
-                    
-                    $len = min(count($aIds), count($pUnits));
-                    for ($ii = 0; $ii < $len; $ii++) {
-                        if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
-                            $approvedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
-                        }
-                    }
-                }
-                
-                // Lấy các assembly_id có sẵn cho product_id này
-                // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A còn trống (chưa dùng trong phiếu đã duyệt)
-                // QUAN TRỌNG: Chỉ lấy assemblies thuộc kho xuất (warehouse_id của item)
-                $warehouseId = $item['warehouse_id'] ?? null;
-                $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
-                    ->with('assembly') // Eager load Assembly để kiểm tra warehouse
-                    ->orderBy('assembly_id')
-                    ->get()
-                    ->filter(function($assemblyProduct) use ($warehouseId, $item) {
-                        $capacity = $this->getNaCapacityForAssemblyProduct((int)$assemblyProduct->assembly_id, (int)$item['item_id'], $warehouseId, true);
-                        return $capacity > 0;
-                    })
-                    ->sortBy(function($assemblyProduct) {
-                        // Ưu tiên assemblies không có serial trước
-                        $hasSerials = $assemblyProduct->serials && 
-                                     $assemblyProduct->serials !== '' && 
-                                     $assemblyProduct->serials !== 'N/A' && 
-                                     $assemblyProduct->serials !== 'NA';
-                        return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
-                    })
-                    ->values(); // Reset keys
-                
-                // approvedPairs đã được lấy ở trên, sử dụng lại
-                
-                $assemblyIds = [];
-                $productUnits = [];
-                $localUsedPairs = [];
-                // Tính sức chứa còn lại theo từng assembly để tránh vượt quá slot N/A
-                $assemblyRemaining = [];
-                foreach ($availableAssemblies as $asm) {
-                    $units = [];
-                    if (is_string($asm->product_unit)) {
-                        $units = json_decode($asm->product_unit, true) ?: [];
-                    } elseif (is_array($asm->product_unit)) {
-                        $units = $asm->product_unit;
-                    } elseif ($asm->product_unit !== null) {
-                        $units = [$asm->product_unit];
-                    }
-                    $hasSerials = $asm->serials && $asm->serials !== '' && $asm->serials !== 'N/A' && $asm->serials !== 'NA';
-                    $serialCountCap = 0;
-                    if ($hasSerials) {
-                        $partsTmp = preg_split('/[\s,;|\/]+/', (string)$asm->serials, -1, PREG_SPLIT_NO_EMPTY);
-                        $serialCountCap = is_array($partsTmp) ? count($partsTmp) : 1;
-                    }
-                    $capacity = $hasSerials ? max(0, count($units) - $serialCountCap) : (count($units) > 0 ? count($units) : 1);
-                    if ($capacity > 0) {
-                        $aidStr = (string)$asm->assembly_id;
-                        $used = 0;
-                        foreach ($units as $idx => $u) {
-                            if ($hasSerials && $idx < $serialCountCap) continue;
-                            $key = $aidStr . ':' . (int)$u;
-                            if (isset($approvedPairs[$key])) $used++;
-                        }
-                        $capacity = max(0, $capacity - $used);
-                    }
-                    $assemblyRemaining[(int)$asm->assembly_id] = $capacity;
-                }
-                $needed = $itemQuantity;
-                foreach ($availableAssemblies as $assembly) {
-                    if ($needed <= 0) { break; }
-                    $assemblyId = $assembly->assembly_id;
-                    if (($assemblyRemaining[(int)$assemblyId] ?? 0) <= 0) { continue; }
-                    $productUnitValue = $assembly->product_unit;
-                    $assemblyProductUnits = [];
-                    if (is_string($productUnitValue)) {
-                        $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
-                    } elseif (is_array($productUnitValue)) {
-                        $assemblyProductUnits = $productUnitValue;
-                    } else {
-                        $assemblyProductUnits = [$productUnitValue];
-                    }
-                    $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
-                    $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
-                    $assemblySerialCount = ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') ? (is_array($parts) ? count($parts) : 1) : 0;
-                    for ($unitIdx = $assemblySerialCount; $unitIdx < count($assemblyProductUnits) && $needed > 0; $unitIdx++) {
-                        $candidateUnit = $assemblyProductUnits[$unitIdx];
-                        $key = $assemblyId . ':' . $candidateUnit;
-                        if (!isset($approvedPairs[$key]) && !isset($localUsedPairs[$key])) {
-                            $assemblyIds[] = $assemblyId;
-                            $productUnits[] = $candidateUnit;
-                            $localUsedPairs[$key] = true;
-                            $needed--;
-                            if (isset($assemblyRemaining[(int)$assemblyId])) {
-                                $assemblyRemaining[(int)$assemblyId] = max(0, $assemblyRemaining[(int)$assemblyId] - 1);
+
+                        $len = min(count($aIds), count($pUnits));
+                        for ($ii = 0; $ii < $len; $ii++) {
+                            if ($aIds[$ii] !== '' && isset($pUnits[$ii])) {
+                                $approvedPairs[$aIds[$ii] . ':' . $pUnits[$ii]] = true;
                             }
                         }
                     }
-                }
-                while ($needed > 0) {
-                    $assemblyIds[] = null;
-                    $productUnits[] = null;
-                    $needed--;
-                }
-                
-                // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
-                $assemblyId = implode(',', array_map(function($val) { return $val !== null ? $val : ''; }, $assemblyIds));
-                $productUnit = implode(',', array_map(function($val) { return $val !== null ? $val : 0; }, $productUnits));
+
+                    // Lấy các assembly_id có sẵn cho product_id này
+                    // Ưu tiên assemblies không có serial, sau đó mới đến assemblies có serial nhưng có slot N/A còn trống (chưa dùng trong phiếu đã duyệt)
+                    // QUAN TRỌNG: Chỉ lấy assemblies thuộc kho xuất (warehouse_id của item)
+                    $warehouseId = $item['warehouse_id'] ?? null;
+                    $availableAssemblies = \App\Models\AssemblyProduct::where('product_id', $item['item_id'])
+                        ->with('assembly') // Eager load Assembly để kiểm tra warehouse
+                        ->orderBy('assembly_id')
+                        ->get()
+                        ->filter(function ($assemblyProduct) use ($warehouseId, $item) {
+                            $capacity = $this->getNaCapacityForAssemblyProduct((int) $assemblyProduct->assembly_id, (int) $item['item_id'], $warehouseId, true);
+                            return $capacity > 0;
+                        })
+                        ->sortBy(function ($assemblyProduct) {
+                            // Ưu tiên assemblies không có serial trước
+                            $hasSerials = $assemblyProduct->serials &&
+                                $assemblyProduct->serials !== '' &&
+                                $assemblyProduct->serials !== 'N/A' &&
+                                $assemblyProduct->serials !== 'NA';
+                            return $hasSerials ? 1 : 0; // 0 = không có serial (ưu tiên), 1 = có serial
+                        })
+                        ->values(); // Reset keys
+
+                    // approvedPairs đã được lấy ở trên, sử dụng lại
+
+                    $assemblyIds = [];
+                    $productUnits = [];
+                    $localUsedPairs = [];
+                    // Tính sức chứa còn lại theo từng assembly để tránh vượt quá slot N/A
+                    $assemblyRemaining = [];
+                    foreach ($availableAssemblies as $asm) {
+                        $units = [];
+                        if (is_string($asm->product_unit)) {
+                            $units = json_decode($asm->product_unit, true) ?: [];
+                        } elseif (is_array($asm->product_unit)) {
+                            $units = $asm->product_unit;
+                        } elseif ($asm->product_unit !== null) {
+                            $units = [$asm->product_unit];
+                        }
+                        $hasSerials = $asm->serials && $asm->serials !== '' && $asm->serials !== 'N/A' && $asm->serials !== 'NA';
+                        $serialCountCap = 0;
+                        if ($hasSerials) {
+                            $partsTmp = preg_split('/[\s,;|\/]+/', (string) $asm->serials, -1, PREG_SPLIT_NO_EMPTY);
+                            $serialCountCap = is_array($partsTmp) ? count($partsTmp) : 1;
+                        }
+                        $capacity = $hasSerials ? max(0, count($units) - $serialCountCap) : (count($units) > 0 ? count($units) : 1);
+                        if ($capacity > 0) {
+                            $aidStr = (string) $asm->assembly_id;
+                            $used = 0;
+                            foreach ($units as $idx => $u) {
+                                if ($hasSerials && $idx < $serialCountCap)
+                                    continue;
+                                $key = $aidStr . ':' . (int) $u;
+                                if (isset($approvedPairs[$key]))
+                                    $used++;
+                            }
+                            $capacity = max(0, $capacity - $used);
+                        }
+                        $assemblyRemaining[(int) $asm->assembly_id] = $capacity;
+                    }
+                    $needed = $itemQuantity;
+                    foreach ($availableAssemblies as $assembly) {
+                        if ($needed <= 0) {
+                            break;
+                        }
+                        $assemblyId = $assembly->assembly_id;
+                        if (($assemblyRemaining[(int) $assemblyId] ?? 0) <= 0) {
+                            continue;
+                        }
+                        $productUnitValue = $assembly->product_unit;
+                        $assemblyProductUnits = [];
+                        if (is_string($productUnitValue)) {
+                            $assemblyProductUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
+                        } elseif (is_array($productUnitValue)) {
+                            $assemblyProductUnits = $productUnitValue;
+                        } else {
+                            $assemblyProductUnits = [$productUnitValue];
+                        }
+                        $assemblySerialsStr = is_string($assembly->serials) ? $assembly->serials : '';
+                        $parts = preg_split('/[\s,;|\/]+/', $assemblySerialsStr, -1, PREG_SPLIT_NO_EMPTY);
+                        $assemblySerialCount = ($assembly->serials && $assembly->serials !== 'N/A' && $assembly->serials !== 'NA') ? (is_array($parts) ? count($parts) : 1) : 0;
+                        for ($unitIdx = $assemblySerialCount; $unitIdx < count($assemblyProductUnits) && $needed > 0; $unitIdx++) {
+                            $candidateUnit = $assemblyProductUnits[$unitIdx];
+                            $key = $assemblyId . ':' . $candidateUnit;
+                            if (!isset($approvedPairs[$key]) && !isset($localUsedPairs[$key])) {
+                                $assemblyIds[] = $assemblyId;
+                                $productUnits[] = $candidateUnit;
+                                $localUsedPairs[$key] = true;
+                                $needed--;
+                                if (isset($assemblyRemaining[(int) $assemblyId])) {
+                                    $assemblyRemaining[(int) $assemblyId] = max(0, $assemblyRemaining[(int) $assemblyId] - 1);
+                                }
+                            }
+                        }
+                    }
+                    while ($needed > 0) {
+                        $assemblyIds[] = null;
+                        $productUnits[] = null;
+                        $needed--;
+                    }
+
+                    // Gộp assembly_id và product_unit thành chuỗi phân tách bằng dấu phẩy
+                    $assemblyId = implode(',', array_map(function ($val) {
+                        return $val !== null ? $val : ''; }, $assemblyIds));
+                    $productUnit = implode(',', array_map(function ($val) {
+                        return $val !== null ? $val : 0; }, $productUnits));
                 } // End else: có tồn N/A, đã tìm assembly
             }
-            
+
             DispatchItem::create([
                 'dispatch_id' => $dispatch->id,
                 'item_type' => $item['item_type'],
@@ -1842,7 +1881,7 @@ class DispatchController extends Controller
     {
         $stockErrors = [];
         $allItemsToUpdate = [];
-        
+
         // Collect all items to update and validate N/A stock
         if ($request->has('contract_items')) {
             foreach ($request->contract_items as $itemId => $itemData) {
@@ -1850,14 +1889,14 @@ class DispatchController extends Controller
                     $serialNumbers = array_filter($itemData['serial_numbers'], function ($serial) {
                         return !empty(trim($serial));
                     });
-                    
+
                     $dispatchItem = $dispatch->items()->where('id', $itemId)->first();
                     if ($dispatchItem) {
                         $allItemsToUpdate[] = [
                             'item' => $dispatchItem,
                             'serial_numbers' => $serialNumbers
                         ];
-                        
+
                         // Validate N/A stock
                         $naCount = 0;
                         foreach ($serialNumbers as $serial) {
@@ -1866,18 +1905,18 @@ class DispatchController extends Controller
                                 $naCount++;
                             }
                         }
-                        
+
                         if ($naCount > 0) {
                             $warehouseMaterial = DB::table('warehouse_materials')
                                 ->where('warehouse_id', $dispatchItem->warehouse_id)
                                 ->where('material_id', $dispatchItem->item_id)
                                 ->where('item_type', $dispatchItem->item_type)
                                 ->first();
-                            
+
                             if ($warehouseMaterial) {
                                 $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                                 $serialCount = 0;
-                                
+
                                 if (!empty($warehouseMaterial->serial_number)) {
                                     $decoded = json_decode($warehouseMaterial->serial_number, true);
                                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -1887,9 +1926,9 @@ class DispatchController extends Controller
                                         $serialCount = count(array_filter(array_map('trim', $serialParts)));
                                     }
                                 }
-                                
+
                                 $naStock = max(0, $totalQuantity - $serialCount);
-                                
+
                                 if ($naStock < $naCount) {
                                     $stockErrors[] = "Sản phẩm ID {$dispatchItem->item_id} tại kho xuất: Không đủ tồn không serial. Yêu cầu: {$naCount}, Tồn có: {$naStock}";
                                 }
@@ -1908,14 +1947,14 @@ class DispatchController extends Controller
                     $serialNumbers = array_filter($itemData['serial_numbers'], function ($serial) {
                         return !empty(trim($serial));
                     });
-                    
+
                     $dispatchItem = $dispatch->items()->where('id', $itemId)->first();
                     if ($dispatchItem) {
                         $allItemsToUpdate[] = [
                             'item' => $dispatchItem,
                             'serial_numbers' => $serialNumbers
                         ];
-                        
+
                         // Validate N/A stock (same logic as above)
                         $naCount = 0;
                         foreach ($serialNumbers as $serial) {
@@ -1924,18 +1963,18 @@ class DispatchController extends Controller
                                 $naCount++;
                             }
                         }
-                        
+
                         if ($naCount > 0) {
                             $warehouseMaterial = DB::table('warehouse_materials')
                                 ->where('warehouse_id', $dispatchItem->warehouse_id)
                                 ->where('material_id', $dispatchItem->item_id)
                                 ->where('item_type', $dispatchItem->item_type)
                                 ->first();
-                            
+
                             if ($warehouseMaterial) {
                                 $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                                 $serialCount = 0;
-                                
+
                                 if (!empty($warehouseMaterial->serial_number)) {
                                     $decoded = json_decode($warehouseMaterial->serial_number, true);
                                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -1945,9 +1984,9 @@ class DispatchController extends Controller
                                         $serialCount = count(array_filter(array_map('trim', $serialParts)));
                                     }
                                 }
-                                
+
                                 $naStock = max(0, $totalQuantity - $serialCount);
-                                
+
                                 if ($naStock < $naCount) {
                                     $stockErrors[] = "Sản phẩm ID {$dispatchItem->item_id} tại kho xuất: Không đủ tồn không serial. Yêu cầu: {$naCount}, Tồn có: {$naStock}";
                                 }
@@ -1966,14 +2005,14 @@ class DispatchController extends Controller
                     $serialNumbers = array_filter($itemData['serial_numbers'], function ($serial) {
                         return !empty(trim($serial));
                     });
-                    
+
                     $dispatchItem = $dispatch->items()->where('id', $itemId)->first();
                     if ($dispatchItem) {
                         $allItemsToUpdate[] = [
                             'item' => $dispatchItem,
                             'serial_numbers' => $serialNumbers
                         ];
-                        
+
                         // Validate N/A stock (same logic as above)
                         $naCount = 0;
                         foreach ($serialNumbers as $serial) {
@@ -1982,18 +2021,18 @@ class DispatchController extends Controller
                                 $naCount++;
                             }
                         }
-                        
+
                         if ($naCount > 0) {
                             $warehouseMaterial = DB::table('warehouse_materials')
                                 ->where('warehouse_id', $dispatchItem->warehouse_id)
                                 ->where('material_id', $dispatchItem->item_id)
                                 ->where('item_type', $dispatchItem->item_type)
                                 ->first();
-                            
+
                             if ($warehouseMaterial) {
                                 $totalQuantity = (int) ($warehouseMaterial->quantity ?? 0);
                                 $serialCount = 0;
-                                
+
                                 if (!empty($warehouseMaterial->serial_number)) {
                                     $decoded = json_decode($warehouseMaterial->serial_number, true);
                                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -2003,9 +2042,9 @@ class DispatchController extends Controller
                                         $serialCount = count(array_filter(array_map('trim', $serialParts)));
                                     }
                                 }
-                                
+
                                 $naStock = max(0, $totalQuantity - $serialCount);
-                                
+
                                 if ($naStock < $naCount) {
                                     $stockErrors[] = "Sản phẩm ID {$dispatchItem->item_id} tại kho xuất: Không đủ tồn không serial. Yêu cầu: {$naCount}, Tồn có: {$naStock}";
                                 }
@@ -2017,12 +2056,12 @@ class DispatchController extends Controller
                 }
             }
         }
-        
+
         // Throw error if validation fails
         if (!empty($stockErrors)) {
             throw new \Exception('Không đủ tồn kho không serial:\n' . implode('\n', $stockErrors));
         }
-        
+
         // Update serial numbers if validation passes
         foreach ($allItemsToUpdate as $itemUpdate) {
             $itemUpdate['item']->update([
@@ -2076,14 +2115,14 @@ class DispatchController extends Controller
                 $groupedItems[$key]['total_quantity'] += $item->quantity;
                 // Đếm số serial THẬT đã chọn cho item này (loại trừ virtual serial N/A-*)
                 if (is_array($item->serial_numbers)) {
-                    $realSerials = array_filter($item->serial_numbers, function($s) {
+                    $realSerials = array_filter($item->serial_numbers, function ($s) {
                         return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
                     });
                     $groupedItems[$key]['serial_selected'] += count($realSerials);
                 } elseif (is_string($item->serial_numbers) && !empty($item->serial_numbers)) {
                     $decodedSerials = json_decode($item->serial_numbers, true);
                     if (is_array($decodedSerials)) {
-                        $realSerials = array_filter($decodedSerials, function($s) {
+                        $realSerials = array_filter($decodedSerials, function ($s) {
                             return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
                         });
                         $groupedItems[$key]['serial_selected'] += count($realSerials);
@@ -2120,11 +2159,11 @@ class DispatchController extends Controller
                         $currentSerials = $this->normalizeSerialArray($warehouseMaterialRow->serial_number);
                         $availableSerialCount = is_array($currentSerials) ? count(array_filter($currentSerials)) : 0;
                     }
-                    
+
                     // Không cho phép "mượn" số lượng không-serial vượt quá tồn không-serial thực tế
                     // Ví dụ: tồn = 6 (3 có serial, 3 không serial); yêu cầu 4 nhưng không chọn serial nào => phải báo lỗi thiếu 1 serial
                     $currentNonSerialAvailable = max(0, $currentTotalQuantity - $availableSerialCount);
-                    $noSerialRequestedTotal = (int)$groupedItem['total_quantity'] - (int)$groupedItem['serial_selected'];
+                    $noSerialRequestedTotal = (int) $groupedItem['total_quantity'] - (int) $groupedItem['serial_selected'];
                     if ($noSerialRequestedTotal > $currentNonSerialAvailable) {
                         $missingRealSerials = $noSerialRequestedTotal - $currentNonSerialAvailable;
                         // Lấy tên item để hiển thị lỗi rõ ràng hơn
@@ -2143,7 +2182,7 @@ class DispatchController extends Controller
                         $warehouseName = 'Unknown';
                         $warehouse = \App\Models\Warehouse::find($groupedItem['warehouse_id']);
                         if ($warehouse) {
-                            $warehouseName = $warehouse->name ?? (string)$groupedItem['warehouse_id'];
+                            $warehouseName = $warehouse->name ?? (string) $groupedItem['warehouse_id'];
                         }
                         $stockErrors[] = sprintf(
                             'Mục %s cần chọn thêm %d serial (tồn không-serial khả dụng: %d). Sản phẩm: %s, Kho: %s.',
@@ -2154,17 +2193,17 @@ class DispatchController extends Controller
                             $warehouseName
                         );
                     }
-                    
+
                     // CHỈ kiểm tra serial nếu có serial được chọn (bỏ qua kiểm tra cho thiết bị no_serial)
-                    if ((int)$groupedItem['serial_selected'] > 0) {
+                    if ((int) $groupedItem['serial_selected'] > 0) {
                         // Xác thực: số serial đã chọn không vượt quá số serial khả dụng
-                        if ((int)$groupedItem['serial_selected'] > $availableSerialCount) {
+                        if ((int) $groupedItem['serial_selected'] > $availableSerialCount) {
                             $stockErrors[] = sprintf(
                                 'Mục %s (ID %d) tại kho %d chọn %d serial vượt quá số serial khả dụng (%d).',
                                 $groupedItem['item_type'],
                                 $groupedItem['item_id'],
                                 $groupedItem['warehouse_id'],
-                                (int)$groupedItem['serial_selected'],
+                                (int) $groupedItem['serial_selected'],
                                 $availableSerialCount
                             );
                         }
@@ -2181,7 +2220,7 @@ class DispatchController extends Controller
                             'noSerialRequired' => $noSerialRequired,
                             'sufficient' => $currentTotalQuantity >= $noSerialRequired
                         ]);
-                        
+
                         // Kiểm tra đơn giản: tổng tồn kho >= số lượng yêu cầu
                         if ($currentTotalQuantity < $noSerialRequired) {
                             // Lấy tên item để hiển thị lỗi rõ ràng hơn
@@ -2196,7 +2235,7 @@ class DispatchController extends Controller
                             if (isset($item)) {
                                 $itemName = "{$item->code} - {$item->name}";
                             }
-                            
+
                             $stockErrors[] = "Không đủ tồn kho cho {$itemName}. Yêu cầu {$noSerialRequired}, còn {$currentTotalQuantity}";
                         }
                     }
@@ -2240,30 +2279,31 @@ class DispatchController extends Controller
             // Tạo virtual serial cho thiết bị không có serial và loại bỏ serial đã xuất khỏi warehouse_materials.serial_number
             try {
                 $dispatch->load('items');
-                
+
                 // Tính virtual serial counter cho dự án/rental này
                 // SỬ DỤNG RANDOM SUFFIX ĐỂ ĐẢM BẢO DUY NHẤT TOÀN CỤC
                 // Giải thích: Khi duyệt phiếu, nếu thiết bị chưa có serial,
                 // ta tạo virtual serial với random suffix (N/A-A1B2C3) thay vì
                 // index tuần tự (N/A-0, N/A-1) để tránh trùng lặp giữa các project.
-                
+
                 foreach ($dispatch->items as $dispatchItem) {
                     $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
-                    $quantity = (int)$dispatchItem->quantity;
-                    
+                    $quantity = (int) $dispatchItem->quantity;
+
                     // Nếu quantity > số serial thực tế → tạo virtual serial
-                    $currentSerialCount = count(array_filter($serialNumbers, function($s) { return !empty(trim($s)); }));
+                    $currentSerialCount = count(array_filter($serialNumbers, function ($s) {
+                        return !empty(trim($s)); }));
                     if ($quantity > $currentSerialCount) {
                         $needNewVirtuals = $quantity - $currentSerialCount;
-                        
+
                         // Sử dụng SerialHelper để tạo virtual serial duy nhất toàn cục
                         $newVirtualSerials = \App\Helpers\SerialHelper::generateUniqueVirtualSerials($needNewVirtuals);
                         $serialNumbers = array_merge($serialNumbers, $newVirtualSerials);
-                        
+
                         // Lưu virtual serial vào DB
                         $dispatchItem->serial_numbers = $serialNumbers;
                         $dispatchItem->save();
-                        
+
                         Log::info('Created virtual serials for dispatch item', [
                             'dispatch_item_id' => $dispatchItem->id,
                             'quantity' => $quantity,
@@ -2273,12 +2313,12 @@ class DispatchController extends Controller
                             'total_serials' => count($serialNumbers)
                         ]);
                     }
-                    
+
                     // Loại bỏ serial thật đã xuất khỏi warehouse_materials.serial_number
-                    $realSerials = array_filter($serialNumbers, function($s) {
+                    $realSerials = array_filter($serialNumbers, function ($s) {
                         return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
                     });
-                    
+
                     if (!empty($realSerials)) {
                         $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $dispatchItem->item_type)
                             ->where('material_id', $dispatchItem->item_id)
@@ -2291,7 +2331,8 @@ class DispatchController extends Controller
                                 $remainingSerials = array_values(array_udiff(
                                     $currentSerials,
                                     $realSerials,
-                                    function ($a, $b) { return strcasecmp(trim($a), trim($b)); }
+                                    function ($a, $b) {
+                                        return strcasecmp(trim($a), trim($b)); }
                                 ));
                                 $warehouseMaterial->serial_number = json_encode($remainingSerials);
                                 $warehouseMaterial->save();
@@ -2380,7 +2421,7 @@ class DispatchController extends Controller
             // Tạo/Cập nhật bảo hành điện tử khi duyệt (nếu không phải backup-only)
             $warrantyAction = null;
             $dispatch->load('items'); // Load items trước khi kiểm tra isBackupOnlyDispatch
-            
+
             Log::info("Checking warranty creation for dispatch", [
                 'dispatch_id' => $dispatch->id,
                 'dispatch_type' => $dispatch->dispatch_type,
@@ -2389,10 +2430,10 @@ class DispatchController extends Controller
                 'items_count' => $dispatch->items->count(),
                 'is_backup_only' => $this->isBackupOnlyDispatch($dispatch)
             ]);
-            
+
             if (!$this->isBackupOnlyDispatch($dispatch)) {
                 $firstDispatchItem = $dispatch->items->first();
-                
+
                 Log::info('First dispatch item for warranty', [
                     'has_first_item' => $firstDispatchItem ? true : false,
                     'first_item_id' => $firstDispatchItem ? $firstDispatchItem->id : null,
@@ -2404,7 +2445,7 @@ class DispatchController extends Controller
                     try {
                         // Get warranty period for rental from rental record
                         $warrantyPeriod = $dispatch->warranty_period;
-                        
+
                         // If not set and this is a rental, try to get from rental record
                         if (!$warrantyPeriod && $dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
                             $rental = \App\Models\Rental::find($dispatch->project_id);
@@ -2418,7 +2459,7 @@ class DispatchController extends Controller
                                 ]);
                             }
                         }
-                        
+
                         // If still no warranty period, use default
                         if (!$warrantyPeriod) {
                             $warrantyPeriod = '12 tháng';
@@ -2653,10 +2694,12 @@ class DispatchController extends Controller
                 $query->where('warehouse_id', $warehouseId)
                     ->where('item_type', 'material')
                     ->where('quantity', '>', 0);
-            })->with(['warehouseMaterials' => function ($query) use ($warehouseId) {
-                $query->where('warehouse_id', $warehouseId)
-                    ->where('item_type', 'material');
-            }])->get();
+            })->with([
+                        'warehouseMaterials' => function ($query) use ($warehouseId) {
+                            $query->where('warehouse_id', $warehouseId)
+                                ->where('item_type', 'material');
+                        }
+                    ])->get();
 
             foreach ($materials as $material) {
                 $quantity = $material->warehouseMaterials->sum('quantity');
@@ -2680,10 +2723,12 @@ class DispatchController extends Controller
                 $query->where('warehouse_id', $warehouseId)
                     ->where('item_type', 'product')
                     ->where('quantity', '>', 0);
-            })->with(['warehouseMaterials' => function ($query) use ($warehouseId) {
-                $query->where('warehouse_id', $warehouseId)
-                    ->where('item_type', 'product');
-            }])->get();
+            })->with([
+                        'warehouseMaterials' => function ($query) use ($warehouseId) {
+                            $query->where('warehouse_id', $warehouseId)
+                                ->where('item_type', 'product');
+                        }
+                    ])->get();
 
             foreach ($products as $product) {
                 $quantity = $product->warehouseMaterials->sum('quantity');
@@ -2707,10 +2752,12 @@ class DispatchController extends Controller
                 $query->where('warehouse_id', $warehouseId)
                     ->where('item_type', 'good')
                     ->where('quantity', '>', 0);
-            })->with(['warehouseMaterials' => function ($query) use ($warehouseId) {
-                $query->where('warehouse_id', $warehouseId)
-                    ->where('item_type', 'good');
-            }])->get();
+            })->with([
+                        'warehouseMaterials' => function ($query) use ($warehouseId) {
+                            $query->where('warehouse_id', $warehouseId)
+                                ->where('item_type', 'good');
+                        }
+                    ])->get();
 
             foreach ($goods as $good) {
                 $quantity = $good->warehouseMaterials->sum('quantity');
@@ -2752,10 +2799,12 @@ class DispatchController extends Controller
         // Get products from products table (thành phẩm)
         $products = Product::where('status', 'active')
             ->where('is_hidden', false)
-            ->with(['warehouseMaterials' => function ($query) {
-                $query->where('item_type', 'product')
-                    ->with('warehouse');
-            }])->get();
+            ->with([
+                'warehouseMaterials' => function ($query) {
+                    $query->where('item_type', 'product')
+                        ->with('warehouse');
+                }
+            ])->get();
 
         foreach ($products as $product) {
             // Tính tồn kho theo từng kho cho sản phẩm này, đảm bảo không bị thiếu và đúng số lượng
@@ -2793,10 +2842,12 @@ class DispatchController extends Controller
         // Get goods from goods table (hàng hóa)
         $goods = Good::where('status', 'active')
             ->where('is_hidden', false)
-            ->with(['warehouseMaterials' => function ($query) {
-                $query->where('item_type', 'good')
-                    ->with('warehouse');
-            }])->get();
+            ->with([
+                'warehouseMaterials' => function ($query) {
+                    $query->where('item_type', 'good')
+                        ->with('warehouse');
+                }
+            ])->get();
 
         foreach ($goods as $good) {
             // Tính tồn kho theo từng kho cho hàng hóa này
@@ -2875,11 +2926,11 @@ class DispatchController extends Controller
             $rental = Rental::find($dispatch->project_id);
             if ($rental) {
                 $startDate = Carbon::parse($rental->rental_date);
-                $endDate   = Carbon::parse($rental->due_date);
+                $endDate = Carbon::parse($rental->due_date);
                 $warrantyPeriodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
                 $warrantyStartDate = $startDate;
-                $warrantyEndDate   = $endDate;
-                
+                $warrantyEndDate = $endDate;
+
                 Log::info('Rental warranty dates calculated', [
                     'rental_id' => $rental->id,
                     'rental_date' => $rental->rental_date,
@@ -2941,7 +2992,7 @@ class DispatchController extends Controller
         // For regular projects: one warranty per project (shared across dispatches)
         // For rentals: one warranty per rental (shared across all dispatches of same rental)
         $existingWarranty = null;
-        
+
         if ($dispatch->dispatch_type === 'rental') {
             Log::info('Rental dispatch: checking for existing warranty in same rental (project_id)', [
                 'dispatch_id' => $dispatch->id,
@@ -2952,17 +3003,17 @@ class DispatchController extends Controller
             // For rental dispatches, share warranty across all dispatches of the same rental
             $existingWarranty = Warranty::where('item_type', 'project')
                 ->whereHas('dispatch', function ($query) use ($dispatch) {
-                $query->where('project_id', $dispatch->project_id)
-                    ->where('dispatch_type', 'rental'); // Only rental dispatches share warranty
+                    $query->where('project_id', $dispatch->project_id)
+                        ->where('dispatch_type', 'rental'); // Only rental dispatches share warranty
                 })
                 ->first();
-                
+
             Log::info('Rental warranty check result', [
                 'found_existing' => $existingWarranty ? true : false,
                 'existing_warranty_id' => $existingWarranty ? $existingWarranty->id : null,
                 'existing_warranty_code' => $existingWarranty ? $existingWarranty->warranty_code : null
             ]);
-            
+
         } elseif ($dispatch->project_id) {
             Log::info('Project dispatch: checking for existing warranty in project (any dispatch)', [
                 'project_id' => $dispatch->project_id,
@@ -2972,8 +3023,8 @@ class DispatchController extends Controller
             // For regular project dispatches, share warranty across all dispatches of the same project
             $existingWarranty = Warranty::where('item_type', 'project')
                 ->whereHas('dispatch', function ($query) use ($dispatch) {
-                $query->where('project_id', $dispatch->project_id)
-                    ->where('dispatch_type', '!=', 'rental'); // Exclude rentals from shared warranty
+                    $query->where('project_id', $dispatch->project_id)
+                        ->where('dispatch_type', '!=', 'rental'); // Exclude rentals from shared warranty
                 })
                 ->first();
 
@@ -3320,13 +3371,13 @@ class DispatchController extends Controller
         // Nếu có project context, ưu tiên assembly của project đó
         if ($projectId) {
             $projectAssembly = $query->clone()
-                ->whereHas('assembly', function($q) use ($projectId) {
+                ->whereHas('assembly', function ($q) use ($projectId) {
                     $q->where('project_id', $projectId);
                 })
                 ->whereNotNull('product_unit')
                 ->orderBy('product_unit')
                 ->first();
-            
+
             if ($projectAssembly) {
                 // Check if this specific unit is available (not dispatched yet)
                 $isDispatched = \App\Models\DispatchItem::where('assembly_id', $projectAssembly->assembly_id)
@@ -3334,7 +3385,7 @@ class DispatchController extends Controller
                     ->where('item_id', $productId)
                     ->where('product_unit', $projectAssembly->product_unit)
                     ->exists();
-                
+
                 if (!$isDispatched) {
                     return [
                         'assembly_id' => $projectAssembly->assembly_id,
@@ -3353,7 +3404,7 @@ class DispatchController extends Controller
                 ->where('item_id', $productId)
                 ->where('product_unit', $assembly->product_unit)
                 ->exists();
-            
+
             if (!$isDispatched) {
                 return [
                     'assembly_id' => $assembly->assembly_id,
@@ -3382,18 +3433,18 @@ class DispatchController extends Controller
         // Nếu có project context, ưu tiên assembly của project đó
         if ($projectId) {
             $projectAssemblies = $query->clone()
-                ->whereHas('assembly', function($q) use ($projectId) {
+                ->whereHas('assembly', function ($q) use ($projectId) {
                     $q->where('project_id', $projectId);
                 })
                 ->whereNotNull('product_unit')
                 ->orderBy('product_unit')
                 ->get();
-            
+
             foreach ($projectAssemblies as $assembly) {
                 // Parse product_unit để tìm unit phù hợp với offset
                 $productUnitValue = $assembly->product_unit;
                 $productUnits = [];
-                
+
                 if (is_string($productUnitValue)) {
                     $productUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
                 } elseif (is_array($productUnitValue)) {
@@ -3401,18 +3452,18 @@ class DispatchController extends Controller
                 } else {
                     $productUnits = [$productUnitValue];
                 }
-                
+
                 // Tìm unit có index = offset
                 if (isset($productUnits[$offset])) {
                     $targetUnit = $productUnits[$offset];
-                    
+
                     // Check if this specific unit is available (not dispatched yet)
                     $isDispatched = \App\Models\DispatchItem::where('assembly_id', $assembly->assembly_id)
                         ->where('item_type', 'product')
                         ->where('item_id', $productId)
                         ->where('product_unit', $targetUnit)
                         ->exists();
-                    
+
                     if (!$isDispatched) {
                         return [
                             'assembly_id' => $assembly->assembly_id,
@@ -3429,7 +3480,7 @@ class DispatchController extends Controller
             // Parse product_unit để tìm unit phù hợp với offset
             $productUnitValue = $assembly->product_unit;
             $productUnits = [];
-            
+
             if (is_string($productUnitValue)) {
                 $productUnits = json_decode($productUnitValue, true) ?: [$productUnitValue];
             } elseif (is_array($productUnitValue)) {
@@ -3437,18 +3488,18 @@ class DispatchController extends Controller
             } else {
                 $productUnits = [$productUnitValue];
             }
-            
+
             // Tìm unit có index = offset
             if (isset($productUnits[$offset])) {
                 $targetUnit = $productUnits[$offset];
-                
+
                 // Check if this specific unit is available (not dispatched yet)
                 $isDispatched = \App\Models\DispatchItem::where('assembly_id', $assembly->assembly_id)
                     ->where('item_type', 'product')
                     ->where('item_id', $productId)
                     ->where('product_unit', $targetUnit)
                     ->exists();
-                
+
                 if (!$isDispatched) {
                     return [
                         'assembly_id' => $assembly->assembly_id,
@@ -3518,9 +3569,9 @@ class DispatchController extends Controller
                     ->where('product_id', $productId)
                     ->whereNotNull('serials')
                     ->where('serials', '!=', '')
-                    ->where(function($q) use ($serial) {
+                    ->where(function ($q) use ($serial) {
                         $q->where('serials', $serial)
-                          ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
+                            ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$serial]);
                     })
                     ->orderBy('id')
                     ->first();
@@ -3546,9 +3597,9 @@ class DispatchController extends Controller
                     ->where('target_product_id', $productId)
                     ->whereNotNull('serial')
                     ->where('serial', '!=', '')
-                    ->where(function($q) use ($serial) {
+                    ->where(function ($q) use ($serial) {
                         $q->where('serial', $serial)
-                          ->orWhereRaw('FIND_IN_SET(?, serial) > 0', [$serial]);
+                            ->orWhereRaw('FIND_IN_SET(?, serial) > 0', [$serial]);
                     })
                     ->orderBy('id')
                     ->first();
@@ -3673,7 +3724,7 @@ class DispatchController extends Controller
 
             // Get serials based on item type and warehouse
             $serials = [];
-            
+
             // For goods (hàng hóa), check warehouse_materials table
             if ($itemType === 'good') {
                 $warehouseMaterials = \App\Models\WarehouseMaterial::where('warehouse_id', $warehouseId)
@@ -3682,7 +3733,7 @@ class DispatchController extends Controller
                     ->where('quantity', '>', 0)
                     ->whereNotNull('serial_number')
                     ->get();
-                
+
                 foreach ($warehouseMaterials as $wm) {
                     if ($wm->serial_number) {
                         // Handle JSON array format
@@ -3697,7 +3748,7 @@ class DispatchController extends Controller
                         }
                     }
                 }
-                
+
                 // Remove duplicates and empty values
                 $serials = array_values(array_unique(array_filter($serials)));
             } else {
@@ -3834,8 +3885,9 @@ class DispatchController extends Controller
             }
 
             foreach ($dispatchItem->serial_numbers as $serial) {
-                if (empty(trim($serial))) continue;
-                
+                if (empty(trim($serial)))
+                    continue;
+
                 // Skip virtual serials (N/A-0, N/A-1, etc.) - only check real serials
                 if (strpos(trim($serial), 'N/A-') === 0) {
                     continue;
@@ -3886,7 +3938,7 @@ class DispatchController extends Controller
 
         $used = 0;
         foreach ($approvedItems as $di) {
-            $qty = (int)($di->quantity ?? 0);
+            $qty = (int) ($di->quantity ?? 0);
             $serials = is_array($di->serial_numbers) ? $di->serial_numbers : [];
             // Count real serials (exclude virtual N/A-* and plain N/A/NA, and blanks)
             $realSerialCount = 0;
@@ -3937,14 +3989,19 @@ class DispatchController extends Controller
         $ap = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
             ->where('product_id', $productId)
             ->first();
-        if (!$ap) { return 0; }
+        if (!$ap) {
+            return 0;
+        }
 
         // Parse product_unit to array and count units
         $units = [];
         if (is_string($ap->product_unit)) {
             $decoded = json_decode($ap->product_unit, true);
-            if (is_array($decoded)) { $units = $decoded; }
-            elseif ($ap->product_unit !== '') { $units = [$ap->product_unit]; }
+            if (is_array($decoded)) {
+                $units = $decoded;
+            } elseif ($ap->product_unit !== '') {
+                $units = [$ap->product_unit];
+            }
         } elseif (is_array($ap->product_unit)) {
             $units = $ap->product_unit;
         } elseif ($ap->product_unit !== null) {
@@ -3955,7 +4012,7 @@ class DispatchController extends Controller
         // Count real serials present in assembly serials
         $serialCount = 0;
         if ($ap->serials && $ap->serials !== 'N/A' && $ap->serials !== 'NA') {
-            $parts = preg_split('/[\s,;|\/]+/', (string)$ap->serials, -1, PREG_SPLIT_NO_EMPTY);
+            $parts = preg_split('/[\s,;|\/]+/', (string) $ap->serials, -1, PREG_SPLIT_NO_EMPTY);
             $serialCount = is_array($parts) ? count($parts) : 1;
         }
 
@@ -4247,7 +4304,7 @@ class DispatchController extends Controller
                         ['contract_items' => ['Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!']]
                     );
                 }
-                
+
                 break;
 
             case 'backup':
@@ -4413,7 +4470,7 @@ class DispatchController extends Controller
     public function exportExcel(Dispatch $dispatch)
     {
         $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
-        
+
         return Excel::download(new DispatchExport($dispatch), 'phieu-xuat-' . $dispatch->dispatch_code . '.xlsx');
     }
 

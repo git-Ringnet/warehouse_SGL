@@ -115,38 +115,38 @@ class RepairController extends Controller
     {
         $input = trim($warrantyCode);
         $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
-        
+
         // Kiểm tra xem input có phải là số điện thoại không (chỉ chứa số và có độ dài 10-11 ký tự)
         $isPhoneNumber = preg_match('/^[0-9]{10,11}$/', $input);
-        
+
         Log::info('findWarrantyByCodeOrSerial called', [
             'input' => $input,
             'isPhoneNumber' => $isPhoneNumber
         ]);
-        
+
         // Nếu là số điện thoại, tìm theo customer phone
         if ($isPhoneNumber) {
             // Tìm customer có số điện thoại này
             $customers = \App\Models\Customer::where('phone', $input)->pluck('id');
-            
+
             if ($customers->isNotEmpty()) {
                 // Tìm warranties thông qua dispatch -> project -> customer
-                $warranties = Warranty::whereHas('dispatch.project', function($q) use ($customers) {
+                $warranties = Warranty::whereHas('dispatch.project', function ($q) use ($customers) {
                     $q->whereIn('customer_id', $customers);
                 })
-                ->orWhereHas('dispatch.rental', function($q) use ($customers) {
-                    $q->whereIn('customer_id', $customers);
-                })
-                ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
-                ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END") // Ưu tiên active
-                ->orderBy('created_at', 'desc') // Mới nhất
-                ->get();
-                
+                    ->orWhereHas('dispatch.rental', function ($q) use ($customers) {
+                        $q->whereIn('customer_id', $customers);
+                    })
+                    ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
+                    ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END") // Ưu tiên active
+                    ->orderBy('created_at', 'desc') // Mới nhất
+                    ->get();
+
                 Log::info('Search by phone number via customers', [
                     'phone' => $input,
                     'customer_ids' => $customers->toArray(),
                     'found_count' => $warranties->count(),
-                    'warranties' => $warranties->map(function($w) {
+                    'warranties' => $warranties->map(function ($w) {
                         return [
                             'id' => $w->id,
                             'warranty_code' => $w->warranty_code,
@@ -155,49 +155,49 @@ class RepairController extends Controller
                         ];
                     })
                 ]);
-                
+
                 if ($warranties->isNotEmpty()) {
                     // Trả về warranty đầu tiên (active và mới nhất)
                     return $warranties->first();
                 }
             }
-            
+
             // Fallback: Tìm trực tiếp trong bảng warranties (nếu có customer_phone)
             $warranties = Warranty::where('customer_phone', $input)
                 ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
                 ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+
             if ($warranties->isNotEmpty()) {
                 return $warranties->first();
             }
         }
-        
+
         // Tìm bảo hành theo mã bảo hành hoặc serial (không filter status để tìm được cả warranty đã hết hạn)
         $warranty = Warranty::where(function ($q) use ($input, $normalizedSerial) {
-                $q->where('warranty_code', $input)
-                    ->orWhere(function ($qq) use ($normalizedSerial) {
-                        $qq->whereNotNull('serial_number')
-                            ->whereRaw('UPPER(REPLACE(REPLACE(serial_number, " ", ""), "-", "")) = ?', [$normalizedSerial]);
-                    })
-                    ->orWhereHas('dispatch.items', function ($qi) use ($input, $normalizedSerial) {
-                        $qi->whereIn('item_type', ['product', 'good'])
-                            ->where(function ($qj) use ($input, $normalizedSerial) {
-                                $qj->whereJsonContains('serial_numbers', $input)
-                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
-                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
-                            });
-                    })
-                    ->orWhereHas('dispatch.project.dispatches.items', function ($qi) use ($input, $normalizedSerial) {
-                        $qi->whereIn('item_type', ['product', 'good'])
-                            ->where(function ($qj) use ($input, $normalizedSerial) {
-                                $qj->whereJsonContains('serial_numbers', $input)
-                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
-                                    ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
-                            });
-                    });
-            })
+            $q->where('warranty_code', $input)
+                ->orWhere(function ($qq) use ($normalizedSerial) {
+                    $qq->whereNotNull('serial_number')
+                        ->whereRaw('UPPER(REPLACE(REPLACE(serial_number, " ", ""), "-", "")) = ?', [$normalizedSerial]);
+                })
+                ->orWhereHas('dispatch.items', function ($qi) use ($input, $normalizedSerial) {
+                    $qi->whereIn('item_type', ['product', 'good'])
+                        ->where(function ($qj) use ($input, $normalizedSerial) {
+                            $qj->whereJsonContains('serial_numbers', $input)
+                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
+                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
+                        });
+                })
+                ->orWhereHas('dispatch.project.dispatches.items', function ($qi) use ($input, $normalizedSerial) {
+                    $qi->whereIn('item_type', ['product', 'good'])
+                        ->where(function ($qj) use ($input, $normalizedSerial) {
+                            $qj->whereJsonContains('serial_numbers', $input)
+                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$input])
+                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
+                        });
+                });
+        })
             ->with(['dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
             ->first();
 
@@ -206,7 +206,7 @@ class RepairController extends Controller
             $allProjectWarranties = Warranty::where('item_type', 'project')
                 ->with(['dispatch.project', 'dispatch.items.product', 'dispatch.items.good', 'dispatch.project.dispatches.items.product', 'dispatch.project.dispatches.items.good'])
                 ->get();
-            
+
             foreach ($allProjectWarranties as $projectWarranty) {
                 $projectItems = $projectWarranty->project_items ?? [];
                 foreach ($projectItems as $item) {
@@ -252,10 +252,10 @@ class RepairController extends Controller
             // Lấy devices (copy logic từ searchWarranty nhưng filter chỉ contract)
             $input = trim($warrantyCode);
             $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
-            
+
             $devices = [];
             $projectItems = $warranty->project_items ?? [];
-            
+
             $indexed = [];
             foreach ($projectItems as $pi) {
                 if (empty($pi['code']) || empty($pi['name']) || empty($pi['type'])) {
@@ -269,9 +269,9 @@ class RepairController extends Controller
                 $quantity = (int) ($pi['quantity'] ?? 1);
                 $serialNumbers = is_array($pi['serial_numbers'] ?? null) ? $pi['serial_numbers'] : [];
                 $dispatchItemId = $pi['dispatch_item_id'] ?? null;
-                
+
                 $uniqueKey = $code . '_' . ($dispatchItemId ?? 'no_dispatch_item');
-                
+
                 if (isset($indexed[$uniqueKey])) {
                     $mergedSerials = array_unique(array_merge($indexed[$uniqueKey]['serial_numbers'], $serialNumbers));
                     $indexed[$uniqueKey]['quantity'] += $quantity;
@@ -337,7 +337,7 @@ class RepairController extends Controller
 
             // Tính toán thời gian bảo hành
             $warrantyActivationTime = $warranty->activated_at ? $warranty->activated_at->format('Y-m-d H:i:s') : null;
-            
+
             // Tính ngày kết thúc: nếu có activated_at thì dùng activated_at + warranty_period_months, ngược lại dùng warranty_end_date
             $warrantyEndTime = null;
             if ($warranty->activated_at && $warranty->warranty_period_months) {
@@ -433,14 +433,14 @@ class RepairController extends Controller
             // Nguồn dữ liệu CHÍNH: tổng hợp từ tất cả phiếu xuất của dự án (đã loại trừ backup)
             $devices = [];
             $projectItems = $warranty->project_items ?? [];
-            
+
             Log::info('Debug searchWarranty', [
                 'warranty_code' => $warrantyCode,
                 'warranty_id' => $warranty->id,
                 'project_items_count' => count($projectItems),
                 'project_items' => $projectItems
             ]);
-            
+
             $indexed = [];
             foreach ($projectItems as $index => $pi) {
                 Log::info("Processing project item $index", [
@@ -450,7 +450,7 @@ class RepairController extends Controller
                     'type_empty' => empty($pi['type']),
                     'type_value' => $pi['type'] ?? 'null'
                 ]);
-                
+
                 if (empty($pi['code']) || empty($pi['name']) || empty($pi['type'])) {
                     Log::info("Skipping item $index due to empty fields");
                     continue;
@@ -465,10 +465,10 @@ class RepairController extends Controller
                 $serialNumbers = is_array($pi['serial_numbers'] ?? null) ? $pi['serial_numbers'] : [];
                 $dispatchItemId = $pi['dispatch_item_id'] ?? null;
                 $dispatchId = $pi['dispatch_id'] ?? null;
-                
+
                 // Tạo key duy nhất bao gồm dispatch_item_id để phân biệt các sản phẩm từ phiếu xuất khác nhau
                 $uniqueKey = $code . '_' . ($dispatchItemId ?? 'no_dispatch_item');
-                
+
                 if (isset($indexed[$uniqueKey])) {
                     // Gộp số lượng và serial từ cùng một dispatch item
                     $mergedSerials = array_unique(array_merge($indexed[$uniqueKey]['serial_numbers'], $serialNumbers));
@@ -507,24 +507,24 @@ class RepairController extends Controller
                     if (!$code) {
                         continue;
                     }
-                    
+
                     $category = $it->category;
                     $serialNumbers = $it->serial_numbers ?: [];
-                    
+
                     if (!isset($indexed[$code])) {
                         // KHÔNG thêm mã mới từ phiếu gốc nếu không tồn tại trong project_items của warranty
                         // Yêu cầu mới: chỉ sử dụng thiết bị thuộc trực tiếp bảo hành hiện tại
                         continue;
                     }
-                            // Cập nhật thông tin cho thiết bị đã có
-                            if (!empty($serialNumbers)) {
-                                $merged = array_unique(array_merge($indexed[$code]['serial_numbers'], $serialNumbers));
-                                $indexed[$code]['serial_numbers'] = $merged;
-                                $indexed[$code]['serial_numbers_text'] = implode(', ', $merged);
-                            }
-                            // Cập nhật source nếu có thiết bị dự phòng
-                            if ($category === 'backup') {
-                                $indexed[$code]['source'] = 'mixed'; // Có cả contract và backup
+                    // Cập nhật thông tin cho thiết bị đã có
+                    if (!empty($serialNumbers)) {
+                        $merged = array_unique(array_merge($indexed[$code]['serial_numbers'], $serialNumbers));
+                        $indexed[$code]['serial_numbers'] = $merged;
+                        $indexed[$code]['serial_numbers_text'] = implode(', ', $merged);
+                    }
+                    // Cập nhật source nếu có thiết bị dự phòng
+                    if ($category === 'backup') {
+                        $indexed[$code]['source'] = 'mixed'; // Có cả contract và backup
                     }
                 }
             }
@@ -536,34 +536,34 @@ class RepairController extends Controller
                 return $item['code'] ?? '';
             }, array_values($indexed))));
             $devices = array_values($indexed);
-            
+
             // Tách thành 1 hàng/1 serial thiết bị (nếu có danh sách serial) và thêm N/A nếu thiếu
             $expandedDevices = [];
             Log::info('Debug devices before expansion', [
                 'devices_count' => count($devices),
                 'devices' => $devices
             ]);
-            
+
             foreach ($devices as $d) {
                 $serials = is_array($d['serial_numbers'] ?? null) ? $d['serial_numbers'] : [];
                 $serialCount = count($serials);
                 // Push all existing serial rows
-                    foreach ($serials as $sn) {
-                        $expandedDevices[] = [
-                            'id' => $d['code'] . '_' . $sn . '_' . microtime(true) . '_' . uniqid(),
-                            'code' => $d['code'],
-                            'name' => $d['name'],
-                            'quantity' => 1,
-                            'serial' => $sn,
-                            'serial_numbers' => [$sn],
-                            'serial_numbers_text' => $sn,
-                            'status' => $d['status'] ?? 'active',
-                            'type' => $d['type'] ?? 'product',
-                            'source' => $d['source'] ?? 'contract',
-                        ];
-                    }
+                foreach ($serials as $sn) {
+                    $expandedDevices[] = [
+                        'id' => $d['code'] . '_' . $sn . '_' . microtime(true) . '_' . uniqid(),
+                        'code' => $d['code'],
+                        'name' => $d['name'],
+                        'quantity' => 1,
+                        'serial' => $sn,
+                        'serial_numbers' => [$sn],
+                        'serial_numbers_text' => $sn,
+                        'status' => $d['status'] ?? 'active',
+                        'type' => $d['type'] ?? 'product',
+                        'source' => $d['source'] ?? 'contract',
+                    ];
+                }
                 // Add N/A rows to make up total quantity if quantity > serials
-                $missing = max(0, ((int)($d['quantity'] ?? 0)) - $serialCount);
+                $missing = max(0, ((int) ($d['quantity'] ?? 0)) - $serialCount);
                 for ($i = 0; $i < $missing; $i++) {
                     $expandedDevices[] = [
                         'id' => $d['code'] . '_NA_' . ($d['dispatch_item_id'] ?? 'no_dispatch_item') . '_' . $i . '_' . microtime(true) . '_' . uniqid(),
@@ -587,7 +587,7 @@ class RepairController extends Controller
                 'allowed_codes' => $allowedCodes,
                 'expanded_devices' => $expandedDevices
             ]);
-            
+
             $devices = array_values(array_filter($expandedDevices, function ($d) use ($allowedCodes) {
                 return in_array($d['code'] ?? '', $allowedCodes, true);
             }));
@@ -598,17 +598,19 @@ class RepairController extends Controller
             $input = trim($warrantyCode);
             $normalizedSerial = strtoupper(preg_replace('/[\s-]+/', '', $input));
             $isSerialSearch = strcasecmp($input, $warranty->warranty_code) !== 0;
-            
+
             if ($isSerialSearch && !empty($normalizedSerial)) {
                 $devices = array_values(array_filter($devices, function ($d) use ($normalizedSerial) {
                     $serials = $d['serial_numbers'] ?? [];
                     foreach ($serials as $s) {
                         $ns = strtoupper(preg_replace('/[\s-]+/', '', $s));
-                        if ($ns === $normalizedSerial) return true;
+                        if ($ns === $normalizedSerial)
+                            return true;
                     }
                     if (!empty($d['serial'])) {
                         $ns2 = strtoupper(preg_replace('/[\s-]+/', '', $d['serial']));
-                        if ($ns2 === $normalizedSerial) return true;
+                        if ($ns2 === $normalizedSerial)
+                            return true;
                     }
                     return false;
                 }));
@@ -750,37 +752,39 @@ class RepairController extends Controller
                 $parts = explode('_', $deviceId);
                 $goodCode = $parts[1] ?? '';
                 $deviceSerial = $parts[2] ?? '';
-                
+
                 // Find good by code
                 $good = Good::where('code', $goodCode)->first();
-                
+
                 if (!$good) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Không tìm thấy thông tin hàng hóa'
                     ]);
                 }
-                
+
                 // For goods, we don't have component materials like products
                 // Just return the good itself as a material for repair purposes
-                $materials = [[
-                    'id' => $good->id,
-                    'code' => $good->code,
-                    'name' => $good->name,
-                    'quantity' => 1,
-                    'serial' => $deviceSerial,
-                    'current_serials' => [$deviceSerial],
-                    'status' => 'active',
-                    'is_good' => true,
-                    'unit' => 'cái'
-                ]];
-                
+                $materials = [
+                    [
+                        'id' => $good->id,
+                        'code' => $good->code,
+                        'name' => $good->name,
+                        'quantity' => 1,
+                        'serial' => $deviceSerial,
+                        'current_serials' => [$deviceSerial],
+                        'status' => 'active',
+                        'is_good' => true,
+                        'unit' => 'cái'
+                    ]
+                ];
+
                 return response()->json([
                     'success' => true,
                     'materials' => $materials
                 ]);
             }
-            
+
             // Check if this is a warehouse device (starts with warehouse_product_ or warehouse_good_)
             if (strpos($deviceId, 'warehouse_product_') === 0 || strpos($deviceId, 'warehouse_good_') === 0) {
                 // Parse warehouse device info
@@ -789,7 +793,7 @@ class RepairController extends Controller
                 $deviceIdInDb = $parts[2] ?? '';
                 $warehouseId = $parts[3] ?? '';
                 $deviceSerial = $parts[4] ?? '';
-                
+
                 if ($deviceType === 'product') {
                     // Find product by code (deviceIdInDb is actually the product code)
                     $product = Product::where('code', $deviceIdInDb)->first();
@@ -799,7 +803,7 @@ class RepairController extends Controller
                             'message' => 'Không tìm thấy thông tin sản phẩm'
                         ]);
                     }
-                    
+
                     // Kiểm tra xem có serial cụ thể không
                     if (!empty($deviceSerial)) {
                         // Nếu có serial cụ thể, tìm vật tư theo serial này
@@ -813,7 +817,7 @@ class RepairController extends Controller
                             if (!empty($warrantyCode)) {
                                 $materials = $this->updateMaterialsSerialsFromHistory($materials, $deviceIdInDb, $warrantyCode);
                             } else {
-                            $materials = $this->updateMaterialsSerialsFromAnyWarranty($materials, $deviceIdInDb);
+                                $materials = $this->updateMaterialsSerialsFromAnyWarranty($materials, $deviceIdInDb);
                             }
                         }
                         // Cuối cùng: nếu vẫn trống, trả về vật tư lắp ráp nên thành phẩm
@@ -834,18 +838,20 @@ class RepairController extends Controller
                             'message' => 'Không tìm thấy thông tin hàng hóa'
                         ]);
                     }
-                    
-                    $materials = [[
-                        'id' => $good->id,
-                        'code' => $good->code,
-                        'name' => $good->name,
-                        'quantity' => 1,
-                        'serial' => $deviceSerial,
-                        'current_serials' => [$deviceSerial],
-                        'status' => 'active',
-                        'is_good' => true,
-                        'unit' => 'cái'
-                    ]];
+
+                    $materials = [
+                        [
+                            'id' => $good->id,
+                            'code' => $good->code,
+                            'name' => $good->name,
+                            'quantity' => 1,
+                            'serial' => $deviceSerial,
+                            'current_serials' => [$deviceSerial],
+                            'status' => 'active',
+                            'is_good' => true,
+                            'unit' => 'cái'
+                        ]
+                    ];
                 }
             } else {
                 // Regular product handling (existing code) - for warranty devices
@@ -878,23 +884,23 @@ class RepairController extends Controller
                         },
                     ];
                     foreach ($candidates as $resolver) {
-                        $candidate = trim((string)$resolver($deviceId));
+                        $candidate = trim((string) $resolver($deviceId));
                         if (!empty($candidate)) {
                             $deviceSerial = $candidate;
                             break;
                         }
                     }
-            }
+                }
 
-            // Tìm product theo code
-            $product = Product::where('code', $deviceCode)->first();
+                // Tìm product theo code
+                $product = Product::where('code', $deviceCode)->first();
 
-            if (!$product) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy thông tin sản phẩm'
-                ]);
-            }
+                if (!$product) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy thông tin sản phẩm'
+                    ]);
+                }
 
                 // Kiểm tra xem có serial cụ thể không (loại trừ N/A)
                 $normalizedSerial = strtoupper(trim($deviceSerial ?? ''));
@@ -904,62 +910,62 @@ class RepairController extends Controller
                     if (!empty($materials)) {
                         if (!empty($warrantyCode)) {
                             $materials = $this->updateMaterialsSerialsFromHistory($materials, $deviceCode, $warrantyCode);
-                } else {
+                        } else {
                             $materials = $this->updateMaterialsSerialsFromAnyWarranty($materials, $deviceCode);
                         }
                     }
-                    } else {
-                        // Nếu không có serial hoặc serial là N/A, tìm assembly_id và product_unit cho N/A
-                        Log::info('Processing N/A serial for product', [
-                            'product_id' => $product->id,
-                            'product_code' => $product->code,
-                            'device_serial' => $deviceSerial
+                } else {
+                    // Nếu không có serial hoặc serial là N/A, tìm assembly_id và product_unit cho N/A
+                    Log::info('Processing N/A serial for product', [
+                        'product_id' => $product->id,
+                        'product_code' => $product->code,
+                        'device_serial' => $deviceSerial
+                    ]);
+
+                    // Thử lấy assembly_id và product_unit từ dispatch item trước
+                    $dispatchInfo = $this->getAssemblyInfoFromDispatch($product->id, $warrantyCode, $dispatchItemId);
+                    if ($dispatchInfo) {
+                        Log::info('Found assembly info from dispatch', [
+                            'product' => $product->code,
+                            'assembly_id' => $dispatchInfo['assembly_id'],
+                            'product_unit' => $dispatchInfo['product_unit'],
+                            'dispatch_item_id' => $dispatchItemId
                         ]);
-                        
-                        // Thử lấy assembly_id và product_unit từ dispatch item trước
-                        $dispatchInfo = $this->getAssemblyInfoFromDispatch($product->id, $warrantyCode, $dispatchItemId);
-                        if ($dispatchInfo) {
-                            Log::info('Found assembly info from dispatch', [
+                        $materials = $this->getDeviceMaterialsFromAssembly(
+                            $product,
+                            (int) $dispatchInfo['assembly_id'],
+                            isset($dispatchInfo['product_unit']) && is_numeric($dispatchInfo['product_unit']) ? (int) $dispatchInfo['product_unit'] : null
+                        );
+                    } else {
+                        // Fallback: tìm đơn vị thành phẩm tiếp theo
+                        $unitInfo = $this->getNextAvailableProductUnit($product->id, $warrantyCode);
+                        if ($unitInfo) {
+                            Log::info('Found available product unit', [
                                 'product' => $product->code,
-                                'assembly_id' => $dispatchInfo['assembly_id'],
-                                'product_unit' => $dispatchInfo['product_unit'],
-                                'dispatch_item_id' => $dispatchItemId
+                                'assembly_id' => $unitInfo['assembly_id'],
+                                'product_unit' => $unitInfo['product_unit']
                             ]);
                             $materials = $this->getDeviceMaterialsFromAssembly(
                                 $product,
-                                (int) $dispatchInfo['assembly_id'],
-                                isset($dispatchInfo['product_unit']) && is_numeric($dispatchInfo['product_unit']) ? (int) $dispatchInfo['product_unit'] : null
+                                (int) $unitInfo['assembly_id'],
+                                isset($unitInfo['product_unit']) && is_numeric($unitInfo['product_unit']) ? (int) $unitInfo['product_unit'] : null
                             );
                         } else {
-                            // Fallback: tìm đơn vị thành phẩm tiếp theo
-                            $unitInfo = $this->getNextAvailableProductUnit($product->id, $warrantyCode);
-                            if ($unitInfo) {
-                                Log::info('Found available product unit', [
-                                    'product' => $product->code,
-                                    'assembly_id' => $unitInfo['assembly_id'],
-                                    'product_unit' => $unitInfo['product_unit']
-                                ]);
-                                $materials = $this->getDeviceMaterialsFromAssembly(
-                                    $product,
-                                    (int) $unitInfo['assembly_id'],
-                                    isset($unitInfo['product_unit']) && is_numeric($unitInfo['product_unit']) ? (int) $unitInfo['product_unit'] : null
-                                );
+                            // Fallback to old logic
+                            $assemblyId = $this->findAssemblyIdForProductSerial($product->id, 'N/A', $warrantyCode);
+                            Log::info('Using fallback assembly for N/A serial', [
+                                'product' => $product->code,
+                                'assembly_id' => $assemblyId
+                            ]);
+                            if ($assemblyId) {
+                                $materials = $this->getDeviceMaterialsFromAssembly($product, $assemblyId);
                             } else {
-                                // Fallback to old logic
-                                $assemblyId = $this->findAssemblyIdForProductSerial($product->id, 'N/A', $warrantyCode);
-                                Log::info('Using fallback assembly for N/A serial', [
-                                    'product' => $product->code,
-                                    'assembly_id' => $assemblyId
-                                ]);
-                                if ($assemblyId) {
-                                    $materials = $this->getDeviceMaterialsFromAssembly($product, $assemblyId);
-                                } else {
-                                    $materials = $this->getDeviceMaterialsFromAssembly($product);
-                                }
+                                $materials = $this->getDeviceMaterialsFromAssembly($product);
                             }
                         }
-                        // Không áp dụng lịch sử thay thế khi thành phẩm không có serial
                     }
+                    // Không áp dụng lịch sử thay thế khi thành phẩm không có serial
+                }
             }
 
             // Debug: log final materials payload returned to frontend
@@ -1085,13 +1091,13 @@ class RepairController extends Controller
     private function getDeviceMaterialsBySerial($productCode, $deviceSerial, $warrantyCode = null)
     {
         $materials = [];
-        
+
         // Cache key để tránh query lặp lại trong cùng request
         $cacheKey = "device_materials_{$productCode}_{$deviceSerial}_{$warrantyCode}";
         if (isset($GLOBALS[$cacheKey])) {
             return $GLOBALS[$cacheKey];
         }
-        
+
         try {
             // Tìm product theo code
             $product = Product::where('code', $productCode)->first();
@@ -1099,7 +1105,7 @@ class RepairController extends Controller
                 Log::warning("Product not found: {$productCode}");
                 return $materials;
             }
-            
+
             // FAST PATH 1: Tìm theo TestingItem finished_product có serial_number (query nhanh với index)
             try {
                 $finishedProductItem = \App\Models\TestingItem::where('item_type', 'finished_product')
@@ -1128,7 +1134,7 @@ class RepairController extends Controller
                                 'serials' => [],
                             ];
                         }
-                        $byCode[$code]['quantity'] += (int)($mi->quantity ?? 1);
+                        $byCode[$code]['quantity'] += (int) ($mi->quantity ?? 1);
                         if (!empty($mi->serial_number)) {
                             $byCode[$code]['serials'][] = trim($mi->serial_number);
                         }
@@ -1155,7 +1161,7 @@ class RepairController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Finished product TestingItem lookup failed: ' . $e->getMessage());
             }
-            
+
             // FAST PATH 2: Tìm theo AssemblyProduct với LIKE (nhanh hơn JSON_SEARCH)
             try {
                 $ap = \App\Models\AssemblyProduct::where('product_id', $product->id)
@@ -1166,7 +1172,7 @@ class RepairController extends Controller
                     $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $ap->assembly_id)
                         ->where(function ($q) use ($product) {
                             $q->where('target_product_id', $product->id)
-                              ->orWhereNull('target_product_id');
+                                ->orWhereNull('target_product_id');
                         })
                         ->with(['material', 'serial'])
                         ->get();
@@ -1174,16 +1180,16 @@ class RepairController extends Controller
                         if ($am->material) {
                             $serials = [];
                             if (!empty($am->serial)) {
-                                $serials = array_values(array_filter(array_map('trim', explode(',', (string)$am->serial))));
+                                $serials = array_values(array_filter(array_map('trim', explode(',', (string) $am->serial))));
                             }
-                            if (!empty($am->serial_id) && $am->serial && !in_array((string)$am->serial->serial_number, $serials, true)) {
-                                $serials[] = (string)$am->serial->serial_number;
+                            if (!empty($am->serial_id) && $am->serial && !in_array((string) $am->serial->serial_number, $serials, true)) {
+                                $serials[] = (string) $am->serial->serial_number;
                             }
                             $materials[] = [
                                 'id' => $am->material->id,
                                 'code' => $am->material->code,
                                 'name' => $am->material->name,
-                                'quantity' => (int)($am->quantity ?? 1),
+                                'quantity' => (int) ($am->quantity ?? 1),
                                 'serial' => implode(',', $serials),
                                 'current_serials' => $serials,
                                 'status' => 'active'
@@ -1198,7 +1204,7 @@ class RepairController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Assembly mapping lookup failed: ' . $e->getMessage());
             }
-            
+
             // SLOW PATH: Lấy serial vật tư theo lắp ráp/Testing với JSON_SEARCH (chỉ khi cần)
             try {
                 // Sử dụng LIKE trước để filter nhanh, sau đó mới dùng JSON_SEARCH
@@ -1220,7 +1226,7 @@ class RepairController extends Controller
                         $serials = [];
                         $sr = $ti->serial_results;
                         if (!is_array($sr)) {
-                            $sr = json_decode((string)$sr, true) ?: [];
+                            $sr = json_decode((string) $sr, true) ?: [];
                         }
                         // 1) Cấu trúc by_product_serial: { by_product_serial: { '<productSerial>': { '<materialCode>': [serial...] } } }
                         if (isset($sr['by_product_serial'][$deviceSerial][$materialCode]) && is_array($sr['by_product_serial'][$deviceSerial][$materialCode])) {
@@ -1264,7 +1270,7 @@ class RepairController extends Controller
                             if (!empty($sr['serial']) && is_string($sr['serial'])) {
                                 $serials = [$sr['serial']];
                             } elseif (!empty($sr['material']) && is_array($sr['material']) && !empty($sr['material']['serial'])) {
-                                $serials = [(string)$sr['material']['serial']];
+                                $serials = [(string) $sr['material']['serial']];
                             }
                         }
 
@@ -1274,14 +1280,14 @@ class RepairController extends Controller
                                 'id' => $ti->material->id ?? null,
                                 'code' => $materialCode,
                                 'name' => $ti->material->name ?? '',
-                                'quantity' => (int)($ti->quantity ?? 1),
+                                'quantity' => (int) ($ti->quantity ?? 1),
                                 'serial' => implode(',', $serials),
                                 'current_serials' => $serials,
                                 'status' => 'active'
                             ];
                         } else {
                             // Cộng dồn số lượng, hợp nhất serials
-                            $materialsByCode[$materialCode]['quantity'] += (int)($ti->quantity ?? 1);
+                            $materialsByCode[$materialCode]['quantity'] += (int) ($ti->quantity ?? 1);
                             $merged = array_values(array_unique(array_merge($materialsByCode[$materialCode]['current_serials'], $serials)));
                             $materialsByCode[$materialCode]['current_serials'] = $merged;
                             $materialsByCode[$materialCode]['serial'] = implode(',', $merged);
@@ -1302,16 +1308,16 @@ class RepairController extends Controller
                 ->where('type', 'product')
                 ->where('product_id', $product->id)
                 ->first();
-            
+
             if ($serialRecord) {
-                
+
                 // Tìm tất cả vật tư có serial cụ thể này
                 $materialSerials = \App\Models\Serial::where('serial_number', $deviceSerial)
                     ->where('type', 'material')
                     ->with('material')
                     ->get();
-                
-                
+
+
                 foreach ($materialSerials as $materialSerial) {
                     if ($materialSerial->material) {
                         $materials[] = [
@@ -1329,7 +1335,7 @@ class RepairController extends Controller
             } else {
                 Log::warning("No serial record found for product {$productCode} with serial {$deviceSerial}");
             }
-            
+
             // Fallback D: Lấy theo warranty hiện tại (product_materials + lịch sử thay thế của warranty)
             if (empty($materials) && !empty($warrantyCode)) {
                 try {
@@ -1349,7 +1355,7 @@ class RepairController extends Controller
         } catch (\Exception $e) {
             Log::error("Error getting materials for product {$productCode} with serial {$deviceSerial}: " . $e->getMessage());
         }
-        
+
         // Cache kết quả
         $GLOBALS[$cacheKey] = $materials;
         return $materials;
@@ -1357,15 +1363,24 @@ class RepairController extends Controller
 
     /**
      * Fallback: Lấy vật tư (kèm serial) từ bất kỳ warranty nào có cùng product code + device serial
+     * Optimized with caching and limited search scope
      */
     private function getMaterialsFromAnyWarrantyBySerial(string $productCode, string $deviceSerial): array
     {
+        // Cache key để tránh query lặp lại  
+        $cacheKey = "materials_any_warranty_{$productCode}_{$deviceSerial}";
+        if (isset($GLOBALS[$cacheKey])) {
+            return $GLOBALS[$cacheKey];
+        }
+
         $materials = [];
         try {
-            // Lấy tất cả warranty active (project hoặc product) rồi lọc bằng PHP theo JSON
+            // Giới hạn tìm kiếm 50 warranty gần nhất để tối ưu performance
+            // Thường vật tư sẽ nằm trong các warranty mới tạo
             $candidateWarranties = Warranty::where('status', 'active')
                 ->whereIn('item_type', ['project', 'product'])
                 ->orderBy('created_at', 'desc')
+                ->limit(50)
                 ->get();
 
             foreach ($candidateWarranties as $warranty) {
@@ -1380,12 +1395,13 @@ class RepairController extends Controller
                                 'id' => null,
                                 'code' => $m['code'],
                                 'name' => $m['name'],
-                                'quantity' => (int)($m['quantity'] ?? 1),
-                                'serial' => (string)($m['serial'] ?? ''),
-                                'current_serials' => array_filter([(string)($m['serial'] ?? '')]),
+                                'quantity' => (int) ($m['quantity'] ?? 1),
+                                'serial' => (string) ($m['serial'] ?? ''),
+                                'current_serials' => array_filter([(string) ($m['serial'] ?? '')]),
                                 'status' => 'active',
                             ];
                         }
+                        $GLOBALS[$cacheKey] = $materials;
                         return $materials;
                     }
                 }
@@ -1404,12 +1420,13 @@ class RepairController extends Controller
                                         'id' => null,
                                         'code' => $m['code'],
                                         'name' => $m['name'],
-                                        'quantity' => (int)($m['quantity'] ?? 1),
-                                        'serial' => (string)($m['serial'] ?? ''),
-                                        'current_serials' => array_filter([(string)($m['serial'] ?? '')]),
+                                        'quantity' => (int) ($m['quantity'] ?? 1),
+                                        'serial' => (string) ($m['serial'] ?? ''),
+                                        'current_serials' => array_filter([(string) ($m['serial'] ?? '')]),
                                         'status' => 'active',
                                     ];
                                 }
+                                $GLOBALS[$cacheKey] = $materials;
                                 return $materials;
                             }
                         }
@@ -1419,6 +1436,9 @@ class RepairController extends Controller
         } catch (\Exception $e) {
             Log::warning('getMaterialsFromAnyWarrantyBySerial failed: ' . $e->getMessage());
         }
+
+        // Cache empty result để tránh query lại
+        $GLOBALS[$cacheKey] = $materials;
         return $materials;
     }
 
@@ -1528,12 +1548,12 @@ class RepairController extends Controller
             $warranty = \App\Models\Warranty::where('warranty_code', $warrantyCode)->first();
             if ($warranty && $warranty->project_id) {
                 $projectAssembly = $query->clone()
-                    ->whereHas('assembly', function($q) use ($warranty) {
+                    ->whereHas('assembly', function ($q) use ($warranty) {
                         $q->where('project_id', $warranty->project_id);
                     })
                     ->orderBy('id')
                     ->first();
-                
+
                 if ($projectAssembly) {
                     $availableUnit = $this->findAvailableUnitInAssembly($projectAssembly->assembly_id, $productId);
                     if ($availableUnit !== null) {
@@ -1601,8 +1621,8 @@ class RepairController extends Controller
     private function findAssemblyIdForProductSerial(int $productId, ?string $deviceSerial, ?string $warrantyCode = null): ?int
     {
         $query = \App\Models\AssemblyProduct::where('product_id', $productId);
-        $normalized = strtoupper(trim((string)$deviceSerial));
-        
+        $normalized = strtoupper(trim((string) $deviceSerial));
+
         if ($normalized === '' || $normalized === 'N/A' || $normalized === 'NA') {
             $query->where(function ($q) {
                 $q->whereNull('serials')
@@ -1613,19 +1633,19 @@ class RepairController extends Controller
         } else {
             $query->where('serials', $deviceSerial);
         }
-        
+
         // If we have warranty context, try to find assembly related to this warranty's project
         if ($warrantyCode) {
             $warranty = \App\Models\Warranty::where('warranty_code', $warrantyCode)->first();
             if ($warranty && $warranty->project_id) {
                 // Try to find assembly for this specific project first
                 $projectAssembly = $query->clone()
-                    ->whereHas('assembly', function($q) use ($warranty) {
+                    ->whereHas('assembly', function ($q) use ($warranty) {
                         $q->where('project_id', $warranty->project_id);
                     })
                     ->orderByDesc('id')
                     ->first();
-                
+
                 if ($projectAssembly) {
                     Log::info('Found assembly for warranty project', [
                         'warranty_code' => $warrantyCode,
@@ -1636,7 +1656,7 @@ class RepairController extends Controller
                 }
             }
         }
-        
+
         // Fallback to most recent assembly
         $assembly = $query->orderByDesc('id')->first();
         if ($assembly) {
@@ -1645,19 +1665,26 @@ class RepairController extends Controller
                 'created_at' => $assembly->created_at
             ]);
         }
-        
+
         return optional($assembly)->assembly_id;
     }
 
     /**
      * Get device materials from assembly (main source)
+     * Optimized with caching to avoid repeated database queries
      */
     private function getDeviceMaterialsFromAssembly($product, ?int $assemblyId = null, ?int $productUnit = null)
     {
+        // Cache key để tránh query lặp lại trong cùng request
+        $cacheKey = "assembly_materials_{$product->id}_{$assemblyId}_{$productUnit}";
+        if (isset($GLOBALS[$cacheKey])) {
+            return $GLOBALS[$cacheKey];
+        }
+
         $materials = [];
-        
+
         try {
-            
+
             // First try to get materials from assembly_materials table
             $query = \App\Models\AssemblyMaterial::query();
             if ($assemblyId) {
@@ -1669,55 +1696,64 @@ class RepairController extends Controller
             } else {
                 $query->where('target_product_id', $product->id);
             }
-            $assemblyMaterials = $query->with(['material', 'assembly'])->get();
+            // Chỉ eager load material, không cần assembly để giảm overhead
+            $assemblyMaterials = $query->with('material')->get();
 
-            
-        foreach ($assemblyMaterials as $am) {
-            if ($am->material) {
-                // Xử lý serial từ assembly - có thể là string hoặc JSON array
-                $raw = (string)($am->serial ?? '');
-                $serials = array_values(array_filter(array_map(function ($s) {
-                    return trim((string)$s);
-                }, preg_split('/\s*,\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [])));
-                
-                $materials[] = [
-                    'id' => $am->material->id,
-                    'code' => $am->material->code,
-                    'name' => $am->material->name,
-                    'quantity' => $am->quantity,
-                    'serial' => implode(', ', $serials),
-                    'current_serials' => $serials,
-                    'status' => 'active'
-                ];
+
+            foreach ($assemblyMaterials as $am) {
+                if ($am->material) {
+                    // Xử lý serial từ assembly - có thể là string hoặc JSON array
+                    $raw = (string) ($am->serial ?? '');
+                    $serials = array_values(array_filter(array_map(function ($s) {
+                        return trim((string) $s);
+                    }, preg_split('/\s*,\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [])));
+
+                    $materials[] = [
+                        'id' => $am->material->id,
+                        'code' => $am->material->code,
+                        'name' => $am->material->name,
+                        'quantity' => $am->quantity,
+                        'serial' => implode(', ', $serials),
+                        'current_serials' => $serials,
+                        'status' => 'active'
+                    ];
                 }
             }
-            
+
             // If no materials found from assembly_materials, try to get from product_materials
             if (empty($materials)) {
-                
-                // Check if product has materials defined in product_materials table
-                $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)
-                    ->with('material')
-                    ->get();
-                    
-                foreach ($productMaterials as $pm) {
-                    if ($pm->material) {
-                        $materials[] = [
-                            'id' => $pm->material->id,
-                            'code' => $pm->material->code,
-                            'name' => $pm->material->name,
-                            'quantity' => $pm->quantity,
-                            'serial' => '',
-                            'current_serials' => [''],
-                            'status' => 'active'
-                        ];
+                // Cache key cho product materials (thường dùng chung cho nhiều unit)
+                $pmCacheKey = "product_materials_{$product->id}";
+                if (isset($GLOBALS[$pmCacheKey])) {
+                    $materials = $GLOBALS[$pmCacheKey];
+                } else {
+                    // Check if product has materials defined in product_materials table
+                    $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)
+                        ->with('material')
+                        ->get();
+
+                    foreach ($productMaterials as $pm) {
+                        if ($pm->material) {
+                            $materials[] = [
+                                'id' => $pm->material->id,
+                                'code' => $pm->material->code,
+                                'name' => $pm->material->name,
+                                'quantity' => $pm->quantity,
+                                'serial' => '',
+                                'current_serials' => [''],
+                                'status' => 'active'
+                            ];
+                        }
                     }
+                    $GLOBALS[$pmCacheKey] = $materials;
                 }
             }
         } catch (\Exception $e) {
             Log::error("Error getting materials for product {$product->code}: " . $e->getMessage());
         }
 
+        // Cache kết quả
+        $GLOBALS[$cacheKey] = $materials;
         return $materials;
     }
 
@@ -1727,8 +1763,8 @@ class RepairController extends Controller
     private function updateMaterialsSerialsFromHistory($materials, $deviceCode, $warrantyCode)
     {
         foreach ($materials as &$material) {
-            $originalSerial = (string)($material['serial'] ?? '');
-            $quantity = (int)($material['quantity'] ?? 1);
+            $originalSerial = (string) ($material['serial'] ?? '');
+            $quantity = (int) ($material['quantity'] ?? 1);
 
             // Ưu tiên: nếu có bản ghi thay thế gần nhất cho device+material trong warranty hiện tại,
             // sử dụng trực tiếp danh sách new_serials của bản ghi đó để phản ánh trạng thái mới nhất
@@ -1742,7 +1778,7 @@ class RepairController extends Controller
                     ->first();
                 if ($latest && is_array($latest->new_serials) && count($latest->new_serials) > 0) {
                     $normalizedNew = array_map(function ($s) {
-                        $t = trim((string)$s);
+                        $t = trim((string) $s);
                         return ($t === '' || strtoupper($t) === 'NVA' || strtoupper($t) === 'N/A') ? 'N/A' : $t;
                     }, $latest->new_serials);
                     // Nếu số lượng khớp hoặc lớn hơn 0, ghi đè trực tiếp
@@ -1759,7 +1795,8 @@ class RepairController extends Controller
             // Parse and normalize serials; keep empty entries to preserve positions
             $originalSerials = array_map(function ($s) {
                 $t = trim($s);
-                if ($t === '' || strtoupper($t) === 'N/A' || strtoupper($t) === 'NVA') return 'N/A';
+                if ($t === '' || strtoupper($t) === 'N/A' || strtoupper($t) === 'NVA')
+                    return 'N/A';
                 return $t;
             }, explode(',', $originalSerial));
 
@@ -1790,7 +1827,7 @@ class RepairController extends Controller
             if ($hasChanges) {
                 // Remove empty remnants and join
                 $final = array_values(array_filter($updatedSerials, function ($v) {
-                    return trim((string)$v) !== '';
+                    return trim((string) $v) !== '';
                 }));
                 $material['serial'] = implode(',', $final);
                 $material['current_serials'] = $final;
@@ -1809,7 +1846,8 @@ class RepairController extends Controller
             $histories = MaterialReplacementHistory::where('device_code', $deviceCode)
                 ->orderBy('replaced_at', 'desc')
                 ->get();
-            if ($histories->isEmpty()) return $materials;
+            if ($histories->isEmpty())
+                return $materials;
 
             foreach ($materials as &$material) {
                 $originalSerial = $material['serial'] ?? '';
@@ -1818,28 +1856,30 @@ class RepairController extends Controller
                 $updated = false;
 
                 foreach ($histories as $h) {
-                    if ($h->material_code !== ($material['code'] ?? '')) continue;
+                    if ($h->material_code !== ($material['code'] ?? ''))
+                        continue;
                     // Chuẩn hoá 'N/A' trong lịch sử
                     $hOld = array_map(function ($v) {
                         $t = is_string($v) ? trim($v) : $v;
-                        return ($t === '' || strtoupper((string)$t) === 'N/A') ? 'N/A' : $t;
-                    }, (array)($h->old_serials ?? []));
-                    $hNew = (array)($h->new_serials ?? []);
+                        return ($t === '' || strtoupper((string) $t) === 'N/A') ? 'N/A' : $t;
+                    }, (array) ($h->old_serials ?? []));
+                    $hNew = (array) ($h->new_serials ?? []);
                     if (!empty($oldSerials)) {
                         $allEmpty = true;
                         foreach ($oldSerials as $i => $s) {
                             $norm = ($s === '' || strtoupper($s) === 'N/A') ? 'N/A' : $s;
-                            if ($norm !== 'N/A') $allEmpty = false;
+                            if ($norm !== 'N/A')
+                                $allEmpty = false;
                             $pos = array_search($norm, $hOld, true);
                             if ($pos !== false && isset($hNew[$pos])) {
-                                $oldSerials[$i] = trim((string)$hNew[$pos]);
+                                $oldSerials[$i] = trim((string) $hNew[$pos]);
                                 $updated = true;
                             }
                         }
                         // Trường hợp tất cả đều N/A và lịch sử có serial mới -> thay toàn bộ theo hNew
                         if ($allEmpty && !empty($hNew)) {
                             $oldSerials = array_map(function ($v) {
-                                return trim((string)$v);
+                                return trim((string) $v);
                             }, $hNew);
                             $updated = true;
                         }
@@ -1848,13 +1888,14 @@ class RepairController extends Controller
                         $oldSerials = $hNew;
                         $updated = true;
                     }
-                    if ($updated) break; // Lấy bản gần nhất
+                    if ($updated)
+                        break; // Lấy bản gần nhất
                 }
 
                 if ($updated) {
                     // Loại bỏ chuỗi rỗng còn sót lại khi hiển thị
                     $final = array_values(array_filter($oldSerials, function ($v) {
-                        return trim((string)$v) !== '';
+                        return trim((string) $v) !== '';
                     }));
                     $material['serial'] = implode(',', $final);
                     $material['current_serials'] = $final;
@@ -1890,11 +1931,11 @@ class RepairController extends Controller
             $warehouseProducts = \App\Models\WarehouseMaterial::where('item_type', 'product')
                 ->whereHas('product', function ($q) use ($input) {
                     $q->where('status', 'active')
-                      ->where('is_hidden', false)
+                        ->where('is_hidden', false)
                         ->where(function ($subQ) use ($input) {
-                          $subQ->where('code', 'LIKE', "%{$input}%")
-                               ->orWhere('name', 'LIKE', "%{$input}%");
-                      });
+                            $subQ->where('code', 'LIKE', "%{$input}%")
+                                ->orWhere('name', 'LIKE', "%{$input}%");
+                        });
                 })
                 ->whereHas('warehouse', function ($q) {
                     $q->where('status', 'active');
@@ -1904,7 +1945,7 @@ class RepairController extends Controller
 
             foreach ($warehouseProducts as $wp) {
                 $product = $wp->product;
-                
+
                 // Xử lý serial numbers - tách thành từng serial riêng biệt
                 $serialNumbers = [];
                 if ($wp->serial_number) {
@@ -1916,7 +1957,7 @@ class RepairController extends Controller
                         $serialNumbers = [$wp->serial_number];
                     }
                 }
-                
+
                 // Nếu tìm theo serial, chỉ trả về thiết bị có serial khớp
                 if (strcasecmp($input, $product->code) !== 0 && strcasecmp($input, $product->name) !== 0) {
                     if (!empty($normalizedSerial)) {
@@ -1928,7 +1969,8 @@ class RepairController extends Controller
                                 break;
                             }
                         }
-                        if (!$hasMatchingSerial) continue;
+                        if (!$hasMatchingSerial)
+                            continue;
                     } else {
                         continue; // Không tìm thấy theo tên/mã và không phải tìm serial
                     }
@@ -1975,11 +2017,11 @@ class RepairController extends Controller
             $warehouseGoods = \App\Models\WarehouseMaterial::where('item_type', 'good')
                 ->whereHas('good', function ($q) use ($input) {
                     $q->where('status', 'active')
-                      ->where('is_hidden', false)
+                        ->where('is_hidden', false)
                         ->where(function ($subQ) use ($input) {
-                          $subQ->where('code', 'LIKE', "%{$input}%")
-                               ->orWhere('name', 'LIKE', "%{$input}%");
-                      });
+                            $subQ->where('code', 'LIKE', "%{$input}%")
+                                ->orWhere('name', 'LIKE', "%{$input}%");
+                        });
                 })
                 ->whereHas('warehouse', function ($q) {
                     $q->where('status', 'active');
@@ -1989,7 +2031,7 @@ class RepairController extends Controller
 
             foreach ($warehouseGoods as $wg) {
                 $good = $wg->good;
-                
+
                 // Xử lý serial numbers - tách thành từng serial riêng biệt
                 $serialNumbers = [];
                 if ($wg->serial_number) {
@@ -2001,7 +2043,7 @@ class RepairController extends Controller
                         $serialNumbers = [$wg->serial_number];
                     }
                 }
-                
+
                 // Nếu tìm theo serial, chỉ trả về thiết bị có serial khớp
                 if (strcasecmp($input, $good->code) !== 0 && strcasecmp($input, $good->name) !== 0) {
                     if (!empty($normalizedSerial)) {
@@ -2013,7 +2055,8 @@ class RepairController extends Controller
                                 break;
                             }
                         }
-                        if (!$hasMatchingSerial) continue;
+                        if (!$hasMatchingSerial)
+                            continue;
                     } else {
                         continue; // Không tìm thấy theo tên/mã và không phải tìm serial
                     }
@@ -2175,12 +2218,12 @@ class RepairController extends Controller
             $nonSerialStock = max(0, $totalStock - $serialStock);
 
             // Kiểm tra tổng tồn kho (không phân biệt serial hay không serial)
-                if ($totalStock < $requiredQuantity) {
-                    return response()->json([
-                        'success' => false,
-                        'available' => false,
-                        'message' => "Không đủ tồn kho. Yêu cầu: {$requiredQuantity}, Tổng tồn: {$totalStock} (Serial: {$serialStock}, Không serial: {$nonSerialStock})"
-                    ]);
+            if ($totalStock < $requiredQuantity) {
+                return response()->json([
+                    'success' => false,
+                    'available' => false,
+                    'message' => "Không đủ tồn kho. Yêu cầu: {$requiredQuantity}, Tổng tồn: {$totalStock} (Serial: {$serialStock}, Không serial: {$nonSerialStock})"
+                ]);
             }
 
             return response()->json([
@@ -2254,10 +2297,12 @@ class RepairController extends Controller
                     $q->where('warehouse_id', $warehouseId)
                         ->whereNotNull('serial_number');
                 })
-                ->with(['warehouseMaterials' => function ($q) use ($warehouseId) {
-                    $q->where('warehouse_id', $warehouseId)
-                        ->whereNotNull('serial_number');
-                }])
+                ->with([
+                    'warehouseMaterials' => function ($q) use ($warehouseId) {
+                        $q->where('warehouse_id', $warehouseId)
+                            ->whereNotNull('serial_number');
+                    }
+                ])
                 ->first();
 
             if ($goodSerials) {
@@ -2291,7 +2336,7 @@ class RepairController extends Controller
                     $decoded = json_decode($wm->serial_number, true);
                     if (is_array($decoded)) {
                         $wmSerials = $decoded;
-                } else {
+                    } else {
                         $wmSerials = [$wm->serial_number];
                     }
                 } elseif (is_array($wm->serial_number)) {
@@ -2499,18 +2544,18 @@ class RepairController extends Controller
     public function store(Request $request)
     {
         try {
-        $request->validate([
-            'warranty_code' => 'nullable|string|max:255',
-            'repair_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
+            $request->validate([
+                'warranty_code' => 'nullable|string|max:255',
+                'repair_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
                 'repair_date' => 'required|date_format:d/m/Y',
                 'technician_id' => 'required|integer|exists:employees,id', // Ensure it's a valid employee ID
-            'repair_description' => 'required|string',
-            'repair_notes' => 'nullable|string',
-            'repair_photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'selected_devices' => 'nullable|array',
-            'damaged_materials' => 'nullable|string',
-            'warehouse_id' => 'nullable|integer|exists:warehouses,id',
-        ]);
+                'repair_description' => 'required|string',
+                'repair_notes' => 'nullable|string',
+                'repair_photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'selected_devices' => 'nullable|array',
+                'damaged_materials' => 'nullable|string',
+                'warehouse_id' => 'nullable|integer|exists:warehouses,id',
+            ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed:', [
                 'errors' => $e->errors(),
@@ -2544,14 +2589,14 @@ class RepairController extends Controller
                     $warranty = Warranty::where('status', 'active')
                         ->where(function ($q) use ($inputWarrantyOrSerial, $normalizedSerial) {
                             $q->whereRaw('UPPER(REPLACE(REPLACE(IFNULL(serial_number, ""), " ", ""), "-", "")) = ?', [$normalizedSerial])
-                              ->orWhereHas('dispatch.items', function ($qi) use ($inputWarrantyOrSerial, $normalizedSerial) {
+                                ->orWhereHas('dispatch.items', function ($qi) use ($inputWarrantyOrSerial, $normalizedSerial) {
                                     $qi->whereIn('item_type', ['product', 'good'])
-                                     ->where(function ($qj) use ($inputWarrantyOrSerial, $normalizedSerial) {
-                                         $qj->whereJsonContains('serial_numbers', $inputWarrantyOrSerial)
-                                            ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$inputWarrantyOrSerial])
-                                            ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
-                                     });
-                              });
+                                        ->where(function ($qj) use ($inputWarrantyOrSerial, $normalizedSerial) {
+                                            $qj->whereJsonContains('serial_numbers', $inputWarrantyOrSerial)
+                                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$inputWarrantyOrSerial])
+                                                ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalizedSerial]);
+                                        });
+                                });
                         })
                         ->first();
                 }
@@ -2583,13 +2628,13 @@ class RepairController extends Controller
                 // Get default warehouse if not provided
                 $defaultWarehouse = Warehouse::where('status', 'active')
                     ->where('is_hidden', false)
-                    ->where(function($q) {
+                    ->where(function ($q) {
                         $q->where('is_default', true)
-                          ->orWhereNull('is_default');
+                            ->orWhereNull('is_default');
                     })
                     ->orderBy('is_default', 'desc')
                     ->first();
-                
+
                 if ($defaultWarehouse) {
                     $warehouseId = $defaultWarehouse->id;
                 } else {
@@ -2601,7 +2646,7 @@ class RepairController extends Controller
                         $warehouseId = $firstWarehouse->id;
                     }
                 }
-                
+
                 if (!$warehouseId) {
                     throw new \Exception('Không tìm thấy kho hợp lệ. Vui lòng tạo kho trước khi tạo phiếu sửa chữa.');
                 }
@@ -2640,28 +2685,28 @@ class RepairController extends Controller
                             ->lockForUpdate()
                             ->orderBy('repair_code', 'desc')
                             ->first();
-                        
+
                         if ($lastRepair) {
                             $lastUsedNumber = (int) substr($lastRepair->repair_code, -4);
                         } else {
                             $lastUsedNumber = 0;
                         }
                     }
-                    
+
                     // Increment for next code
                     $lastUsedNumber++;
                     $repairCode = $prefix . $year . $month . str_pad($lastUsedNumber, 4, '0', STR_PAD_LEFT);
                     $repairData['repair_code'] = $repairCode;
-                    
+
                     Log::info('Attempting to create repair', [
                         'attempt' => $i + 1,
                         'repair_code' => $repairCode,
                         'last_used_number' => $lastUsedNumber
                     ]);
-                    
+
                     // Try to create the repair
                     $repair = Repair::create($repairData);
-                    
+
                     // Success - break out of retry loop
                     Log::info('Repair created successfully', ['repair_id' => $repair->id, 'repair_code' => $repair->repair_code]);
                     break;
@@ -2669,12 +2714,14 @@ class RepairController extends Controller
                     // Handle database constraint violations
                     if ($e->getCode() == 23000) { // Integrity constraint violation
                         $errorMessage = $e->getMessage();
-                        
+
                         // Check if it's a foreign key constraint violation (1452)
-                        if (strpos($errorMessage, '1452') !== false || 
+                        if (
+                            strpos($errorMessage, '1452') !== false ||
                             strpos($errorMessage, 'foreign key constraint fails') !== false ||
-                            strpos($errorMessage, 'Cannot add or update a child row') !== false) {
-                            
+                            strpos($errorMessage, 'Cannot add or update a child row') !== false
+                        ) {
+
                             // Foreign key violation - don't retry, throw error immediately
                             $errorMsg = 'Lỗi ràng buộc database: ';
                             if (strpos($errorMessage, 'technician_id') !== false) {
@@ -2686,27 +2733,29 @@ class RepairController extends Controller
                             } else {
                                 $errorMsg .= 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
                             }
-                            
+
                             Log::error('Foreign key constraint violation', [
                                 'error' => $errorMessage,
                                 'repair_data' => $repairData
                             ]);
-                            
+
                             throw new \Exception($errorMsg);
                         }
-                        
+
                         // Check if it's a duplicate repair_code error (1062)
-                        if (strpos($errorMessage, 'repair_code') !== false || 
+                        if (
+                            strpos($errorMessage, 'repair_code') !== false ||
                             strpos($errorMessage, 'Duplicate entry') !== false ||
                             strpos($errorMessage, 'UNIQUE constraint failed') !== false ||
-                            strpos($errorMessage, '1062') !== false) {
-                            
+                            strpos($errorMessage, '1062') !== false
+                        ) {
+
                             Log::warning('Duplicate repair code detected, retrying', [
                                 'attempt' => $i + 1,
                                 'repair_code' => $repairCode ?? 'N/A',
                                 'error' => $errorMessage
                             ]);
-                            
+
                             // If this is the last retry, throw error
                             if ($i === $maxRetries - 1) {
                                 Log::error('Failed to create repair after max retries', [
@@ -2715,11 +2764,11 @@ class RepairController extends Controller
                                 ]);
                                 throw new \Exception('Không thể tạo mã phiếu sửa chữa duy nhất sau ' . $maxRetries . ' lần thử. Vui lòng thử lại.');
                             }
-                            
+
                             // Continue to next iteration (will increment lastUsedNumber)
                             continue;
                         }
-                        
+
                         // Other constraint violations - throw error
                         Log::error('Unknown constraint violation', [
                             'error' => $errorMessage,
@@ -2731,14 +2780,14 @@ class RepairController extends Controller
                     throw $e;
                 }
             }
-            
+
             // Verify repair was created successfully
             if (!$repair || !$repair->id) {
                 throw new \Exception('Không thể tạo phiếu sửa chữa. Vui lòng thử lại.');
             }
-            
+
             Log::info('Repair created successfully', [
-                'repair_id' => $repair->id, 
+                'repair_id' => $repair->id,
                 'repair_code' => $repair->repair_code,
                 'technician_id' => $repair->technician_id,
                 'warehouse_id' => $repair->warehouse_id
@@ -2763,98 +2812,98 @@ class RepairController extends Controller
 
                 foreach ($uniqueDeviceIds as $deviceId) {
                     try {
-                    // Escape device ID to match frontend format
-                    $deviceKey = str_replace(['.', '[', ']'], ['_DOT_', '_LB_', '_RB_'], $deviceId);
+                        // Escape device ID to match frontend format
+                        $deviceKey = str_replace(['.', '[', ']'], ['_DOT_', '_LB_', '_RB_'], $deviceId);
 
-                    // Check all possible input formats with escaped key
-                    $deviceCode = $request->input("device_code.{$deviceKey}") ??
-                        $request->input("device_code[{$deviceKey}]") ??
-                        $request->input("device_code.{$deviceId}") ??
-                        $request->input("device_code[{$deviceId}]") ?? '';
-                    $deviceName = $request->input("device_name.{$deviceKey}") ??
-                        $request->input("device_name[{$deviceKey}]") ??
-                        $request->input("device_name.{$deviceId}") ??
-                        $request->input("device_name[{$deviceId}]") ?? '';
+                        // Check all possible input formats with escaped key
+                        $deviceCode = $request->input("device_code.{$deviceKey}") ??
+                            $request->input("device_code[{$deviceKey}]") ??
+                            $request->input("device_code.{$deviceId}") ??
+                            $request->input("device_code[{$deviceId}]") ?? '';
+                        $deviceName = $request->input("device_name.{$deviceKey}") ??
+                            $request->input("device_name[{$deviceKey}]") ??
+                            $request->input("device_name.{$deviceId}") ??
+                            $request->input("device_name[{$deviceId}]") ?? '';
                         // Try to get device_serial from original key first, then escaped key
                         $deviceSerial = $request->input("device_serial[{$deviceId}]") ??
-                        $request->input("device_serial.{$deviceId}") ??
+                            $request->input("device_serial.{$deviceId}") ??
                             $request->input("device_serial[{$deviceKey}]") ??
                             $request->input("device_serial.{$deviceKey}") ?? '';
 
                         // Do not auto-derive serial from deviceId; keep null when not provided
-                    $deviceQuantity = $request->input("device_quantity.{$deviceKey}") ??
-                        $request->input("device_quantity[{$deviceKey}]") ??
-                        $request->input("device_quantity.{$deviceId}") ??
-                        $request->input("device_quantity[{$deviceId}]") ?? 1;
-                    $deviceNotes = $request->input("device_notes.{$deviceKey}") ??
-                        $request->input("device_notes[{$deviceKey}]") ??
-                        $request->input("device_notes.{$deviceId}") ??
-                        $request->input("device_notes[{$deviceId}]") ?? '';
-                    $deviceType = $request->input("device_type.{$deviceKey}") ??
-                        $request->input("device_type[{$deviceKey}]") ??
-                        $request->input("device_type.{$deviceId}") ??
-                        $request->input("device_type[{$deviceId}]") ?? 'product';
-                    $deviceSource = $request->input("device_source.{$deviceKey}") ??
-                        $request->input("device_source[{$deviceKey}]") ??
-                        $request->input("device_source.{$deviceId}") ??
-                        $request->input("device_source[{$deviceId}]") ?? 'contract';
+                        $deviceQuantity = $request->input("device_quantity.{$deviceKey}") ??
+                            $request->input("device_quantity[{$deviceKey}]") ??
+                            $request->input("device_quantity.{$deviceId}") ??
+                            $request->input("device_quantity[{$deviceId}]") ?? 1;
+                        $deviceNotes = $request->input("device_notes.{$deviceKey}") ??
+                            $request->input("device_notes[{$deviceKey}]") ??
+                            $request->input("device_notes.{$deviceId}") ??
+                            $request->input("device_notes[{$deviceId}]") ?? '';
+                        $deviceType = $request->input("device_type.{$deviceKey}") ??
+                            $request->input("device_type[{$deviceKey}]") ??
+                            $request->input("device_type.{$deviceId}") ??
+                            $request->input("device_type[{$deviceId}]") ?? 'product';
+                        $deviceSource = $request->input("device_source.{$deviceKey}") ??
+                            $request->input("device_source[{$deviceKey}]") ??
+                            $request->input("device_source.{$deviceId}") ??
+                            $request->input("device_source[{$deviceId}]") ?? 'contract';
 
-                    // Handle device images
-                    $deviceImages = [];
+                        // Handle device images
+                        $deviceImages = [];
 
-                    // Kiểm tra xem có files trong device_images array không (với escaped key)
-                    $deviceImagesArray = $request->file('device_images', []);
-                    $hasDeviceImages = (isset($deviceImagesArray[$deviceKey]) && !empty($deviceImagesArray[$deviceKey])) ||
-                        (isset($deviceImagesArray[$deviceId]) && !empty($deviceImagesArray[$deviceId]));
+                        // Kiểm tra xem có files trong device_images array không (với escaped key)
+                        $deviceImagesArray = $request->file('device_images', []);
+                        $hasDeviceImages = (isset($deviceImagesArray[$deviceKey]) && !empty($deviceImagesArray[$deviceKey])) ||
+                            (isset($deviceImagesArray[$deviceId]) && !empty($deviceImagesArray[$deviceId]));
 
-                    // Ưu tiên escaped key, fallback về original key
-                    $deviceImageFiles = $deviceImagesArray[$deviceKey] ?? $deviceImagesArray[$deviceId] ?? [];
+                        // Ưu tiên escaped key, fallback về original key
+                        $deviceImageFiles = $deviceImagesArray[$deviceKey] ?? $deviceImagesArray[$deviceId] ?? [];
 
-                    if ($hasDeviceImages) {
-                        $files = $deviceImageFiles;
+                        if ($hasDeviceImages) {
+                            $files = $deviceImageFiles;
 
-                        foreach ($files as $index => $image) {
-                            if ($image->isValid()) {
-                                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-                                $path = $image->storeAs('repairs/devices', $filename, 'public');
-                                $deviceImages[] = $path;
-                            } else {
-                                Log::warning("Invalid image file for device {$deviceId} at index {$index}");
+                            foreach ($files as $index => $image) {
+                                if ($image->isValid()) {
+                                    $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                                    $path = $image->storeAs('repairs/devices', $filename, 'public');
+                                    $deviceImages[] = $path;
+                                } else {
+                                    Log::warning("Invalid image file for device {$deviceId} at index {$index}");
+                                }
+                            }
+                        } else {
+                            Log::info("No device images found for device: {$deviceId}");
+                        }
+
+                        // Lấy thông tin device_parts nếu có
+                        $deviceParts = [];
+                        if ($request->has("device_parts.{$deviceId}")) {
+                            $partsData = $request->input("device_parts.{$deviceId}");
+                            if (is_string($partsData)) {
+                                $deviceParts = json_decode($partsData, true) ?: [];
+                            } elseif (is_array($partsData)) {
+                                $deviceParts = $partsData;
                             }
                         }
-                    } else {
-                        Log::info("No device images found for device: {$deviceId}");
-                    }
-
-                    // Lấy thông tin device_parts nếu có
-                    $deviceParts = [];
-                    if ($request->has("device_parts.{$deviceId}")) {
-                        $partsData = $request->input("device_parts.{$deviceId}");
-                        if (is_string($partsData)) {
-                            $deviceParts = json_decode($partsData, true) ?: [];
-                        } elseif (is_array($partsData)) {
-                            $deviceParts = $partsData;
-                        }
-                    }
 
                         // Validate required fields
                         if (empty($deviceCode) || empty($deviceName)) {
                             throw new \Exception("Missing required device information: code={$deviceCode}, name={$deviceName}");
                         }
 
-                    $repairItem = RepairItem::create([
-                        'repair_id' => $repair->id,
-                        'device_code' => $deviceCode,
-                        'device_name' => $deviceName,
+                        $repairItem = RepairItem::create([
+                            'repair_id' => $repair->id,
+                            'device_code' => $deviceCode,
+                            'device_name' => $deviceName,
                             'device_serial' => $deviceSerial ?: null, // Allow null serial
-                        'device_quantity' => $deviceQuantity,
-                        'device_status' => 'selected',
-                        'device_notes' => $deviceNotes,
-                        'device_images' => $deviceImages,
-                        'device_parts' => $deviceParts,
-                        'device_type' => $deviceType,
-                        'device_source' => $deviceSource,
-                    ]);
+                            'device_quantity' => $deviceQuantity,
+                            'device_status' => 'selected',
+                            'device_notes' => $deviceNotes,
+                            'device_images' => $deviceImages,
+                            'device_parts' => $deviceParts,
+                            'device_type' => $deviceType,
+                            'device_source' => $deviceSource,
+                        ]);
                     } catch (\Exception $e) {
                         Log::error("Error processing device {$deviceId}: " . $e->getMessage());
                         Log::error("Device data: " . json_encode([
@@ -2944,7 +2993,7 @@ class RepairController extends Controller
                             $this->updateWarehouseMaterial(
                                 $replacement['material_code'],
                                 $oldSerial,
-                                (int)$replacement['source_warehouse_id'],
+                                (int) $replacement['source_warehouse_id'],
                                 'add'
                             );
                         }
@@ -2954,7 +3003,7 @@ class RepairController extends Controller
                             $this->updateWarehouseMaterial(
                                 $replacement['material_code'],
                                 $newSerial,
-                                (int)$replacement['target_warehouse_id'],
+                                (int) $replacement['target_warehouse_id'],
                                 'remove'
                             );
                         }
@@ -2962,7 +3011,7 @@ class RepairController extends Controller
                         // Tạo phiếu xuất kho cho vật tư thay thế
                         try {
                             $exportCode = $this->createExportSlipForReplacement($repair, $replacement);
-                            
+
                             // Lưu nhật ký thay đổi cho xuất kho vật tư thay thế
                             ChangeLogHelper::xuatKho(
                                 $replacement['material_code'],
@@ -3040,16 +3089,16 @@ class RepairController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all()
             ]);
-            
+
             $errorMessage = 'Có lỗi xảy ra khi tạo phiếu sửa chữa: ' . $e->getMessage();
-            
+
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage
                 ], 500);
             }
-            
+
             return back()->withInput()->withErrors(['error' => $errorMessage]);
         }
     }
@@ -3134,13 +3183,13 @@ class RepairController extends Controller
                         $warehouseMaterial->increment('quantity');
                     } else {
                         WarehouseMaterial::create([
-                        'warehouse_id' => $warehouseId,
-                        'material_id' => $material->id,
-                        'serial_number' => $serial,
+                            'warehouse_id' => $warehouseId,
+                            'material_id' => $material->id,
+                            'serial_number' => $serial,
                             'item_type' => 'material',
-                        'quantity' => 1,
+                            'quantity' => 1,
                             'created_at' => now(),
-                        'updated_at' => now(),
+                            'updated_at' => now(),
                         ]);
                     }
                 } else {
@@ -3215,8 +3264,8 @@ class RepairController extends Controller
                 if ($serial === 'N/A' || $serial === '') {
                     // For non-serial materials, decrease quantity
                     $warehouseMaterial = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                    ->where('material_id', $material->id)
-                    ->where('serial_number', $serial)
+                        ->where('material_id', $material->id)
+                        ->where('serial_number', $serial)
                         ->where('item_type', 'material')
                         ->first();
 
@@ -3629,7 +3678,7 @@ class RepairController extends Controller
                 $this->updateWarehouseMaterial(
                     $replacement['material_code'],
                     $oldSerial,
-                    (int)$replacement['source_warehouse_id'],
+                    (int) $replacement['source_warehouse_id'],
                     'add'
                 );
             }
@@ -3643,7 +3692,7 @@ class RepairController extends Controller
                 $this->updateWarehouseMaterial(
                     $replacement['material_code'],
                     $newSerial,
-                    (int)$replacement['target_warehouse_id'],
+                    (int) $replacement['target_warehouse_id'],
                     'remove'
                 );
             }
@@ -3651,7 +3700,7 @@ class RepairController extends Controller
             // Tạo phiếu xuất kho cho vật tư thay thế
             try {
                 $exportCode = $this->createExportSlipForReplacement($repair, $replacement);
-                
+
                 // Lưu nhật ký thay đổi cho xuất kho vật tư thay thế
                 ChangeLogHelper::xuatKho(
                     $replacement['material_code'],
@@ -3673,7 +3722,7 @@ class RepairController extends Controller
                 // Lưu nhật ký thay đổi cho thu hồi vật tư cũ
                 if ($repair->warranty) {
                     $warranty = $repair->warranty;
-                    
+
                     // Xác định loại item để hiển thị chính xác
                     $itemTypeLabel = '';
                     $itemType = $replacement['item_type'] ?? 'material';
@@ -3738,7 +3787,7 @@ class RepairController extends Controller
     {
         // Tạo mã phiếu xuất kho tự động
         $exportCode = 'XK' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        
+
         // Tạo phiếu xuất kho
         $dispatch = \App\Models\Dispatch::create([
             'dispatch_code' => $exportCode,
@@ -3793,18 +3842,18 @@ class RepairController extends Controller
         foreach ($damagedMaterials as $damaged) {
             // Xử lý serial - nếu rỗng thì set null thay vì empty string
             $serial = !empty($damaged['serial']) ? $damaged['serial'] : null;
-            
+
             // Tạo key để kiểm tra duplicate
             $combinationKey = $repair->id . '-' . $damaged['device_code'] . '-' . $damaged['material_code'] . '-' . ($serial ?? '');
-            
+
             // Kiểm tra nếu đã xử lý combination này
             if (in_array($combinationKey, $processedCombinations)) {
                 Log::warning("Skipping duplicate damaged material combination: {$combinationKey}");
                 continue;
             }
-            
+
             $processedCombinations[] = $combinationKey;
-            
+
             \App\Models\DamagedMaterial::create([
                 'repair_id' => $repair->id,
                 'device_code' => $damaged['device_code'],
@@ -4058,7 +4107,7 @@ class RepairController extends Controller
                     ], [
                         'quantity' => 0
                     ]);
-                    $wm->quantity = (int)$wm->quantity + (int)$di->quantity;
+                    $wm->quantity = (int) $wm->quantity + (int) $di->quantity;
                     $wm->save();
 
                     // Trả lại serials nếu có

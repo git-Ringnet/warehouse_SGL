@@ -351,6 +351,8 @@
                     {{ $displaySerial }}
                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
                     <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
+                @elseif(empty($originalSerial))
+                    <span class="text-gray-500 italic">Không có Serial #{{ $serialIndex + 1 }}</span>
                 @else
                     N/A
                 @endif
@@ -501,6 +503,10 @@
                                     <td class="py-2 px-4 border-b">
                                         @if(!empty($displaySerial))
                                             {{ $displaySerial }}
+                                        @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
+                                            <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
+                                        @elseif(empty($originalSerial))
+                                            <span class="text-gray-500 italic">Không có Serial #{{ $serialIndex + 1 }}</span>
                                         @else
                                             N/A
                                         @endif

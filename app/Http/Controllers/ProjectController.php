@@ -198,29 +198,85 @@ class ProjectController extends Controller
 
         // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
         $contractItems = collect();
+
+        // Lấy dispatches của dự án, nhưng loại trừ:
+        // - Phiếu xuất vật tư từ lắp ráp (chỉ để trừ tồn kho vật tư)
+        // - Phiếu xuất trung gian từ lắp ráp
+        // Chỉ lấy:
+        // - Phiếu xuất thành phẩm từ kiểm thử (Sinh từ phiếu kiểm thử)
+        // - Phiếu xuất trực tiếp đi dự án (không qua lắp ráp)
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
             ->where('project_id', $project->id)
             ->whereIn('status', ['approved', 'completed'])
+            ->where(function ($query) {
+                // Phiếu xuất từ kiểm thử (ưu tiên - đây là phiếu chứa thành phẩm đã qua QA)
+                $query->where('dispatch_note', 'like', '%Sinh từ phiếu kiểm thử%')
+                    // Hoặc phiếu xuất trực tiếp (không qua lắp ráp/kiểm thử)
+                    ->orWhere(function ($q) {
+                    $q->where('dispatch_note', 'not like', '%Sinh từ phiếu lắp ráp%')
+                        ->where('dispatch_note', 'not like', '%Sinh từ phiếu kiểm thử%');
+                })
+                    // Hoặc dispatch_note là null (phiếu xuất thủ công)
+                    ->orWhereNull('dispatch_note');
+            })
             ->get();
 
+        // Track đã xử lý dispatch_item_id nào để tránh duplicate
+        $processedDispatchItemIds = [];
+
         foreach ($dispatches as $dispatch) {
-            $items = $dispatch->items()->where('category', 'contract')->get();
-            
+            // Lấy cả items có category 'contract' và 'general' (loại trừ 'backup')
+            $items = $dispatch->items()->where('category', '!=', 'backup')->get();
+
             foreach ($items as $item) {
+                // Kiểm tra xem dispatch_item_id đã được xử lý chưa
+                if (in_array($item->id, $processedDispatchItemIds)) {
+                    continue;
+                }
+                $processedDispatchItemIds[] = $item->id;
+
                 $serialNumbers = $item->serial_numbers ?? [];
-                
-                // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
-                foreach ($serialNumbers as $i => $serial) {
-                    $serial = trim($serial);
-                    if (!empty($serial)) {
-                        $isVirtual = strpos($serial, 'N/A-') === 0;
-                        
+                $quantity = (int) ($item->quantity ?? 1);
+
+                // Nếu có serial numbers, tạo bản ghi cho từng serial
+                if (!empty($serialNumbers) && is_array($serialNumbers)) {
+                    foreach ($serialNumbers as $i => $serial) {
+                        $serial = trim($serial);
+                        if (!empty($serial)) {
+                            $isVirtual = strpos($serial, 'N/A-') === 0;
+
+                            $contractItems->push([
+                                'dispatch_item' => $item,
+                                'dispatch' => $dispatch,
+                                'serial_index' => $i,
+                                'serial_number' => $serial,
+                                'has_serial' => !$isVirtual
+                            ]);
+                        }
+                    }
+
+                    // Nếu quantity > số serial, thêm các bản ghi N/A cho phần còn lại
+                    $serialCount = count(array_filter($serialNumbers, fn($s) => !empty(trim($s))));
+                    if ($quantity > $serialCount) {
+                        for ($i = 0; $i < ($quantity - $serialCount); $i++) {
+                            $contractItems->push([
+                                'dispatch_item' => $item,
+                                'dispatch' => $dispatch,
+                                'serial_index' => $serialCount + $i,
+                                'serial_number' => 'N/A',
+                                'has_serial' => false
+                            ]);
+                        }
+                    }
+                } else {
+                    // Nếu không có serial numbers, tạo bản ghi dựa trên quantity
+                    for ($i = 0; $i < $quantity; $i++) {
                         $contractItems->push([
                             'dispatch_item' => $item,
                             'dispatch' => $dispatch,
                             'serial_index' => $i,
-                            'serial_number' => $serial,
-                            'has_serial' => !$isVirtual
+                            'serial_number' => 'N/A',
+                            'has_serial' => false
                         ]);
                     }
                 }
@@ -229,24 +285,60 @@ class ProjectController extends Controller
 
         // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
         $backupItems = collect();
+        $processedBackupItemIds = [];
+
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
-            
+
             foreach ($items as $item) {
+                // Kiểm tra xem dispatch_item_id đã được xử lý chưa
+                if (in_array($item->id, $processedBackupItemIds)) {
+                    continue;
+                }
+                $processedBackupItemIds[] = $item->id;
+
                 $serialNumbers = $item->serial_numbers ?? [];
-                
-                // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
-                foreach ($serialNumbers as $i => $serial) {
-                    $serial = trim($serial);
-                    if (!empty($serial)) {
-                        $isVirtual = strpos($serial, 'N/A-') === 0;
-                        
+                $quantity = (int) ($item->quantity ?? 1);
+
+                // Nếu có serial numbers, tạo bản ghi cho từng serial
+                if (!empty($serialNumbers) && is_array($serialNumbers)) {
+                    foreach ($serialNumbers as $i => $serial) {
+                        $serial = trim($serial);
+                        if (!empty($serial)) {
+                            $isVirtual = strpos($serial, 'N/A-') === 0;
+
+                            $backupItems->push([
+                                'dispatch_item' => $item,
+                                'dispatch' => $dispatch,
+                                'serial_index' => $i,
+                                'serial_number' => $serial,
+                                'has_serial' => !$isVirtual
+                            ]);
+                        }
+                    }
+
+                    // Nếu quantity > số serial, thêm các bản ghi N/A cho phần còn lại
+                    $serialCount = count(array_filter($serialNumbers, fn($s) => !empty(trim($s))));
+                    if ($quantity > $serialCount) {
+                        for ($i = 0; $i < ($quantity - $serialCount); $i++) {
+                            $backupItems->push([
+                                'dispatch_item' => $item,
+                                'dispatch' => $dispatch,
+                                'serial_index' => $serialCount + $i,
+                                'serial_number' => 'N/A',
+                                'has_serial' => false
+                            ]);
+                        }
+                    }
+                } else {
+                    // Nếu không có serial numbers, tạo bản ghi dựa trên quantity
+                    for ($i = 0; $i < $quantity; $i++) {
                         $backupItems->push([
                             'dispatch_item' => $item,
                             'dispatch' => $dispatch,
                             'serial_index' => $i,
-                            'serial_number' => $serial,
-                            'has_serial' => !$isVirtual
+                            'serial_number' => 'N/A',
+                            'has_serial' => false
                         ]);
                     }
                 }
@@ -385,7 +477,7 @@ class ProjectController extends Controller
             if ($startDateChanged || $warrantyPeriodChanged) {
                 // Đồng bộ thông tin warranty khi project thay đổi
                 $this->syncWarrantiesFromProject($project);
-                
+
                 // Sử dụng ProjectObserver để kiểm tra và gửi thông báo
                 $observer = new \App\Observers\ProjectObserver();
 
@@ -470,29 +562,29 @@ class ProjectController extends Controller
     {
         // Lấy tất cả phiếu xuất kho của dự án
         $dispatches = \App\Models\Dispatch::where('project_id', $projectId)->get();
-        
+
         $backupItemsCount = 0;
-        
+
         foreach ($dispatches as $dispatch) {
             // Đếm thiết bị dự phòng/bảo hành (category = 'backup')
             $backupItems = $dispatch->items()
                 ->where('category', 'backup')
                 ->get();
-            
+
             foreach ($backupItems as $item) {
                 // Kiểm tra xem thiết bị đã bị thu hồi chưa
                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
-                
+
                 // Kiểm tra xem thiết bị đã được sử dụng trong bảo hành/thay thế chưa
                 $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
-                
+
                 // Chỉ đếm những thiết bị chưa bị thu hồi VÀ chưa được sử dụng trong bảo hành/thay thế
                 if (!$isReturned && !$isUsed) {
                     $backupItemsCount++;
                 }
             }
         }
-        
+
         return $backupItemsCount;
     }
 
@@ -525,11 +617,11 @@ class ProjectController extends Controller
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
-                    
+
                     if (!empty($serialNumbers)) {
                         if (is_array($serialNumbers)) {
                             // Lọc bỏ các giá trị rỗng
-                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                            $serialNumbersArray = array_filter($serialNumbers, function ($serial) {
                                 return !empty(trim($serial));
                             });
                             $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
@@ -538,7 +630,7 @@ class ProjectController extends Controller
                             $serialNumbersArray = [trim($serialNumbers)];
                         }
                     }
-                    
+
                     // Sử dụng SerialDisplayHelper để lấy serial hiển thị
                     $displaySerials = SerialDisplayHelper::getDisplaySerials(
                         $dispatch->id,
@@ -558,7 +650,7 @@ class ProjectController extends Controller
                         'quantity' => $item->quantity
                     ];
                 });
-            
+
             // Lấy danh sách goods (hàng hóa) - chỉ lấy category = 'contract'
             $goods = $dispatch->items()
                 ->with(['good'])
@@ -569,11 +661,11 @@ class ProjectController extends Controller
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
-                    
+
                     if (!empty($serialNumbers)) {
                         if (is_array($serialNumbers)) {
                             // Lọc bỏ các giá trị rỗng
-                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                            $serialNumbersArray = array_filter($serialNumbers, function ($serial) {
                                 return !empty(trim($serial));
                             });
                             $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
@@ -582,7 +674,7 @@ class ProjectController extends Controller
                             $serialNumbersArray = [trim($serialNumbers)];
                         }
                     }
-                    
+
                     // Sử dụng SerialDisplayHelper để lấy serial hiển thị
                     $displaySerials = SerialDisplayHelper::getDisplaySerials(
                         $dispatch->id,
@@ -643,14 +735,14 @@ class ProjectController extends Controller
         $warrantyPeriod = (int) $project->warranty_period;
         $startDate = \Carbon\Carbon::parse($project->start_date);
         $endDate = $startDate->copy()->addMonths($warrantyPeriod);
-        
+
         // Cập nhật tất cả warranty liên quan đến project này
         $warranties = \App\Models\Warranty::where('project_name', 'like', '%' . $project->project_name . '%')
-            ->orWhereHas('dispatch', function($q) use ($project) {
+            ->orWhereHas('dispatch', function ($q) use ($project) {
                 $q->where('project_id', $project->id);
             })
             ->get();
-            
+
         foreach ($warranties as $warranty) {
             $warranty->update([
                 'warranty_start_date' => $startDate->toDateString(),
@@ -659,7 +751,7 @@ class ProjectController extends Controller
                 'project_name' => $project->project_name,
             ]);
         }
-        
+
         // Lấy danh sách thiết bị dự phòng/bảo hành từ dự án
         $dispatches = \App\Models\Dispatch::where('project_id', $project->id)
             ->whereIn('status', ['approved', 'completed'])

@@ -55,9 +55,9 @@ class WarrantyController extends Controller
         // Eager load tất cả relationships cần thiết để tránh N+1 query
         $warranty->load([
             'dispatch.project.customer',
-            'dispatch.items' => function($query) {
+            'dispatch.items' => function ($query) {
                 $query->where('category', '!=', 'backup')
-                      ->whereIn('item_type', ['product', 'good']);
+                    ->whereIn('item_type', ['product', 'good']);
             },
             'dispatch.items.product',
             'dispatch.items.good',
@@ -71,19 +71,36 @@ class WarrantyController extends Controller
         // Pre-load project items và product materials để tránh N+1 query trong view
         $projectItems = [];
         $productMaterials = [];
-        
+
         if ($warranty->item_type === 'project' && $warranty->item_id) {
             // Load tất cả dispatches của project một lần
+            // Loại trừ phiếu xuất vật tư từ lắp ráp, chỉ lấy phiếu thành phẩm từ kiểm thử
             $projectDispatches = \App\Models\Dispatch::where('project_id', $warranty->item_id)
                 ->whereIn('status', ['approved', 'completed'])
-                ->when($warranty->dispatch, function($query) use ($warranty) {
+                ->when($warranty->dispatch, function ($query) use ($warranty) {
                     if ($warranty->dispatch->dispatch_type) {
                         $query->where('dispatch_type', $warranty->dispatch->dispatch_type);
                     }
                 })
-                ->with(['items' => function($query) {
-                    $query->where('category', '!=', 'backup');
-                }, 'items.product', 'items.good', 'items.material'])
+                ->where(function ($q) {
+                    // Phiếu xuất từ kiểm thử (chứa thành phẩm đã qua QA)
+                    $q->where('dispatch_note', 'like', '%Sinh từ phiếu kiểm thử%')
+                        // Hoặc phiếu xuất trực tiếp (không qua lắp ráp/kiểm thử)
+                        ->orWhere(function ($subQ) {
+                        $subQ->where('dispatch_note', 'not like', '%Sinh từ phiếu lắp ráp%')
+                            ->where('dispatch_note', 'not like', '%Sinh từ phiếu kiểm thử%');
+                    })
+                        // Hoặc dispatch_note là null (phiếu xuất thủ công)
+                        ->orWhereNull('dispatch_note');
+                })
+                ->with([
+                    'items' => function ($query) {
+                        $query->where('category', '!=', 'backup');
+                    },
+                    'items.product',
+                    'items.good',
+                    'items.material'
+                ])
                 ->get();
 
             // Build project items
@@ -136,7 +153,7 @@ class WarrantyController extends Controller
                     foreach ($allSerials as $serial) {
                         $serialConditions[] = "FIND_IN_SET('" . addslashes($serial) . "', serials) > 0";
                     }
-                    
+
                     $assemblyProducts = \App\Models\AssemblyProduct::whereRaw('(' . implode(' OR ', $serialConditions) . ')')
                         ->with(['assembly.materials.material'])
                         ->get();
@@ -241,7 +258,7 @@ class WarrantyController extends Controller
     public function apiCheck(Request $request)
     {
         $warrantyCode = $request->get('warranty_code');
-        
+
         if (!$warrantyCode) {
             return response()->json([
                 'success' => false,
@@ -295,20 +312,26 @@ class WarrantyController extends Controller
             'warranties' => $warranties
         ]);
     }
-    
+
     /**
      * API endpoint to get warranty items
      */
     public function getWarrantyItems($warrantyId)
     {
         try {
-            $warranty = Warranty::with(['dispatch.project.customer', 'dispatch.items' => function($query) {
-                $query->where('category', 'contract');
-            }, 'dispatch.items.product', 'dispatch.items.material', 'dispatch.items.good'])
-            ->findOrFail($warrantyId);
+            $warranty = Warranty::with([
+                'dispatch.project.customer',
+                'dispatch.items' => function ($query) {
+                    $query->where('category', 'contract');
+                },
+                'dispatch.items.product',
+                'dispatch.items.material',
+                'dispatch.items.good'
+            ])
+                ->findOrFail($warrantyId);
 
             $items = [];
-            
+
             if ($warranty->dispatch && $warranty->dispatch->items) {
                 foreach ($warranty->dispatch->items as $item) {
                     // Lấy thông tin chi tiết dựa vào loại item
@@ -355,7 +378,7 @@ class WarrantyController extends Controller
                     }
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'items' => $items
@@ -403,20 +426,20 @@ class WarrantyController extends Controller
             // Tạo tên file
             $fileName = 'Phieu_Bao_Hanh_' . $warranty->warranty_code . '.pdf';
             $filePath = 'exports/warranties/' . $fileName;
-            
+
             // Tạo PDF
             $pdf = \PDF::loadView('exports.warranty_pdf', ['warranty' => $warranty]);
-            
+
             // Lưu file vào storage/app/public
             \Storage::disk('public')->put($filePath, $pdf->output());
-            
+
             // Lấy thông tin file
             $fileSize = \Storage::disk('public')->size($filePath);
             $fileSizeMB = round($fileSize / 1024 / 1024, 2);
-            
+
             // Tạo URL download (expires sau 1 giờ)
             $downloadUrl = url('storage/' . $filePath);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo file PDF thành công',
@@ -432,7 +455,7 @@ class WarrantyController extends Controller
         } catch (\Exception $e) {
             \Log::error('Export warranty PDF error: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tạo file PDF: ' . $e->getMessage()
