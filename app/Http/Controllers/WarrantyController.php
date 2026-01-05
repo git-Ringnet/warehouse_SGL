@@ -14,7 +14,7 @@ class WarrantyController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Warranty::with(['dispatch.project.customer', 'dispatchItem', 'creator']);
+        $query = Warranty::with(['dispatch.project.customer', 'dispatch.rental.customer', 'dispatchItem', 'creator']);
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -55,6 +55,7 @@ class WarrantyController extends Controller
         // Eager load tất cả relationships cần thiết để tránh N+1 query
         $warranty->load([
             'dispatch.project.customer',
+            'dispatch.rental.customer',
             'dispatch.items' => function ($query) {
                 $query->where('category', '!=', 'backup')
                     ->whereIn('item_type', ['product', 'good']);
@@ -473,7 +474,18 @@ class WarrantyController extends Controller
     public function check($warrantyCode)
     {
         $warranty = Warranty::where('warranty_code', $warrantyCode)
-            ->with(['dispatch.project.customer', 'dispatchItem', 'creator'])
+            ->with([
+                'dispatch.project.customer',
+                'dispatch.rental.customer',
+                'dispatch.items' => function ($query) {
+                    $query->where('category', '!=', 'backup')
+                        ->whereIn('item_type', ['product', 'good']);
+                },
+                'dispatch.items.product',
+                'dispatch.items.good',
+                'dispatchItem',
+                'creator'
+            ])
             ->first();
 
         if (!$warranty) {
@@ -513,7 +525,10 @@ class WarrantyController extends Controller
             ]);
         }
 
-        $warranty = Warranty::where('warranty_code', $warrantyCode)->first();
+        // Eager load relationships để lấy thông tin chính xác
+        $warranty = Warranty::where('warranty_code', $warrantyCode)
+            ->with(['dispatch.project.customer', 'dispatch.rental.customer'])
+            ->first();
 
         if (!$warranty) {
             return response()->json([
@@ -522,12 +537,57 @@ class WarrantyController extends Controller
             ]);
         }
 
+        // Lấy thông tin khách hàng chính xác từ relationship
+        $customerName = $warranty->customer_name; // Fallback
+        $projectName = $warranty->project_name;   // Fallback
+
+        if ($warranty->dispatch) {
+            if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental) {
+                // Cho phiếu thuê: lấy từ rental
+                $rental = $warranty->dispatch->rental;
+                $projectName = $rental->rental_name ?? $warranty->project_name;
+
+                // Lấy tên khách hàng từ customer relationship
+                if ($rental->customer) {
+                    $customer = $rental->customer;
+                    $companyName = $customer->company_name ?? '';
+                    $representativeName = $customer->name ?? '';
+
+                    if ($companyName && $representativeName) {
+                        $customerName = $companyName . ' (' . $representativeName . ')';
+                    } elseif ($companyName) {
+                        $customerName = $companyName;
+                    } elseif ($representativeName) {
+                        $customerName = $representativeName;
+                    }
+                }
+            } elseif ($warranty->dispatch->project) {
+                // Cho phiếu dự án: lấy từ project và customer
+                $project = $warranty->dispatch->project;
+                $projectName = $project->project_name ?? $warranty->project_name;
+
+                if ($project->customer) {
+                    $customer = $project->customer;
+                    $companyName = $customer->company_name ?? '';
+                    $representativeName = $customer->name ?? '';
+
+                    if ($companyName && $representativeName) {
+                        $customerName = $companyName . ' (' . $representativeName . ')';
+                    } elseif ($companyName) {
+                        $customerName = $companyName;
+                    } elseif ($representativeName) {
+                        $customerName = $representativeName;
+                    }
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'warranty' => [
                 'warranty_code' => $warranty->warranty_code,
-                'customer_name' => $warranty->customer_name,
-                'project_name' => $warranty->project_name,
+                'customer_name' => $customerName,
+                'project_name' => $projectName,
                 'item_name' => $warranty->item->name ?? 'N/A',
                 'item_code' => $warranty->item->code ?? 'N/A',
                 'serial_number' => $warranty->serial_number,

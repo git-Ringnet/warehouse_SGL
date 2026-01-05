@@ -369,16 +369,39 @@
                             <div>
                                 <p class="text-sm text-gray-500">Tên khách hàng</p>
                                 <p class="text-gray-900 font-medium">
-                                    @if($warranty->dispatch && $warranty->dispatch->project && $warranty->dispatch->project->customer)
-                                        @php
-                                            $customer = $warranty->dispatch->project->customer;
-                                            $companyName = $customer->company_name;
-                                            $representativeName = $customer->name;
-                                        @endphp
-                                        {{ $companyName }} ({{ $representativeName }})
-                                    @else
-                                        {{ $warranty->customer_name ?: 'N/A' }}
-                                    @endif
+                                    @php
+                                        $customerNameDisplay = $warranty->customer_name ?: 'N/A';
+                                        if ($warranty->dispatch) {
+                                            if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental) {
+                                                // Lấy tên khách hàng từ rental->customer relationship
+                                                $rental = $warranty->dispatch->rental;
+                                                if ($rental->customer) {
+                                                    $customer = $rental->customer;
+                                                    $companyName = $customer->company_name ?? '';
+                                                    $representativeName = $customer->name ?? '';
+                                                    if ($companyName && $representativeName) {
+                                                        $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                    } elseif ($companyName) {
+                                                        $customerNameDisplay = $companyName;
+                                                    } elseif ($representativeName) {
+                                                        $customerNameDisplay = $representativeName;
+                                                    }
+                                                }
+                                            } elseif ($warranty->dispatch->project && $warranty->dispatch->project->customer) {
+                                                $customer = $warranty->dispatch->project->customer;
+                                                $companyName = $customer->company_name ?? '';
+                                                $representativeName = $customer->name ?? '';
+                                                if ($companyName && $representativeName) {
+                                                    $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                } elseif ($companyName) {
+                                                    $customerNameDisplay = $companyName;
+                                                } elseif ($representativeName) {
+                                                    $customerNameDisplay = $representativeName;
+                                                }
+                                            }
+                                        }
+                                    @endphp
+                                    {{ $customerNameDisplay }}
                                 </p>
                             </div>
                             @if ($warranty->customer_phone)

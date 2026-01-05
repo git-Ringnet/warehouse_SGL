@@ -108,21 +108,56 @@
                                         <div>
                                             <p class="text-sm text-gray-500">Tên khách hàng</p>
                                             <p class="text-gray-900">
-                                                @if($warranty->dispatch && $warranty->dispatch->project && $warranty->dispatch->project->customer)
-                                                    @php
-                                                        $customer = $warranty->dispatch->project->customer;
-                                                        $companyName = $customer->company_name;
-                                                        $representativeName = $customer->name;
-                                                    @endphp
-                                                    {{ $companyName }} ({{ $representativeName }})
-                                                @else
-                                                    {{ $warranty->customer_name ?: 'N/A' }}
-                                                @endif
+                                                @php
+                                                    $customerNameDisplay = $warranty->customer_name ?: 'N/A';
+                                                    if ($warranty->dispatch) {
+                                                        if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental) {
+                                                            // Lấy tên khách hàng từ rental->customer relationship
+                                                            $rental = $warranty->dispatch->rental;
+                                                            if ($rental->customer) {
+                                                                $customer = $rental->customer;
+                                                                $companyName = $customer->company_name ?? '';
+                                                                $representativeName = $customer->name ?? '';
+                                                                if ($companyName && $representativeName) {
+                                                                    $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                                } elseif ($companyName) {
+                                                                    $customerNameDisplay = $companyName;
+                                                                } elseif ($representativeName) {
+                                                                    $customerNameDisplay = $representativeName;
+                                                                }
+                                                            }
+                                                        } elseif ($warranty->dispatch->project && $warranty->dispatch->project->customer) {
+                                                            $customer = $warranty->dispatch->project->customer;
+                                                            $companyName = $customer->company_name ?? '';
+                                                            $representativeName = $customer->name ?? '';
+                                                            if ($companyName && $representativeName) {
+                                                                $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                            } elseif ($companyName) {
+                                                                $customerNameDisplay = $companyName;
+                                                            } elseif ($representativeName) {
+                                                                $customerNameDisplay = $representativeName;
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+                                                {{ $customerNameDisplay }}
                                             </p>
                                         </div>
                                         <div>
                                             <p class="text-sm text-gray-500">Dự án</p>
-                                            <p class="text-gray-900">{{ $warranty->project_name ?: 'N/A' }}</p>
+                                            <p class="text-gray-900">
+                                                @php
+                                                    $projectNameDisplay = $warranty->project_name ?: 'N/A';
+                                                    if ($warranty->dispatch) {
+                                                        if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental) {
+                                                            $projectNameDisplay = $warranty->dispatch->rental->rental_name ?? $projectNameDisplay;
+                                                        } elseif ($warranty->dispatch->project) {
+                                                            $projectNameDisplay = $warranty->dispatch->project->project_name ?? $projectNameDisplay;
+                                                        }
+                                                    }
+                                                @endphp
+                                                {{ $projectNameDisplay }}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -181,8 +216,70 @@
                         </div>
                     </div>
 
-                    @if($warranty->warrantyProducts && count($warranty->warrantyProducts) > 0)
+                    @php
+                        // Lấy danh sách thiết bị từ dispatch items đã eager load
+                        // Thay vì dùng warrantyProducts accessor có thể không lọc đúng
+                        $warrantyDevices = collect();
+                        if ($warranty->dispatch && $warranty->dispatch->relationLoaded('items')) {
+                            $warrantyDevices = $warranty->dispatch->items
+                                ->filter(fn($item) => in_array($item->item_type, ['product', 'good']))
+                                ->map(function ($item) {
+                                    $details = $item->item_type === 'product' ? $item->product : $item->good;
+                                    $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
+                                    return [
+                                        'product_code' => $details->code ?? 'N/A',
+                                        'product_name' => $details->name ?? 'N/A',
+                                        'quantity' => $item->quantity,
+                                        'serial_numbers_text' => !empty($serials) ? implode(', ', $serials) : 'Chưa có',
+                                    ];
+                                });
+                        }
+                    @endphp
+                    @if($warrantyDevices->count() > 0)
                         <!-- Products Information -->
+                        <div class="bg-white rounded-lg shadow-lg mb-6 overflow-hidden">
+                            <div class="px-6 py-4 bg-purple-600">
+                                <h2 class="text-lg font-semibold text-white">Danh sách thiết bị trong bảo hành</h2>
+                            </div>
+                            <div class="p-6">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Mã thiết bị
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Tên thiết bị
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Số lượng
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Serial Numbers
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            @foreach($warrantyDevices as $device)
+                                                <tr>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $device['product_code'] }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $device['product_name'] }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $device['quantity'] }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $device['serial_numbers_text'] }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($warranty->warrantyProducts && count($warranty->warrantyProducts) > 0)
+                        <!-- Fallback: Products Information từ accessor -->
                         <div class="bg-white rounded-lg shadow-lg mb-6 overflow-hidden">
                             <div class="px-6 py-4 bg-purple-600">
                                 <h2 class="text-lg font-semibold text-white">Danh sách thiết bị trong bảo hành</h2>

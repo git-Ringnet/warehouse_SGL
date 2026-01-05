@@ -346,14 +346,68 @@ class RepairController extends Controller
                 $warrantyEndTime = $warranty->warranty_end_date->format('Y-m-d');
             }
 
-            // Format project_name: "PRJ-CODE - Project Name (Customer Name)"
+            // Format project_name: Lấy thông tin chính xác từ relationship
             $projectNameFormatted = $warranty->project_name;
-            if ($warranty->dispatch && $warranty->dispatch->project) {
-                $project = $warranty->dispatch->project;
-                $customerName = $warranty->customer_name ?? '';
-                $projectNameFormatted = $project->project_code . ' - ' . $project->project_name;
-                if ($customerName) {
-                    $projectNameFormatted .= ' (' . $customerName . ')';
+            $customerNameFormatted = $warranty->customer_name;
+
+            if ($warranty->dispatch) {
+                // Load thêm relationship nếu chưa có
+                if (!$warranty->dispatch->relationLoaded('rental')) {
+                    $warranty->dispatch->load('rental');
+                }
+                if (!$warranty->dispatch->relationLoaded('project')) {
+                    $warranty->dispatch->load('project.customer');
+                }
+
+                if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental) {
+                    // Cho phiếu thuê: lấy từ rental
+                    $rental = $warranty->dispatch->rental;
+                    $projectNameFormatted = $rental->rental_code . ' - ' . ($rental->rental_name ?? 'Cho thuê');
+
+                    // Load customer relationship nếu chưa có
+                    if (!$rental->relationLoaded('customer')) {
+                        $rental->load('customer');
+                    }
+
+                    // Lấy tên khách hàng từ customer relationship
+                    if ($rental->customer) {
+                        $customer = $rental->customer;
+                        $companyName = $customer->company_name ?? '';
+                        $representativeName = $customer->name ?? '';
+                        if ($companyName && $representativeName) {
+                            $customerNameFormatted = $companyName . ' (' . $representativeName . ')';
+                        } elseif ($companyName) {
+                            $customerNameFormatted = $companyName;
+                        } elseif ($representativeName) {
+                            $customerNameFormatted = $representativeName;
+                        }
+                    }
+
+                    if ($customerNameFormatted) {
+                        $projectNameFormatted .= ' (' . $customerNameFormatted . ')';
+                    }
+                } elseif ($warranty->dispatch->project) {
+                    // Cho phiếu dự án: lấy từ project và customer
+                    $project = $warranty->dispatch->project;
+                    $projectNameFormatted = $project->project_code . ' - ' . $project->project_name;
+
+                    // Lấy tên khách hàng từ customer
+                    if ($project->customer) {
+                        $customer = $project->customer;
+                        $companyName = $customer->company_name ?? '';
+                        $representativeName = $customer->name ?? '';
+                        if ($companyName && $representativeName) {
+                            $customerNameFormatted = $companyName . ' (' . $representativeName . ')';
+                        } elseif ($companyName) {
+                            $customerNameFormatted = $companyName;
+                        } elseif ($representativeName) {
+                            $customerNameFormatted = $representativeName;
+                        }
+                    }
+
+                    if ($customerNameFormatted) {
+                        $projectNameFormatted .= ' (' . $customerNameFormatted . ')';
+                    }
                 }
             }
 

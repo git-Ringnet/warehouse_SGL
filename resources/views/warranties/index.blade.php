@@ -36,7 +36,7 @@
                     </button>
                 </form>
             </div>
-        </header>   
+        </header>
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
@@ -81,16 +81,37 @@
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
                                         <div>
-                                            @if($warranty->dispatch && $warranty->dispatch->project && $warranty->dispatch->project->customer)
-                                                @php
-                                                    $customer = $warranty->dispatch->project->customer;
-                                                    $companyName = $customer->company_name;
-                                                    $representativeName = $customer->name;
-                                                @endphp
-                                                {{ $companyName }} ({{ $representativeName }})
-                                            @else
-                                                {{ $warranty->customer_name ?: 'N/A' }}
-                                            @endif
+                                            @php
+                                                $customerNameDisplay = $warranty->customer_name ?: 'N/A';
+                                                if ($warranty->dispatch) {
+                                                    if ($warranty->dispatch->dispatch_type === 'rental' && $warranty->dispatch->rental && $warranty->dispatch->rental->customer) {
+                                                        // Cho phiếu thuê: lấy từ rental->customer
+                                                        $customer = $warranty->dispatch->rental->customer;
+                                                        $companyName = $customer->company_name ?? '';
+                                                        $representativeName = $customer->name ?? '';
+                                                        if ($companyName && $representativeName) {
+                                                            $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                        } elseif ($companyName) {
+                                                            $customerNameDisplay = $companyName;
+                                                        } elseif ($representativeName) {
+                                                            $customerNameDisplay = $representativeName;
+                                                        }
+                                                    } elseif ($warranty->dispatch->project && $warranty->dispatch->project->customer) {
+                                                        // Cho phiếu dự án: lấy từ project->customer
+                                                        $customer = $warranty->dispatch->project->customer;
+                                                        $companyName = $customer->company_name ?? '';
+                                                        $representativeName = $customer->name ?? '';
+                                                        if ($companyName && $representativeName) {
+                                                            $customerNameDisplay = $companyName . ' (' . $representativeName . ')';
+                                                        } elseif ($companyName) {
+                                                            $customerNameDisplay = $companyName;
+                                                        } elseif ($representativeName) {
+                                                            $customerNameDisplay = $representativeName;
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
+                                            {{ $customerNameDisplay }}
                                         </div>
                                     </div>
                                 </td>
@@ -245,16 +266,16 @@
         async function downloadQR() {
             const img = document.querySelector('#qr-code-container img');
             const warrantyCodeElement = document.getElementById('warranty-code-text');
-            
+
             if (img && warrantyCodeElement) {
                 try {
                     // Get warranty code from text
                     const warrantyCode = warrantyCodeElement.textContent.replace('Mã bảo hành: ', '');
-                    
+
                     // Fetch QR image directly from API
                     const response = await fetch(img.src);
                     const blob = await response.blob();
-                    
+
                     // Create download link
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -336,7 +357,7 @@
 
 
         // Close modal when clicking outside
-        document.getElementById('qr-modal').addEventListener('click', function(e) {
+        document.getElementById('qr-modal').addEventListener('click', function (e) {
             if (e.target === this) {
                 closeQrModal();
             }
