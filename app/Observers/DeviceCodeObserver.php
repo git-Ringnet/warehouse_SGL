@@ -95,6 +95,9 @@ class DeviceCodeObserver
             // 2. Cập nhật RepairItem
             $this->updateRepairItems($deviceCode, $oldSerial, $newSerial);
 
+            // 3. Cập nhật Warranty
+            $this->updateWarranties($deviceCode, $oldSerial, $newSerial);
+
             // KHÔNG cập nhật DispatchItem.serial_numbers để giữ nguyên serial gốc đã xuất
             // Việc lấy serial mới sẽ được xử lý qua DeviceCode khi cần
 
@@ -163,6 +166,27 @@ class DeviceCodeObserver
                     'new_serial' => $newSerial,
                 ]);
             }
+        }
+    }
+
+    /**
+     * Cập nhật serial trong Warranty
+     */
+    private function updateWarranties(DeviceCode $deviceCode, string $oldSerial, string $newSerial)
+    {
+        // Tìm các Warranty có serial_number khớp với old_serial
+        // và thuộc về cùng item_id và item_type
+        $updated = \App\Models\Warranty::where('serial_number', $oldSerial)
+            ->where('item_id', $deviceCode->product_id)
+            ->where('item_type', $deviceCode->item_type ?: 'product')
+            ->update(['serial_number' => $newSerial]);
+
+        if ($updated > 0) {
+            Log::info('DeviceCodeObserver: Updated Warranty', [
+                'count' => $updated,
+                'old_serial' => $oldSerial,
+                'new_serial' => $newSerial,
+            ]);
         }
     }
 

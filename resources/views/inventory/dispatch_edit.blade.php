@@ -53,7 +53,8 @@
             <form action="{{ route('inventory.dispatch.update', $dispatch->id) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <input type="hidden" id="project_receiver_canonical" name="project_receiver" value="{{ $dispatch->project_receiver }}">
+                <input type="hidden" id="project_receiver_canonical" name="project_receiver"
+                    value="{{ $dispatch->project_receiver }}">
 
                 <!-- Thông báo trạng thái phiếu -->
                 <div
@@ -120,8 +121,8 @@
                                     án</option>
                                 <option value="rental" {{ $dispatch->dispatch_type == 'rental' ? 'selected' : '' }}>Cho
                                     thuê</option>
-                                <option value="warranty"
-                                    {{ $dispatch->dispatch_type == 'warranty' ? 'selected' : '' }}>Bảo hành</option>
+                                <option value="warranty" {{ $dispatch->dispatch_type == 'warranty' ? 'selected' : '' }}>
+                                    Bảo hành</option>
                             </select>
                             @if ($dispatch->status !== 'pending')
                                 <input type="hidden" name="dispatch_type" value="{{ $dispatch->dispatch_type }}">
@@ -135,8 +136,8 @@
                                 {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="all" {{ $dispatch->dispatch_detail == 'all' ? 'selected' : '' }}>Tất
                                     cả</option>
-                                <option value="contract"
-                                    {{ $dispatch->dispatch_detail == 'contract' ? 'selected' : '' }}>Xuất theo hợp đồng
+                                <option value="contract" {{ $dispatch->dispatch_detail == 'contract' ? 'selected' : '' }}>
+                                    Xuất theo hợp đồng
                                 </option>
                                 <option value="backup" {{ $dispatch->dispatch_detail == 'backup' ? 'selected' : '' }}>
                                     Xuất thiết bị dự phòng</option>
@@ -152,73 +153,117 @@
                         <div id="project_section">
                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
                             <div class="relative">
-                                <input type="text" id="project_receiver_search" placeholder="Tìm kiếm dự án..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type === 'project' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
-                                <div id="project_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                <input type="text" id="project_receiver_search" placeholder="Tìm kiếm dự án..."
+                                    class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    value="{{ $dispatch->dispatch_type === 'project' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}"
+                                    {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="project_receiver_dropdown"
+                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
-                                            <div class="project-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})" data-project-id="{{ $project->id }}" data-warranty-period="{{ $project->warranty_period }}">
-                                                {{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})
+                                            <div class="project-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
+                                                data-project-id="{{ $project->id }}"
+                                                data-warranty-period="{{ $project->warranty_period }}">
+                                                {{ $project->project_code }} - {{ $project->project_name }}
+                                                ({{ $project->customer->name ?? 'N/A' }})
                                             </div>
                                         @endforeach
                                     @endif
                                 </div>
-                                <input type="hidden" id="project_receiver" name="project_receiver" value="{{ $dispatch->project_receiver }}">
-                                <input type="hidden" id="project_id" name="project_id" value="{{ $dispatch->project_id }}">
+                                <input type="hidden" id="project_receiver" name="project_receiver"
+                                    value="{{ $dispatch->project_receiver }}">
+                                <input type="hidden" id="project_id" name="project_id"
+                                    value="{{ $dispatch->project_id }}">
                             </div>
                         </div>
 
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho
+                                thuê</label>
                             <div class="relative">
-                                <input type="text" id="rental_receiver_search" placeholder="Tìm kiếm hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='rental' && $dispatch->rental ? $dispatch->rental->rental_code . ' - ' . $dispatch->rental->rental_name . ' (' . ($dispatch->rental->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
-                                <div id="rental_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                <input type="text" id="rental_receiver_search"
+                                    placeholder="Tìm kiếm hợp đồng cho thuê..."
+                                    class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    value="{{ $dispatch->dispatch_type === 'rental' && $dispatch->rental ? $dispatch->rental->rental_code . ' - ' . $dispatch->rental->rental_name . ' (' . ($dispatch->rental->customer->name ?? 'N/A') . ')' : '' }}"
+                                    {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="rental_receiver_dropdown"
+                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($rentals))
                                         @foreach ($rentals as $rental)
-                                            <div class="rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})" data-rental-id="{{ $rental->id }}">
-                                                {{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})
+                                            <div class="rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})"
+                                                data-rental-id="{{ $rental->id }}">
+                                                {{ $rental->rental_code }} - {{ $rental->rental_name }}
+                                                ({{ $rental->customer->name ?? 'N/A' }})
                                             </div>
                                         @endforeach
                                     @endif
                                 </div>
-                                <input type="hidden" id="rental_receiver" name="rental_receiver" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}">
-                                <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}">
+                                <input type="hidden" id="rental_receiver" name="rental_receiver"
+                                    value="{{ $dispatch->dispatch_type === 'rental' ? $dispatch->project_receiver : '' }}">
+                                <input type="hidden" name="project_receiver" id="rental_project_receiver"
+                                    value="{{ $dispatch->dispatch_type === 'rental' ? $dispatch->project_receiver : '' }}">
                             </div>
                         </div>
 
                         <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
                         <div id="warranty_section" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho
+                                thuê</label>
                             <div class="relative">
-                                <input type="text" id="warranty_receiver_search" placeholder="Tìm kiếm dự án / hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='warranty' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
-                                <div id="warranty_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                <input type="text" id="warranty_receiver_search"
+                                    placeholder="Tìm kiếm dự án / hợp đồng cho thuê..."
+                                    class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    value="{{ $dispatch->dispatch_type === 'warranty' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}"
+                                    {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="warranty_receiver_dropdown"
+                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
-                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})" data-type="project" data-project-id="{{ $project->id }}">{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})</div>
+                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
+                                                data-type="project" data-project-id="{{ $project->id }}">
+                                                {{ $project->project_code }} - {{ $project->project_name }}
+                                                ({{ $project->customer->name ?? 'N/A' }})
+                                            </div>
                                         @endforeach
                                     @endif
                                     @if (isset($rentals))
                                         @foreach ($rentals as $rental)
-                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})" data-type="rental" data-rental-id="{{ $rental->id }}">{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})</div>
+                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})"
+                                                data-type="rental" data-rental-id="{{ $rental->id }}">{{ $rental->rental_code }}
+                                                - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})</div>
                                         @endforeach
                                     @endif
                                 </div>
-                                <input type="hidden" id="warranty_receiver" name="project_receiver" value="{{ $dispatch->project_receiver }}">
+                                <input type="hidden" id="warranty_receiver" name="project_receiver"
+                                    value="{{ $dispatch->project_receiver }}">
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
                             <div class="relative">
-                                <input type="text" id="company_representative_search" autocomplete="off" placeholder="Tìm kiếm người đại diện..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ optional($employees->firstWhere('id', $dispatch->company_representative_id))->name }}">
-                                <div id="company_representative_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
-                                @if (isset($employees))
-                                    @foreach ($employees as $employee)
-                                        <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="{{ $employee->id }}" data-text="{{ $employee->name }}">{{ $employee->name }}</div>
-                                    @endforeach
-                                @endif
+                                <input type="text" id="company_representative_search" autocomplete="off"
+                                    placeholder="Tìm kiếm người đại diện..."
+                                    class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    value="{{ optional($employees->firstWhere('id', $dispatch->company_representative_id))->name }}">
+                                <div id="company_representative_dropdown"
+                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    @if (isset($employees))
+                                        @foreach ($employees as $employee)
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                data-value="{{ $employee->id }}" data-text="{{ $employee->name }}">
+                                                {{ $employee->name }}
+                                            </div>
+                                        @endforeach
+                                    @endif
                                 </div>
-                                <input type="hidden" id="company_representative" name="company_representative_id" value="{{ $dispatch->company_representative_id }}">
+                                <input type="hidden" id="company_representative" name="company_representative_id"
+                                    value="{{ $dispatch->company_representative_id }}">
                             </div>
                         </div>
                         <div class="md:col-span-2">
@@ -278,89 +323,80 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach ($contractItems as $index => $item)
-                                        <tr>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-900">
-                                                {{ $item->item_code }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $item->item_name }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                {{ $item->item_type == 'product'
-                                                    ? 'bg-blue-100 text-blue-800'
-                                                    : ($item->item_type == 'material'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800') }}">
-                                                    {{ $item->item_type_label }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->item_unit }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->warehouse->name ?? 'N/A' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                @if ($dispatch->status === 'pending')
-                                                    <input type="number"
-                                                        name="contract_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}" min="1"
-                                                        class="w-20 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                @else
-                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
-                                                    <input type="hidden"
-                                                        name="contract_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}">
-                                                @endif
-                                                <input type="hidden"
-                                                    name="contract_items[{{ $item->id }}][item_type]"
-                                                    value="{{ $item->item_type }}">
-                                                <input type="hidden"
-                                                    name="contract_items[{{ $item->id }}][item_id]"
-                                                    value="{{ $item->item_id }}">
-                                                <input type="hidden"
-                                                    name="contract_items[{{ $item->id }}][warehouse_id]"
-                                                    value="{{ $item->warehouse_id }}">
-                                                <input type="hidden"
-                                                    name="contract_items[{{ $item->id }}][category]"
-                                                    value="{{ $item->category }}">
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex flex-col space-y-1">
-                                                    @php
-                                                        $serialNumbers = is_array($item->serial_numbers)
-                                                            ? $item->serial_numbers
-                                                            : [];
-                                                        $quantity = $item->quantity;
-                                                    @endphp
-                                                    @for ($i = 0; $i < $quantity; $i++)
-                                                        <input type="text"
-                                                            name="contract_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
-                                                            placeholder="Serial {{ $i + 1 }}"
-                                                            value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
-                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
-                                                            data-item-id="{{ $item->id }}"
-                                                            data-serial-index="{{ $i }}">
-                                                    @endfor
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                @if ($dispatch->status === 'pending')
-                                                    <button type="button"
-                                                        class="text-red-600 hover:text-red-900 remove-contract-item-btn"
-                                                        data-item-id="{{ $item->id }}">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                @else
-                                                    <span class="text-gray-400">
-                                                        <i class="fas fa-lock"></i>
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
+                                                            <tr>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-900">
+                                                                    {{ $item->item_code }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {{ $item->item_name }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        {{ $item->item_type == 'prod                            uct'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : ($item->item_type == 'material'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800') }}">
+                                                                        {{ $item->item_type_label }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->item_unit }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->warehouse->name ?? 'N/A' }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <input type="number" name="contract_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}" min="1"
+                                                                            class="w-20 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                    @else
+                                                                        <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                                        <input type="hidden" name="contract_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}">
+                                                                    @endif
+                                                                    <input type="hidden" name="contract_items[{{ $item->id }}][item_type]"
+                                                                        value="{{ $item->item_type }}">
+                                                                    <input type="hidden" name="contract_items[{{ $item->id }}][item_id]"
+                                                                        value="{{ $item->item_id }}">
+                                                                    <input type="hidden" name="contract_items[{{ $item->id }}][warehouse_id]"
+                                                                        value="{{ $item->warehouse_id }}">
+                                                                    <input type="hidden" name="contract_items[{{ $item->id }}][category]"
+                                                                        value="{{ $item->category }}">
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <div class="flex flex-col space-y-1">
+                                                                        @php
+                                                                            $serialNumbers = is_array($item->serial_numbers)
+                                                                                ? $item->serial_numbers
+                                                                                : [];
+                                                                            $quantity = $item->quantity;
+                                                                        @endphp
+                                                                        @for ($i = 0; $i < $quantity; $i++)
+                                                                            <input type="text"
+                                                                                name="contract_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                                                placeholder="Serial {{ $i + 1 }}" value="{{ $serialNumbers[$i] ?? '' }}"
+                                                                                class="w-32 border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                                                {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }} data-item-id="{{ $item->id }}"
+                                                                                data-serial-index="{{ $i }}">
+                                                                        @endfor
+                                                                    </div>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <button type="button"
+                                                                            class="text-red-600 hover:text-red-900 remove-contract-item-btn"
+                                                                            data-item-id="{{ $item->id }}">
+                                                                            <i class="fas fa-trash"></i>
+                                                                        </button>
+                                                                    @else
+                                                                        <span class="text-gray-400">
+                                                                            <i class="fas fa-lock"></i>
+                                                                        </span>
+                                                                    @endif
+                                                                </td>
+                                                            </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -408,90 +444,80 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach ($backupItems as $index => $item)
-                                        <tr>
-                                            <td
-                                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-900">
-                                                {{ $item->item_code }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $item->item_name }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                {{ $item->item_type == 'product'
-                                                    ? 'bg-blue-100 text-blue-800'
-                                                    : ($item->item_type == 'material'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800') }}">
-                                                    {{ $item->item_type_label }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->item_unit }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->warehouse->name ?? 'N/A' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                @if ($dispatch->status === 'pending')
-                                                    <input type="number"
-                                                        name="backup_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}" min="1"
-                                                        class="w-20 border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                @else
-                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
-                                                    <input type="hidden"
-                                                        name="backup_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}">
-                                                @endif
-                                                <input type="hidden"
-                                                    name="backup_items[{{ $item->id }}][item_type]"
-                                                    value="{{ $item->item_type }}">
-                                                <input type="hidden"
-                                                    name="backup_items[{{ $item->id }}][item_id]"
-                                                    value="{{ $item->item_id }}">
-                                                <input type="hidden"
-                                                    name="backup_items[{{ $item->id }}][warehouse_id]"
-                                                    value="{{ $item->warehouse_id }}">
-                                                <input type="hidden"
-                                                    name="backup_items[{{ $item->id }}][category]"
-                                                    value="{{ $item->category }}">
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex flex-col space-y-1">
-                                                    @php
-                                                        $serialNumbers = is_array($item->serial_numbers)
-                                                            ? $item->serial_numbers
-                                                            : [];
-                                                        $quantity = $item->quantity;
-                                                    @endphp
-                                                    @for ($i = 0; $i < $quantity; $i++)
-                                                        <input type="text"
-                                                            name="backup_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
-                                                            placeholder="Serial {{ $i + 1 }}"
-                                                            value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-orange-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
-                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
-                                                            data-item-id="{{ $item->id }}"
-                                                            data-serial-index="{{ $i }}">
-                                                    @endfor
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                @if ($dispatch->status === 'pending')
-                                                    <button type="button"
-                                                        class="text-red-600 hover:text-red-900 remove-backup-item-btn"
-                                                        data-item-id="{{ $item->id }}">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                @else
-                                                    <span class="text-gray-400">
-                                                        <i class="fas fa-lock"></i>
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
+                                                            <tr>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-900">
+                                                                    {{ $item->item_code }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {{ $item->item_name }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        {{ $item->item_type == 'prod                            uct'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : ($item->item_type == 'material'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800') }}">
+                                                                        {{ $item->item_type_label }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->item_unit }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->warehouse->name ?? 'N/A' }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <input type="number" name="backup_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}" min="1"
+                                                                            class="w-20 border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                                    @else
+                                                                        <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                                        <input type="hidden" name="backup_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}">
+                                                                    @endif
+                                                                    <input type="hidden" name="backup_items[{{ $item->id }}][item_type]"
+                                                                        value="{{ $item->item_type }}">
+                                                                    <input type="hidden" name="backup_items[{{ $item->id }}][item_id]"
+                                                                        value="{{ $item->item_id }}">
+                                                                    <input type="hidden" name="backup_items[{{ $item->id }}][warehouse_id]"
+                                                                        value="{{ $item->warehouse_id }}">
+                                                                    <input type="hidden" name="backup_items[{{ $item->id }}][category]"
+                                                                        value="{{ $item->category }}">
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <div class="flex flex-col space-y-1">
+                                                                        @php
+                                                                            $serialNumbers = is_array($item->serial_numbers)
+                                                                                ? $item->serial_numbers
+                                                                                : [];
+                                                                            $quantity = $item->quantity;
+                                                                        @endphp
+                                                                        @for ($i = 0; $i < $quantity; $i++)
+                                                                            <input type="text"
+                                                                                name="backup_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                                                placeholder="Serial {{ $i + 1 }}" value="{{ $serialNumbers[$i] ?? '' }}"
+                                                                                class="w-32 border border-orange-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                                                {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }} data-item-id="{{ $item->id }}"
+                                                                                data-serial-index="{{ $i }}">
+                                                                        @endfor
+                                                                    </div>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <button type="button"
+                                                                            class="text-red-600 hover:text-red-900 remove-backup-item-btn"
+                                                                            data-item-id="{{ $item->id }}">
+                                                                            <i class="fas fa-trash"></i>
+                                                                        </button>
+                                                                    @else
+                                                                        <span class="text-gray-400">
+                                                                            <i class="fas fa-lock"></i>
+                                                                        </span>
+                                                                    @endif
+                                                                </td>
+                                                            </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -539,89 +565,80 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach ($generalItems as $index => $item)
-                                        <tr>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {{ $item->item_code }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $item->item_name }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                {{ $item->item_type == 'product'
-                                                    ? 'bg-blue-100 text-blue-800'
-                                                    : ($item->item_type == 'material'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800') }}">
-                                                    {{ $item->item_type_label }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->item_unit }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $item->warehouse->name ?? 'N/A' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                @if ($dispatch->status === 'pending')
-                                                    <input type="number"
-                                                        name="general_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}" min="1"
-                                                        class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                @else
-                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
-                                                    <input type="hidden"
-                                                        name="general_items[{{ $item->id }}][quantity]"
-                                                        value="{{ $item->quantity }}">
-                                                @endif
-                                                <input type="hidden"
-                                                    name="general_items[{{ $item->id }}][item_type]"
-                                                    value="{{ $item->item_type }}">
-                                                <input type="hidden"
-                                                    name="general_items[{{ $item->id }}][item_id]"
-                                                    value="{{ $item->item_id }}">
-                                                <input type="hidden"
-                                                    name="general_items[{{ $item->id }}][warehouse_id]"
-                                                    value="{{ $item->warehouse_id }}">
-                                                <input type="hidden"
-                                                    name="general_items[{{ $item->id }}][category]"
-                                                    value="{{ $item->category }}">
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex flex-col space-y-1">
-                                                    @php
-                                                        $serialNumbers = is_array($item->serial_numbers)
-                                                            ? $item->serial_numbers
-                                                            : [];
-                                                        $quantity = $item->quantity;
-                                                    @endphp
-                                                    @for ($i = 0; $i < $quantity; $i++)
-                                                        <input type="text"
-                                                            name="general_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
-                                                            placeholder="Serial {{ $i + 1 }}"
-                                                            value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
-                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
-                                                            data-item-id="{{ $item->id }}"
-                                                            data-serial-index="{{ $i }}">
-                                                    @endfor
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                @if ($dispatch->status === 'pending')
-                                                    <button type="button"
-                                                        class="text-red-600 hover:text-red-900 remove-general-item-btn"
-                                                        data-item-id="{{ $item->id }}">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                @else
-                                                    <span class="text-gray-400">
-                                                        <i class="fas fa-lock"></i>
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
+                                                            <tr>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                                    {{ $item->item_code }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {{ $item->item_name }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        {{ $item->item_type == 'prod                            uct'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : ($item->item_type == 'material'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800') }}">
+                                                                        {{ $item->item_type_label }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->item_unit }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                    {{ $item->warehouse->name ?? 'N/A' }}
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <input type="number" name="general_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}" min="1"
+                                                                            class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                    @else
+                                                                        <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                                        <input type="hidden" name="general_items[{{ $item->id }}][quantity]"
+                                                                            value="{{ $item->quantity }}">
+                                                                    @endif
+                                                                    <input type="hidden" name="general_items[{{ $item->id }}][item_type]"
+                                                                        value="{{ $item->item_type }}">
+                                                                    <input type="hidden" name="general_items[{{ $item->id }}][item_id]"
+                                                                        value="{{ $item->item_id }}">
+                                                                    <input type="hidden" name="general_items[{{ $item->id }}][warehouse_id]"
+                                                                        value="{{ $item->warehouse_id }}">
+                                                                    <input type="hidden" name="general_items[{{ $item->id }}][category]"
+                                                                        value="{{ $item->category }}">
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                                    <div class="flex flex-col space-y-1">
+                                                                        @php
+                                                                            $serialNumbers = is_array($item->serial_numbers)
+                                                                                ? $item->serial_numbers
+                                                                                : [];
+                                                                            $quantity = $item->quantity;
+                                                                        @endphp
+                                                                        @for ($i = 0; $i < $quantity; $i++)
+                                                                            <input type="text"
+                                                                                name="general_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                                                placeholder="Serial {{ $i + 1 }}" value="{{ $serialNumbers[$i] ?? '' }}"
+                                                                                class="w-32 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                                                {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }} data-item-id="{{ $item->id }}"
+                                                                                data-serial-index="{{ $i }}">
+                                                                        @endfor
+                                                                    </div>
+                                                                </td>
+                                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                                    @if ($dispatch->status === 'pending')
+                                                                        <button type="button"
+                                                                            class="text-red-600 hover:text-red-900 remove-general-item-btn"
+                                                                            data-item-id="{{ $item->id }}">
+                                                                            <i class="fas fa-trash"></i>
+                                                                        </button>
+                                                                    @else
+                                                                        <span class="text-gray-400">
+                                                                            <i class="fas fa-lock"></i>
+                                                                        </span>
+                                                                    @endif
+                                                                </td>
+                                                            </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -646,8 +663,12 @@
                                 <div class="flex gap-2">
                                     <div class="flex-1">
                                         <div class="relative">
-                                            <input type="text" autocomplete="off" id="contract_product_search" placeholder="Tìm kiếm thiết bị theo hợp đồng..." class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
-                                            <div id="contract_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            <input type="text" autocomplete="off" id="contract_product_search"
+                                                placeholder="Tìm kiếm thiết bị theo hợp đồng..."
+                                                class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
+                                            <div id="contract_product_dropdown"
+                                                class="absolute z-50 w-full mt-1 bg-white border border-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                            </div>
                                             <input type="hidden" id="contract_product_select">
                                         </div>
                                     </div>
@@ -696,10 +717,10 @@
 
                         <!-- Nút cập nhật mã thiết bị hợp đồng -->
                         <div class="mt-4 flex justify-end">
-                                <button type="button" id="update_contract_device_codes_btn"
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                                    <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                                </button>
+                            <button type="button" id="update_contract_device_codes_btn"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
                         </div>
                     </div>
 
@@ -717,8 +738,12 @@
                                 <div class="flex gap-2">
                                     <div class="flex-1">
                                         <div class="relative">
-                                            <input type="text" autocomplete="off" id="backup_product_search" placeholder="Tìm kiếm thiết bị dự phòng..." class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
-                                            <div id="backup_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-orange-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            <input type="text" autocomplete="off" id="backup_product_search"
+                                                placeholder="Tìm kiếm thiết bị dự phòng..."
+                                                class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
+                                            <div id="backup_product_dropdown"
+                                                class="absolute z-50 w-full mt-1 bg-white border border-orange-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                            </div>
                                             <input type="hidden" id="backup_product_select">
                                         </div>
                                     </div>
@@ -766,12 +791,12 @@
                         </div>
 
                         <!-- Nút cập nhật mã thiết bị dự phòng -->
-                            <div class="mt-4 flex justify-end">
-                                <button type="button" id="update_backup_device_codes_btn"
-                                    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
-                                    <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                                </button>
-                            </div>
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" id="update_backup_device_codes_btn"
+                                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
+                        </div>
                     </div>
                 @endif
 
@@ -815,9 +840,9 @@
                 <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng
                     bên dưới:</p>
 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto max-h-[28rem] overflow-y-auto">
                     <table class="min-w-full border border-gray-200">
-                        <thead class="bg-gray-50">
+                        <thead class="bg-gray-50 sticky top-0 z-10">
                             <tr>
                                 <th scope="col"
                                     class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
@@ -885,7 +910,7 @@
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             function activateProjectReceiver(source) {
                 const projectHidden = document.getElementById('project_receiver');
                 const rentalHidden = document.getElementById('rental_project_receiver');
@@ -903,7 +928,7 @@
             let availableItems = [];
 
             // Xử lý tải mẫu Excel từ modal
-            document.getElementById('download-template').addEventListener('click', function() {
+            document.getElementById('download-template').addEventListener('click', function () {
                 const tbody = document.getElementById('device-code-tbody');
                 const rows = tbody.querySelectorAll('tr[data-product-id]');
 
@@ -950,20 +975,21 @@
                         const labelElement = parentDiv ? parentDiv.querySelector('label.text-xs') : null;
                         const labelText = labelElement ? labelElement.textContent.trim() : '';
 
-                        let code = '';
                         let name = '';
                         if (labelText) {
-                            const match = labelText.match(/^([A-Z0-9-]+)\s*-\s*(.+)$/);
-                            if (match) {
-                                code = match[1].trim();
-                                name = match[2].trim();
+                            // Extract product code from "Code - Name" (separator is " - " with spaces)
+                            const productCodeMatch = productName.match(/^(.+?)\s+-\s+/);
+                            const productCode = productCodeMatch ? productCodeMatch[1].trim() : '';
+
+                            if (productCode) {
+                                name = `[${productCode}] ${labelText}`;
                             } else {
                                 name = labelText;
                             }
                         }
 
                         return {
-                            code,
+                            name,
                             label: labelText,
                             serial: serialValue,
                             placeholder,
@@ -988,12 +1014,7 @@
                         materials,
                     };
                 }).filter(Boolean)
-                .sort((a, b) => {
-                    if (a.product_id === b.product_id) {
-                        return (parseInt(a.product_row_index ?? 0, 10) - parseInt(b.product_row_index ?? 0, 10));
-                    }
-                    return (String(a.product_id)).localeCompare(String(b.product_id));
-                });
+                    .filter(Boolean);
 
                 console.log('Template data to send:', templateData);
                 console.log('Number of rows:', templateData.length);
@@ -1010,46 +1031,46 @@
                         modal_data: templateData
                     })
                 })
-                .then(async response => {
-                    if (!response.ok) {
-                        if (response.headers.get('content-type')?.includes('application/json')) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.message || 'Có lỗi xảy ra khi tải file');
+                    .then(async response => {
+                        if (!response.ok) {
+                            if (response.headers.get('content-type')?.includes('application/json')) {
+                                const errorData = await response.json();
+                                throw new Error(errorData.message || 'Có lỗi xảy ra khi tải file');
+                            }
+                            throw new Error('Có lỗi xảy ra khi tải file');
                         }
-                        throw new Error('Có lỗi xảy ra khi tải file');
-                    }
 
-                    // If it's a JSON response, it means there's an error
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Có lỗi xảy ra');
-                    }
+                        // If it's a JSON response, it means there's an error
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || 'Có lỗi xảy ra');
+                        }
 
-                    // Handle Excel file
-                    const blob = await response.blob();
-                    if (!(blob instanceof Blob) || blob.size === 0) {
-                        throw new Error('File không hợp lệ');
-                    }
+                        // Handle Excel file
+                        const blob = await response.blob();
+                        if (!(blob instanceof Blob) || blob.size === 0) {
+                            throw new Error('File không hợp lệ');
+                        }
 
-                    // Create a download link
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'template_device_codes.xlsx';
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // Cleanup
-                    setTimeout(() => {
-                        window.URL.revokeObjectURL(url);
-                        document.body.removeChild(a);
-                    }, 0);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert(error.message || 'Có lỗi khi tải file template');
-                });
+                        // Create a download link
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'template_device_codes.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+
+                        // Cleanup
+                        setTimeout(() => {
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                        }, 0);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert(error.message || 'Có lỗi khi tải file template');
+                    });
             });
             let selectedContractProducts = [];
             let selectedBackupProducts = [];
@@ -1062,7 +1083,7 @@
             handleDispatchDetailDisplay();
 
             // Force render after a delay to ensure everything is loaded
-            setTimeout(async function() {
+            setTimeout(async function () {
                 renderContractProductTable();
                 renderBackupProductTable();
                 handleDispatchDetailDisplay();
@@ -1072,7 +1093,7 @@
                 // Load device codes from database để cập nhật serial_main AFTER serials are filtered
                 // Thêm delay để đảm bảo dropdown đã render hoàn toàn
                 setTimeout(async () => {
-                await loadDeviceCodesOnPageLoad();
+                    await loadDeviceCodesOnPageLoad();
                     // Gọi lại updateMainInterfaceSerials sau khi load device codes để đảm bảo serial đổi tên được set
                     setTimeout(() => {
                         if (typeof updateMainInterfaceSerials === 'function') {
@@ -1086,7 +1107,7 @@
                 await resolveMissingAssemblyForAll();
 
                 // Initial validation and option availability update
-                setTimeout(function() {
+                setTimeout(function () {
                     updateSerialOptionsAvailability();
                     // Làm giàu lại số tồn hiển thị trong dropdown sau lần render đầu
                     if (typeof refreshWarehouseOptionStocks === 'function') {
@@ -1099,93 +1120,85 @@
                 loadAvailableItems();
             @endif
 
-            // Generic bind function for search dropdowns
-            function bindSearchDropdown({ searchEl, dropdownEl, optionClass, onSelect }) {
-                if (!searchEl || !dropdownEl) return;
-                searchEl.addEventListener('focus', () => {
-                    if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
-                });
-                searchEl.addEventListener('input', function() {
-                    const q = this.value.toLowerCase();
-                    dropdownEl.querySelectorAll('.' + optionClass).forEach(opt => {
-                        const base = opt.dataset.text || opt.textContent;
-                        const show = base.toLowerCase().includes(q);
-                        opt.style.display = show ? 'block' : 'none';
-                        if (show) opt.innerHTML = base.replace(new RegExp(q, 'gi'), m => `<mark class="bg-yellow-200">${m}</mark>`);
+                // Generic bind function for search dropdowns
+                function bindSearchDropdown({ searchEl, dropdownEl, optionClass, onSelect }) {
+                    if (!searchEl || !dropdownEl) return;
+                    searchEl.addEventListener('focus', () => {
+                        if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
                     });
-                    if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
-                });
-                dropdownEl.addEventListener('mousedown', function(e){
-                    e.stopPropagation();
-                    pick(e);
-                });
-                function pick(e) {
-                    const el = e.target.closest('.' + optionClass);
-                    if (!el) return;
-                    el.innerHTML = el.dataset.text || el.textContent;
-                    dropdownEl.classList.add('hidden');
-                    if (onSelect) onSelect(el);
+                    searchEl.addEventListener('input', function () {
+                        const q = this.value.toLowerCase();
+                        dropdownEl.querySelectorAll('.' + optionClass).forEach(opt => {
+                            const base = opt.dataset.text || opt.textContent;
+                            const show = base.toLowerCase().includes(q);
+                            opt.style.display = show ? 'block' : 'none';
+                            if (show) opt.innerHTML = base.replace(new RegExp(q, 'gi'), m => `<mark class="bg-yellow-200">${m}</mark>`);
+                        });
+                        if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
+                    });
+                    dropdownEl.addEventListener('mousedown', function (e) {
+                        e.stopPropagation();
+                        pick(e);
+                    });
+                    function pick(e) {
+                        const el = e.target.closest('.' + optionClass);
+                        if (!el) return;
+                        el.innerHTML = el.dataset.text || el.textContent;
+                        dropdownEl.classList.add('hidden');
+                        if (onSelect) onSelect(el);
+                    }
+                    dropdownEl.addEventListener('click', pick);
+                    searchEl.addEventListener('blur', () => setTimeout(() => dropdownEl.classList.add('hidden'), 150));
+                    document.addEventListener('mousedown', function (e) {
+                        if (!dropdownEl.contains(e.target) && e.target !== searchEl) dropdownEl.classList.add('hidden');
+                    });
                 }
-                dropdownEl.addEventListener('click', pick);
-                searchEl.addEventListener('blur', () => setTimeout(() => dropdownEl.classList.add('hidden'), 150));
-                document.addEventListener('mousedown', function(e) {
-                    if (!dropdownEl.contains(e.target) && e.target !== searchEl) dropdownEl.classList.add('hidden');
-                });
-            }
 
-            // Resolve assembly_id/product_unit for products lacking these fields or when serial changes
-            async function resolveMissingAssemblyForAll() {
-                try {
-                    const allProducts = [...selectedContractProducts, ...selectedBackupProducts];
-                    // Resolve cho tất cả product, không chỉ những cái chưa có assembly_id
-                    const targets = allProducts.filter(p => p.type === 'product');
-                    if (targets.length === 0) return;
+                // Resolve assembly_id/product_unit for products lacking these fields or when serial changes
+                async function resolveMissingAssemblyForAll() {
+                    try {
+                        const allProducts = [...selectedContractProducts, ...selectedBackupProducts];
+                        // Resolve cho tất cả product, không chỉ những cái chưa có assembly_id
+                        const targets = allProducts.filter(p => p.type === 'product');
+                        if (targets.length === 0) return;
 
-                    for (const p of targets) {
-                        // Lấy serial từ DOM thay vì từ object để đảm bảo lấy được serial đã chọn
-                        let serial = '';
-                        const serialSelects = document.querySelectorAll(`select[data-item-id="${p.id}"][data-item-type="product"]`);
-                        if (serialSelects.length > 0) {
-                            // Lấy serial đầu tiên đã được chọn
-                            for (const select of serialSelects) {
-                                if (select.value && select.value.trim() !== '') {
-                                    serial = select.value.trim();
-                                    break;
+                        for (const p of targets) {
+                            // Lấy serial từ DOM thay vì từ object để đảm bảo lấy được serial đã chọn
+                            let serial = '';
+                            const serialSelects = document.querySelectorAll(`select[data-item-id="${p.id}"][data-item-type="product"]`);
+                            if (serialSelects.length > 0) {
+                                // Lấy serial đầu tiên đã được chọn
+                                for (const select of serialSelects) {
+                                    if (select.value && select.value.trim() !== '') {
+                                        serial = select.value.trim();
+                                        break;
+                                    }
                                 }
+                            }
+
+                            const params = new URLSearchParams({
+                                product_id: String(p.id),
+                                serial: serial || ''
+                            });
+                            if (currentProjectId) params.set('project_id', String(currentProjectId));
+
+                            const res = await fetch(`/api/dispatch/resolve-assembly?${params.toString()}`);
+                            if (!res.ok) continue;
+                            const data = await res.json();
+
+                            if (data && data.success) {
+                                if (data.assembly_id) p.assembly_id = data.assembly_id;
+                                if (typeof data.product_unit !== 'undefined') p.product_unit = data.product_unit;
                             }
                         }
 
-                        const params = new URLSearchParams({
-                            product_id: String(p.id),
-                            serial: serial || ''
-                        });
-                        if (currentProjectId) params.set('project_id', String(currentProjectId));
-
-                        const res = await fetch(`/api/dispatch/resolve-assembly?${params.toString()}`);
-                        if (!res.ok) continue;
-                        const data = await res.json();
-                        
-                        console.log(`API response for product ${p.id} with serial "${serial}":`, data);
-                        
-                        if (data && data.success) {
-                            if (data.assembly_id) p.assembly_id = data.assembly_id;
-                            if (typeof data.product_unit !== 'undefined') p.product_unit = data.product_unit;
-                            
-                            console.log(`Resolved assembly for product ${p.id} with serial "${serial}":`, {
-                                assembly_id: data.assembly_id,
-                                product_unit: data.product_unit,
-                                updated_object: p
-                            });
-                        }
+                        // Re-render to reflect newly resolved fields if needed
+                        renderContractProductTable();
+                        renderBackupProductTable();
+                    } catch (e) {
+                        console.warn('resolveMissingAssemblyForAll error', e);
                     }
-
-                    // Re-render to reflect newly resolved fields if needed
-                    renderContractProductTable();
-                    renderBackupProductTable();
-                } catch (e) {
-                    console.warn('resolveMissingAssemblyForAll error', e);
                 }
-            }
 
             // Build options for contract/backup dropdowns from availableItems
             function buildProductOptionsHTML(filterCategory) {
@@ -1197,7 +1210,7 @@
                         text: `${it.code || ''} - ${it.name || ''}`.trim(),
                         type: it.type
                     }));
-                arr.sort((a,b)=> a.text.localeCompare(b.text,'vi',{sensitivity:'base'}));
+                arr.sort((a, b) => a.text.localeCompare(b.text, 'vi', { sensitivity: 'base' }));
                 return arr.map(it => `<div class="product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
             }
 
@@ -1236,16 +1249,16 @@
             }
 
             // Initialize project search
-            (function initProjectSearch(){
+            (function initProjectSearch() {
                 const search = document.getElementById('project_receiver_search');
                 const dropdown = document.getElementById('project_receiver_dropdown');
                 const hiddenText = document.getElementById('project_receiver');
                 const hiddenId = document.getElementById('project_id');
-                
-                
+
+
                 // Store initial value
                 const initialValue = search.value;
-                
+
                 bindSearchDropdown({
                     searchEl: search,
                     dropdownEl: dropdown,
@@ -1260,11 +1273,11 @@
                         activateProjectReceiver('project');
                     }
                 });
-                
+
                 // Preserve initial value if it exists
                 if (initialValue && initialValue.trim()) {
                     if (hiddenText) hiddenText.value = initialValue;
-                    
+
                     // Restore search value if it gets cleared
                     setTimeout(() => {
                         if (search.value !== initialValue) {
@@ -1274,7 +1287,7 @@
                 }
             })();
             // Initialize employee search (company representative)
-            (function initRepSearch(){
+            (function initRepSearch() {
                 const search = document.getElementById('company_representative_search');
                 const dropdown = document.getElementById('company_representative_dropdown');
                 const hidden = document.getElementById('company_representative');
@@ -1289,7 +1302,7 @@
                 });
             })();
             // Initialize warranty combined search (projects + rentals filled later)
-            (function initWarrantySearch(){
+            (function initWarrantySearch() {
                 const search = document.getElementById('warranty_receiver_search');
                 const dropdown = document.getElementById('warranty_receiver_dropdown');
                 const hidden = document.getElementById('warranty_receiver');
@@ -1309,7 +1322,7 @@
             })();
 
             // Initialize rental search (options populated via API)
-            (function initRentalSearch(){
+            (function initRentalSearch() {
                 const search = document.getElementById('rental_receiver_search');
                 const dropdown = document.getElementById('rental_receiver_dropdown');
                 const hidden = document.getElementById('rental_receiver');
@@ -1385,7 +1398,7 @@
             // Trước khi submit: đảm bảo field project_receiver đúng theo loại hình
             const formEl = document.querySelector('form');
             if (formEl) {
-                formEl.addEventListener('submit', function(e) {
+                formEl.addEventListener('submit', function (e) {
                     const type = document.getElementById('dispatch_type')?.value;
                     const pr = document.getElementById('project_receiver');
                     const prSearch = document.getElementById('project_receiver_search');
@@ -1483,7 +1496,7 @@
                         @elseif ($item->category === 'backup')
                             selectedBackupProducts.push(existingItem);
                         @endif
-                    }
+                                                                                                                                                                                                                }
                 @endforeach
 
                 // Load stock information for existing items
@@ -1492,7 +1505,7 @@
                 // Render selected product tables với items hiện tại
                 renderContractProductTable();
                 renderBackupProductTable();
-                
+
                 // Load device codes after rendering to override serials
                 setTimeout(() => {
                     loadDeviceCodesOnPageLoad();
@@ -1507,13 +1520,13 @@
 
                     if (data.success) {
                         const availableItems = data.items;
-                        
+
                         // Update stock information for existing items
                         selectedContractProducts.forEach(item => {
-                            const foundItem = availableItems.find(availableItem => 
+                            const foundItem = availableItems.find(availableItem =>
                                 availableItem.id == item.id && availableItem.type == item.type
                             );
-                            
+
                             if (foundItem) {
                                 item.warehouses = foundItem.warehouses;
                                 const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
@@ -1527,10 +1540,10 @@
                         });
 
                         selectedBackupProducts.forEach(item => {
-                            const foundItem = availableItems.find(availableItem => 
+                            const foundItem = availableItems.find(availableItem =>
                                 availableItem.id == item.id && availableItem.type == item.type
                             );
-                            
+
                             if (foundItem) {
                                 item.warehouses = foundItem.warehouses;
                                 const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
@@ -1598,7 +1611,7 @@
                         @elseif ($item->category === 'backup')
                             selectedBackupProducts.push(existingItem);
                         @endif
-                    }
+                                                                                                                                                                                                                }
                 @endforeach
 
                 // Load serial components from assembly for products
@@ -1653,7 +1666,7 @@
                 try {
                     // Kiểm tra trong availableItems trước
                     if (typeof availableItems !== 'undefined' && availableItems.length > 0) {
-                        const foundItem = availableItems.find(item => 
+                        const foundItem = availableItems.find(item =>
                             item.id == itemId && item.type == itemType
                         );
                         if (foundItem) {
@@ -1662,11 +1675,11 @@
                                 // Lấy thông tin serial từ API
                                 const response = await fetch(`/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}&current_dispatch_id={{ $dispatch->id }}`);
                                 const data = await response.json();
-                                
+
                                 if (data.success) {
                                     const serialStock = data.total_serials;
                                     const nonSerialStock = Math.max(0, warehouse.quantity - serialStock);
-                                    
+
                                     return {
                                         hasSerial: serialStock > 0,
                                         serialStock: serialStock,
@@ -1677,7 +1690,7 @@
                             }
                         }
                     }
-                    
+
                     // Fallback: chỉ trả về thông tin cơ bản
                     return {
                         hasSerial: false,
@@ -1770,7 +1783,7 @@
                                     option.textContent = option.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${details.totalStock})`);
                                 }
                             }
-                        } catch (_) {}
+                        } catch (_) { }
                     }
                 }
 
@@ -1793,7 +1806,7 @@
                                     option.textContent = option.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${details.totalStock})`);
                                 }
                             }
-                        } catch (_) {}
+                        } catch (_) { }
                     }
                 }
             }
@@ -1809,7 +1822,7 @@
                         if (rentalDropdown && data.rentals) {
                             // Clear existing options
                             rentalDropdown.innerHTML = '';
-                            
+
                             // Add rental options
                             data.rentals.forEach(rental => {
                                 const option = document.createElement('div');
@@ -1819,7 +1832,7 @@
                                 option.textContent = rental.display_name;
                                 rentalDropdown.appendChild(option);
                             });
-                            
+
                             // Auto-fill current rental on edit if applicable
                             const rentalSearch = document.getElementById('rental_receiver_search');
                             const rentalHidden = document.getElementById('rental_receiver');
@@ -1837,19 +1850,19 @@
                                 }
                             }
                         }
-                        
+
                         // Cập nhật dropdown bảo hành
                         const warrantyDropdown = document.getElementById('warranty_receiver_dropdown');
                         if (warrantyDropdown && data.rentals) {
                             // Giữ lại project options hiện có
                             const existingProjectOptions = warrantyDropdown.querySelectorAll('.warranty-option[data-type="project"]');
                             warrantyDropdown.innerHTML = '';
-                            
+
                             // Thêm lại project options
                             existingProjectOptions.forEach(option => {
                                 warrantyDropdown.appendChild(option.cloneNode(true));
                             });
-                            
+
                             // Thêm rental options
                             data.rentals.forEach(rental => {
                                 const option = document.createElement('div');
@@ -1876,7 +1889,7 @@
             const warrantyReceiverInput = document.getElementById('warranty_receiver');
 
             if (dispatchTypeSelect) {
-                dispatchTypeSelect.addEventListener('change', function() {
+                dispatchTypeSelect.addEventListener('change', function () {
                     const selectedType = this.value;
 
                     const projectSection = document.getElementById('project_section');
@@ -1897,16 +1910,16 @@
                     if (selectedType === 'rental') {
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
-                        
+
                         // Disable other receiver selects
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
                         if (warrantyReceiverInput) warrantyReceiverInput.disabled = true;
-                        
+
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
                         projectSection.classList.add('hidden');
                         warrantySection.classList.add('hidden');
-                        
+
                         // Clear project input/search when switching to rental
                         const projectText = document.getElementById('project_receiver_search');
                         const projectHidden = document.getElementById('project_receiver');
@@ -1914,7 +1927,7 @@
                         if (projectText) projectText.value = '';
                         if (projectHidden) projectHidden.value = '';
                         if (projectIdInput) projectIdInput.value = '';
-                        
+
                         // Đảm bảo rental receiver bị disable nếu phiếu đã approved
                         if ('{{ $dispatch->status }}' !== 'pending') {
                             rentalReceiverInput.disabled = true;
@@ -1937,18 +1950,18 @@
                     } else if (selectedType === 'project') {
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
-                        
+
                         // Enable project receiver and disable others
                         if (projectReceiverInput) {
                             projectReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
-                            projectReceiverInput.setAttribute('required','required');
+                            projectReceiverInput.setAttribute('required', 'required');
                         }
                         if (warrantyReceiverInput) warrantyReceiverInput.disabled = true;
-                        
+
                         // Hiển thị phần dự án, ẩn phần cho thuê
                         projectSection.classList.remove('hidden');
                         rentalSection.classList.add('hidden');
-                        
+
                         // Clear rental input/search when switching to project
                         const rentalHidden = document.getElementById('rental_project_receiver');
                         const rentalText = document.getElementById('rental_receiver_search');
@@ -1961,7 +1974,7 @@
                         const pr = document.getElementById('project_receiver');
                         const prSearch = document.getElementById('project_receiver_search');
                         const projectIdInput = document.getElementById('project_id');
-                        
+
                         if (pr) { pr.disabled = false; pr.name = 'project_receiver'; }
                         // Không xóa giá trị của prSearch nếu đang ở loại hình project
                         if (canonical) canonical.value = '';
@@ -1981,12 +1994,12 @@
                     } else if (selectedType === 'warranty') {
                         if (contractProductsSection) contractProductsSection.classList.add('hidden');
                         if (backupProductsSection) backupProductsSection.classList.remove('hidden');
-                        
+
                         // Disable other receiver selects
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
                         if (warrantyReceiverInput) {
                             warrantyReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
-                            warrantyReceiverInput.setAttribute('required','required');
+                            warrantyReceiverInput.setAttribute('required', 'required');
                         }
 
                         // Xóa các sản phẩm hợp đồng đã chọn khi chuyển sang bảo hành
@@ -1998,32 +2011,32 @@
                         if (typeof updateSelectedProductsHiddenInput === 'function') {
                             updateSelectedProductsHiddenInput(); // Cập nhật input ẩn
                         }
-                        
+
                         // Hiển thị phần bảo hành, ẩn phần khác
                         if (warrantySection) warrantySection.classList.remove('hidden');
                         projectSection.classList.add('hidden');
                         rentalSection.classList.add('hidden');
-                        
+
                         // Xóa hidden input project_receiver của rental nếu có
                         const rentalHidden2 = document.getElementById('rental_project_receiver');
                         if (rentalHidden2) rentalHidden2.remove();
 
-                            // Load rentals for dropdown bảo hành
-                            loadRentals();
+                        // Load rentals for dropdown bảo hành
+                        loadRentals();
 
-                            warrantyReceiverInput.addEventListener('change', function() {
-                                const selectedOption = this.options[this.selectedIndex];
-                                const projectIdInput = document.getElementById('project_id');
+                        warrantyReceiverInput.addEventListener('change', function () {
+                            const selectedOption = this.options[this.selectedIndex];
+                            const projectIdInput = document.getElementById('project_id');
 
-                                if (selectedOption && selectedOption.dataset.projectId) {
-                                    if (projectIdInput) projectIdInput.value = selectedOption.dataset.projectId;
-                                } else if (selectedOption && selectedOption.dataset.rentalId) {
-                                    if (projectIdInput) projectIdInput.value = selectedOption.dataset.rentalId;
-                                } else {
-                                    if (projectIdInput) projectIdInput.value = '';
-                                }
-                            });
-                        
+                            if (selectedOption && selectedOption.dataset.projectId) {
+                                if (projectIdInput) projectIdInput.value = selectedOption.dataset.projectId;
+                            } else if (selectedOption && selectedOption.dataset.rentalId) {
+                                if (projectIdInput) projectIdInput.value = selectedOption.dataset.rentalId;
+                            } else {
+                                if (projectIdInput) projectIdInput.value = '';
+                            }
+                        });
+
 
                         // Tự động chọn "backup" và disable dropdown cho warranty
                         if (dispatchDetailSelect) {
@@ -2055,22 +2068,22 @@
                         const rentalSection = document.getElementById('rental_section');
                         const projectSection = document.getElementById('project_section');
                         const warrantySection = document.getElementById('warranty_section');
-                        
+
                         if (rentalSection) rentalSection.classList.remove('hidden');
                         if (projectSection) projectSection.classList.add('hidden');
                         if (warrantySection) warrantySection.classList.add('hidden');
-                        
+
                         // Load rentals for display
                         loadRentals();
                     } else if (currentType === 'warranty') {
                         const warrantySection = document.getElementById('warranty_section');
                         const projectSection = document.getElementById('project_section');
                         const rentalSection = document.getElementById('rental_section');
-                        
+
                         if (warrantySection) warrantySection.classList.remove('hidden');
                         if (projectSection) projectSection.classList.add('hidden');
                         if (rentalSection) rentalSection.classList.add('hidden');
-                        
+
                         // Load rentals for warranty dropdown
                         loadRentals();
                     }
@@ -2079,10 +2092,10 @@
 
             // Xử lý sự kiện change cho project_receiver
             if (projectReceiverSelect) {
-                projectReceiverSelect.addEventListener('change', function() {
+                projectReceiverSelect.addEventListener('change', function () {
                     const selectedOption = this.options[this.selectedIndex];
                     const projectIdInput = document.getElementById('project_id');
-                    
+
                     if (selectedOption && selectedOption.dataset.projectId) {
                         if (projectIdInput) {
                             projectIdInput.value = selectedOption.dataset.projectId;
@@ -2115,7 +2128,7 @@
 
             // Xử lý thay đổi dự án - cập nhật thời gian bảo hành và project_id
             if (projectReceiverSelect) {
-                projectReceiverSelect.addEventListener('change', function() {
+                projectReceiverSelect.addEventListener('change', function () {
                     const selectedOption = this.options[this.selectedIndex];
                     const warrantyPeriodInput = document.getElementById('warranty_period');
                     const projectIdInput = document.getElementById('project_id');
@@ -2148,9 +2161,9 @@
                                 if (typeof updateSerialOptionsAvailability === 'function') {
                                     updateSerialOptionsAvailability();
                                 }
-                                    if (typeof enforceSelectedSerials === 'function') {
-                                        enforceSelectedSerials();
-                                    }
+                                if (typeof enforceSelectedSerials === 'function') {
+                                    enforceSelectedSerials();
+                                }
                             }, 200);
                         }).catch(() => {
                             // Dù lỗi, vẫn cố gắng sync để giữ giá trị cũ nếu có
@@ -2170,7 +2183,7 @@
             async function loadAvailableSerials() {
                 // Cho phép chạy song song theo từng select, tránh chặn bởi cờ toàn cục
                 window.isLoadingSerials = false;
-                
+
                 const serialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
                 for (const select of serialSelects) {
                     // Chống gọi chồng lấp gây lặp option
@@ -2302,13 +2315,13 @@
                                     if (seen.has(serial)) return;
                                     seen.add(serial);
                                     // Không ẩn bất kỳ serial nào ở bước load; luôn hiển thị đầy đủ danh sách từ kho
-                                    
+
                                     const option = document.createElement('option');
                                     option.value = serial;
                                     option.textContent = serial;
                                     select.appendChild(option);
                                 });
-                                
+
                                 // Nếu có serial đổi tên và chưa có trong options, thêm vào (nhưng bỏ qua N/A, N/A-*)
                                 // Không thêm nếu vừa đổi kho (skipPreserve) hoặc phiếu pending (tránh lẫn serial từ kho khác)
                                 if (mappedDesired && !seen.has(mappedDesired) && !skipPreserve && !isPending) {
@@ -2327,13 +2340,6 @@
                                 if (valueToPreserve) {
                                     // Kiểm tra xem valueToPreserve có tồn tại trong options đã được thêm vào select không
                                     const optionExists = Array.from(select.options).some(option => option.value === valueToPreserve);
-                                    console.log('Setting serial value:', {
-                                        valueToPreserve,
-                                        optionExists,
-                                        mappedDesired,
-                                        originalSerial,
-                                        availableOptions: Array.from(select.options).map(opt => opt.value)
-                                    });
                                     if (optionExists) {
                                         select.value = valueToPreserve;
                                         select.setAttribute('data-selected-serial', valueToPreserve);
@@ -2362,15 +2368,15 @@
                                 while (select.children.length > 1) {
                                     select.removeChild(select.lastChild);
                                 }
+                                select.value = '';
+                                select.setAttribute('data-selected-serial', '');
+                                // Chỉ hiển thị 'N/A' cho phiếu đã duyệt (readonly) và serial gốc là virtual
+                                if (__DISPATCH_IS_APPROVED__ && virtualOriginal) {
+                                    const naOption = document.createElement('option');
+                                    naOption.value = '';
+                                    naOption.textContent = 'N/A';
+                                    select.appendChild(naOption);
                                     select.value = '';
-                                    select.setAttribute('data-selected-serial', '');
-                                    // Chỉ hiển thị 'N/A' cho phiếu đã duyệt (readonly) và serial gốc là virtual
-                                    if (__DISPATCH_IS_APPROVED__ && virtualOriginal) {
-                                        const naOption = document.createElement('option');
-                                        naOption.value = '';
-                                        naOption.textContent = 'N/A';
-                                        select.appendChild(naOption);
-                                        select.value = '';
                                 }
 
                                 // Add change event listener for validation
@@ -2386,7 +2392,7 @@
                             // Khôi phục trạng thái disabled ban đầu sau khi load xong
                             try {
                                 select.disabled = prevDisabled;
-                            } catch (_) {}
+                            } catch (_) { }
                         }
                     } catch (error) {
                         console.error('Error loading serials:', error);
@@ -2396,12 +2402,12 @@
                         if (valueToPreserve) {
                             console.log(`API error - Preserving value "${valueToPreserve}" for ${itemType} ${itemId}`);
                         }
-                        
+
                         // Clear ALL existing options except default
                         while (select.children.length > 1) {
                             select.removeChild(select.lastChild);
                         }
-                        
+
                         // Preserve serial if it was already selected
                         if (valueToPreserve && valueToPreserve.trim() !== '') {
                             // Add the preserved serial as an option
@@ -2425,19 +2431,19 @@
                     } finally {
                         // Chỉ clear cờ nếu là response mới nhất
                         if (select.getAttribute('data-request-id') === requestId) {
-                        select.setAttribute('data-loading-serials', 'false');
-                        // re-enable after load
-                        select.disabled = false;
+                            select.setAttribute('data-loading-serials', 'false');
+                            // re-enable after load
+                            select.disabled = false;
                         }
                     }
                 }
-                
+
                 // Reset flag khi hoàn thành
                 window.isLoadingSerials = false;
             }
 
             // Populate product dropdowns: now handled by search dropdowns, keep as no-op for compatibility
-            function populateProductDropdowns() {}
+            function populateProductDropdowns() { }
 
             // Setup dropdown handlers giống trang create
             function setupDropdownHandlers() {
@@ -2446,7 +2452,7 @@
                 const contractProductHidden = document.getElementById('contract_product_select');
 
                 if (addContractProductBtn) {
-                    addContractProductBtn.addEventListener('click', function() {
+                    addContractProductBtn.addEventListener('click', function () {
                         const selectedProductId = contractProductHidden.value;
 
                         if (!selectedProductId) {
@@ -2464,7 +2470,7 @@
                 const backupProductHidden = document.getElementById('backup_product_select');
 
                 if (addBackupProductBtn) {
-                    addBackupProductBtn.addEventListener('click', function() {
+                    addBackupProductBtn.addEventListener('click', function () {
                         const selectedProductId = backupProductHidden.value;
 
                         if (!selectedProductId) {
@@ -2512,7 +2518,7 @@
 
                 renderContractProductTable();
                 showStockWarnings();
-                
+
                 // Resolve assembly_id và product_unit cho product mới thêm
                 setTimeout(() => {
                     resolveMissingAssemblyForAll();
@@ -2553,7 +2559,7 @@
 
                 renderBackupProductTable();
                 showStockWarnings();
-                
+
                 // Resolve assembly_id và product_unit cho product mới thêm
                 setTimeout(() => {
                     resolveMissingAssemblyForAll();
@@ -3000,9 +3006,9 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            ${isReadonly ? 
-                                `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
-                                `<button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
+                            ${isReadonly ?
+                            `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
+                            `<button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
                                                 <i class="fas fa-trash"></i>
                                             </button>`}
                         </td>
@@ -3014,7 +3020,7 @@
                 // Thêm event listeners cho dropdown kho xuất hợp đồng
                 const contractWarehouseSelects = contractProductList.querySelectorAll('.contract-warehouse-select');
                 contractWarehouseSelects.forEach(select => {
-                    select.addEventListener('change', async function() {
+                    select.addEventListener('change', async function () {
                         const index = parseInt(this.dataset.index);
                         const newWarehouseId = parseInt(this.value);
                         const selectedOption = this.options[this.selectedIndex];
@@ -3103,7 +3109,7 @@
                 // Thêm event listeners cho các input và nút xóa
                 const contractQuantityInputs = contractProductList.querySelectorAll('.contract-quantity-input');
                 contractQuantityInputs.forEach(input => {
-                    input.addEventListener('change', function() {
+                    input.addEventListener('change', function () {
                         const index = parseInt(this.dataset.index);
                         const newQuantity = parseInt(this.value);
                         if (selectedContractProducts[index]) {
@@ -3135,7 +3141,7 @@
 
                 const removeContractButtons = contractProductList.querySelectorAll('.remove-contract-product');
                 removeContractButtons.forEach(button => {
-                    button.addEventListener('click', function() {
+                    button.addEventListener('click', function () {
                         const index = parseInt(this.dataset.index);
                         selectedContractProducts.splice(index, 1);
                         renderContractProductTable();
@@ -3231,9 +3237,9 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            ${isReadonly ? 
-                                `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
-                                `<button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
+                            ${isReadonly ?
+                            `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
+                            `<button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
                                                 <i class="fas fa-trash"></i>
                                             </button>`}
                         </td>
@@ -3245,7 +3251,7 @@
                 // Thêm event listeners cho dropdown kho xuất dự phòng
                 const backupWarehouseSelects = backupProductList.querySelectorAll('.backup-warehouse-select');
                 backupWarehouseSelects.forEach(select => {
-                    select.addEventListener('change', async function() {
+                    select.addEventListener('change', async function () {
                         const index = parseInt(this.dataset.index);
                         const newWarehouseId = parseInt(this.value);
                         const selectedOption = this.options[this.selectedIndex];
@@ -3342,7 +3348,7 @@
                 // Thêm event listeners cho các input và nút xóa
                 const backupQuantityInputs = backupProductList.querySelectorAll('.backup-quantity-input');
                 backupQuantityInputs.forEach(input => {
-                    input.addEventListener('change', function() {
+                    input.addEventListener('change', function () {
                         const index = parseInt(this.dataset.index);
                         const newQuantity = parseInt(this.value);
                         if (selectedBackupProducts[index]) {
@@ -3366,7 +3372,7 @@
 
                 const removeBackupButtons = backupProductList.querySelectorAll('.remove-backup-product');
                 removeBackupButtons.forEach(button => {
-                    button.addEventListener('click', function() {
+                    button.addEventListener('click', function () {
                         const index = parseInt(this.dataset.index);
                         selectedBackupProducts.splice(index, 1);
                         renderBackupProductTable();
@@ -3384,7 +3390,7 @@
 
             // Handle dispatch detail changes
             if (dispatchDetailSelect) {
-                dispatchDetailSelect.addEventListener('change', function() {
+                dispatchDetailSelect.addEventListener('change', function () {
                     const selectedDetail = this.value;
 
                     // Update table visibility
@@ -3455,7 +3461,7 @@
             const contractQuantityInputs = document.querySelectorAll(
                 'input[name*="contract_items"][name*="[quantity]"]');
             contractQuantityInputs.forEach(input => {
-                input.addEventListener('change', function() {
+                input.addEventListener('change', function () {
                     updateSerialInputs(this, 'contract');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
@@ -3467,7 +3473,7 @@
             const backupQuantityInputs = document.querySelectorAll(
                 'input[name*="backup_items"][name*="[quantity]"]');
             backupQuantityInputs.forEach(input => {
-                input.addEventListener('change', function() {
+                input.addEventListener('change', function () {
                     updateSerialInputs(this, 'backup');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
@@ -3479,7 +3485,7 @@
             const generalQuantityInputs = document.querySelectorAll(
                 'input[name*="general_items"][name*="[quantity]"]');
             generalQuantityInputs.forEach(input => {
-                input.addEventListener('change', function() {
+                input.addEventListener('change', function () {
                     updateSerialInputs(this, 'general');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
@@ -3491,9 +3497,9 @@
             // Xử lý xóa item theo category
             const removeContractItemBtns = document.querySelectorAll('.remove-contract-item-btn');
             removeContractItemBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     if (confirm(
-                            'Bạn có chắc chắn muốn xóa sản phẩm hợp đồng này khỏi phiếu xuất?')) {
+                        'Bạn có chắc chắn muốn xóa sản phẩm hợp đồng này khỏi phiếu xuất?')) {
                         const row = this.closest('tr');
                         row.style.display = 'none';
 
@@ -3513,9 +3519,9 @@
 
             const removeBackupItemBtns = document.querySelectorAll('.remove-backup-item-btn');
             removeBackupItemBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     if (confirm(
-                            'Bạn có chắc chắn muốn xóa sản phẩm dự phòng này khỏi phiếu xuất?')) {
+                        'Bạn có chắc chắn muốn xóa sản phẩm dự phòng này khỏi phiếu xuất?')) {
                         const row = this.closest('tr');
                         row.style.display = 'none';
 
@@ -3535,7 +3541,7 @@
 
             const removeGeneralItemBtns = document.querySelectorAll('.remove-general-item-btn');
             removeGeneralItemBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi phiếu xuất?')) {
                         const row = this.closest('tr');
                         row.style.display = 'none';
@@ -3724,7 +3730,7 @@
                     // Nếu không tìm thấy trong availableItems, thử tìm trong selectedContractProducts và selectedBackupProducts
                     if (productName === 'Không xác định') {
                         // Tìm trong contract products
-                        const contractItem = selectedContractProducts.find(item => 
+                        const contractItem = selectedContractProducts.find(item =>
                             item.id == group.item.item_id && item.type == group.item.item_type
                         );
                         if (contractItem) {
@@ -3737,7 +3743,7 @@
                             }
                         } else {
                             // Tìm trong backup products
-                            const backupItem = selectedBackupProducts.find(item => 
+                            const backupItem = selectedBackupProducts.find(item =>
                                 item.id == group.item.item_id && item.type == group.item.item_type
                             );
                             if (backupItem) {
@@ -3760,11 +3766,11 @@
                             // Kiểm tra xem row có chứa item_id và item_type trong hidden inputs không
                             const hiddenItemIdInput = row.querySelector('input[name*="[item_id]"]');
                             const hiddenItemTypeInput = row.querySelector('input[name*="[item_type]"]');
-                            
+
                             if (hiddenItemIdInput && hiddenItemTypeInput) {
                                 const rowItemId = parseInt(hiddenItemIdInput.value);
                                 const rowItemType = hiddenItemTypeInput.value;
-                                
+
                                 if (rowItemId == group.item.item_id && rowItemType == group.item.item_type) {
                                     const nameCell = row.querySelector('td:nth-child(2)'); // Cột tên sản phẩm
                                     const codeCell = row.querySelector('td:nth-child(1)'); // Cột mã sản phẩm
@@ -3790,10 +3796,10 @@
 
                         // Tạo thông báo chi tiết hơn về loại tồn kho
                         let stockDetailMessage = '';
-                        
+
                         // Lấy thông tin chi tiết về stock (có serial và không có serial)
                         const stockDetails = await getDetailedStockInfo(group.item.item_type, group.item.item_id, group.item.warehouse_id, currentStock);
-                        
+
                         if (stockDetails.hasSerial) {
                             stockDetailMessage = `Tồn kho có serial: ${stockDetails.serialStock}, không có serial: ${stockDetails.nonSerialStock}, yêu cầu ${group.totalQuantity}`;
                         } else {
@@ -3848,7 +3854,7 @@
             // Xử lý form submit
             const form = document.querySelector('form');
             if (form) {
-                form.addEventListener('submit', async function(e) {
+                form.addEventListener('submit', async function (e) {
                     // Log contract warehouse IDs
                     const contractWarehouseInputs = form.querySelectorAll('input[name*="contract_items"][name*="warehouse_id"], input[name*="items"][name*="contract"][name*="warehouse_id"]');
                     contractWarehouseInputs.forEach((input, index) => {
@@ -3858,7 +3864,7 @@
                             disabled: input.disabled
                         });
                     });
-                    
+
                     // Log backup warehouse IDs
                     const backupWarehouseInputs = form.querySelectorAll('input[name*="backup_items"][name*="warehouse_id"], input[name*="items"][name*="backup"][name*="warehouse_id"]');
                     backupWarehouseInputs.forEach((input, index) => {
@@ -3868,7 +3874,7 @@
                             disabled: input.disabled
                         });
                     });
-                    
+
                     // Kiểm tra xem còn item nào không bị disable (existing items + newly added items)
                     const activeContractItems = form.querySelectorAll(
                         'input[name*="contract_items"][name*="[item_id]"]:not([disabled])');
@@ -3903,7 +3909,7 @@
                             const totalContractItems = contractItemsCount + newContractItemsCount;
                             const totalBackupItems = backupItemsCount + newBackupItemsCount;
                         @else
-                            const totalContractItems = contractItemsCount;
+                                                                                                                                                                                                    const totalContractItems = contractItemsCount;
                             const totalBackupItems = backupItemsCount;
                         @endif
 
@@ -3930,7 +3936,7 @@
                             const totalContractItems = contractItemsCount + newContractItemsCount;
                             const totalBackupItems = backupItemsCount + newBackupItemsCount;
                         @else
-                            const totalContractItems = contractItemsCount;
+                                                                                                                                                                                                const totalContractItems = contractItemsCount;
                             const totalBackupItems = backupItemsCount;
                         @endif
 
@@ -3954,7 +3960,7 @@
                                 if (typeof renderBackupProductTable === 'function') {
                                     renderBackupProductTable();
                                 }
-                            } catch (_) {}
+                            } catch (_) { }
                             hasRequiredProducts = true; // tiếp tục submit sau khi đã clear
                         } else {
                             hasRequiredProducts = true;
@@ -3969,7 +3975,7 @@
                             const totalContractItems = contractItemsCount + newContractItemsCount;
                             const totalBackupItems = backupItemsCount + newBackupItemsCount;
                         @else
-                            const totalContractItems = contractItemsCount;
+                                                                                                                                                                                        const totalContractItems = contractItemsCount;
                             const totalBackupItems = backupItemsCount;
                         @endif
 
@@ -4038,8 +4044,8 @@
                         if (emptySerials.length > 0) {
                             e.preventDefault();
                             if (confirm(
-                                    `Các serial sau chưa được chọn:\n\n${emptySerials.join('\n')}\n\nBạn có muốn tiếp tục không?`
-                                )) {
+                                `Các serial sau chưa được chọn:\n\n${emptySerials.join('\n')}\n\nBạn có muốn tiếp tục không?`
+                            )) {
                                 // User confirmed, allow submission
                                 e.target.submit();
                             }
@@ -4072,20 +4078,18 @@
             const dispatchId = {{ $dispatch->id }};
 
             if (updateContractDeviceCodesBtn) {
-                updateContractDeviceCodesBtn.addEventListener('click', function() {
-                    console.log('Update Contract Device Codes button clicked');
+                updateContractDeviceCodesBtn.addEventListener('click', function () {
                     // Xóa active class từ tất cả buttons
                     updateContractDeviceCodesBtn.classList.remove('active');
                     updateBackupDeviceCodesBtn.classList.remove('active');
-                    
+
                     // Set active class cho button hiện tại
                     updateContractDeviceCodesBtn.classList.add('active');
-                    
+
                     currentDeviceCodeType = 'contract';
                     window.currentDeviceCodeType = 'contract';
                     // Xóa cache materials khi chuyển type để đảm bảo load dữ liệu mới
                     if (window.productMaterialsCount && window.currentMaterialsType !== 'contract') {
-                        console.log('Clearing materials cache when switching to contract');
                         delete window.productMaterialsCount['contract'];
                         delete window.productMaterialsCount['backup'];
                         // Xóa các key theo productId cũ để tránh dùng cache sai
@@ -4096,13 +4100,12 @@
                         });
                     }
                     deviceCodeModal.classList.remove('hidden');
-                    console.log('Loading device codes for contract, dispatch_id:', dispatchId);
                     // Load device codes mới nhất khi mở modal
                     loadDeviceCodesFromDatabase('contract');
-                    
+
                     // Vô hiệu hóa sync mặc định khi mở modal
                     disableAllSync();
-                    
+
                     // Đồng bộ serial numbers khi mở modal (chỉ một lần)
                     setTimeout(() => {
                         enableSync();
@@ -4112,20 +4115,18 @@
                 });
             }
             if (updateBackupDeviceCodesBtn) {
-                updateBackupDeviceCodesBtn.addEventListener('click', function() {
-                    console.log('Update Backup Device Codes button clicked');
+                updateBackupDeviceCodesBtn.addEventListener('click', function () {
                     // Xóa active class từ tất cả buttons
                     updateContractDeviceCodesBtn.classList.remove('active');
                     updateBackupDeviceCodesBtn.classList.remove('active');
-                    
+
                     // Set active class cho button hiện tại
                     updateBackupDeviceCodesBtn.classList.add('active');
-                    
+
                     currentDeviceCodeType = 'backup';
                     window.currentDeviceCodeType = 'backup';
                     // Xóa cache materials khi chuyển type để đảm bảo load dữ liệu mới
                     if (window.productMaterialsCount && window.currentMaterialsType !== 'backup') {
-                        console.log('Clearing materials cache when switching to backup');
                         delete window.productMaterialsCount['contract'];
                         delete window.productMaterialsCount['backup'];
                         // Xóa các key theo productId cũ để tránh dùng cache sai
@@ -4136,13 +4137,12 @@
                         });
                     }
                     deviceCodeModal.classList.remove('hidden');
-                    console.log('Loading device codes for backup, dispatch_id:', dispatchId);
                     // Load device codes mới nhất khi mở modal
                     loadDeviceCodesFromDatabase('backup');
-                    
+
                     // Vô hiệu hóa sync mặc định khi mở modal
                     disableAllSync();
-                    
+
                     // Đồng bộ serial numbers khi mở modal (chỉ một lần)
                     setTimeout(() => {
                         enableSync();
@@ -4154,7 +4154,7 @@
 
             // Xử lý nút cập nhật serial
             if (syncSerialsBtn) {
-                syncSerialsBtn.addEventListener('click', function() {
+                syncSerialsBtn.addEventListener('click', function () {
                     // Kích hoạt sync
                     enableSync();
                     // Chỉ sync khi nhấn nút này
@@ -4165,7 +4165,7 @@
             }
             // Xử lý nút đồng bộ serial numbers từ device_codes sang dispatch_items
             if (syncSerialNumbersBtn) {
-                syncSerialNumbersBtn.addEventListener('click', async function() {
+                syncSerialNumbersBtn.addEventListener('click', async function () {
                     try {
                         // Hiển thị trạng thái loading
                         syncSerialNumbersBtn.disabled = true;
@@ -4190,11 +4190,11 @@
                         }
 
                         alert('Đồng bộ serial numbers thành công!');
-                        
+
                         // Redirect về trang dự án hoặc rental với tham số refresh
                         const projectId = {{ $dispatch->project_id ?? 'null' }};
                         const dispatchType = '{{ $dispatch->dispatch_type ?? "" }}';
-                        
+
                         if (projectId && dispatchType === 'project') {
                             window.location.href = `/projects/${projectId}?refresh=true`;
                         } else if (projectId && dispatchType === 'rental') {
@@ -4216,7 +4216,6 @@
             }
             // Hàm load dữ liệu mã thiết bị từ database
             async function loadDeviceCodesFromDatabase(type) {
-                console.log('loadDeviceCodesFromDatabase called with type:', type, 'dispatch_id:', dispatchId);
                 try {
                     // Hiển thị trạng thái loading
                     const tbody = document.getElementById('device-code-tbody');
@@ -4229,16 +4228,12 @@
 
                     // Load device code materials - sử dụng API chuyên dụng cho modal
                     try {
-                        console.log('Loading device code materials for type:', type, 'dispatch_id:', dispatchId);
                         const url = `/api/products/device-code-materials?dispatch_id=${dispatchId}&type=${type}`;
-                        console.log('Fetching URL:', url);
                         const materialsResponse = await fetch(url);
-                        console.log('Materials response status:', materialsResponse.status, materialsResponse.statusText);
                         if (!materialsResponse.ok) {
                             throw new Error('Network response was not ok: ' + materialsResponse.status);
                         }
                         const materialsData = await materialsResponse.json();
-                        console.log('Materials data received:', materialsData);
                         if (!materialsData.success) {
                             throw new Error(materialsData.message || 'Lỗi khi lấy thông tin vật tư cho device code');
                         }
@@ -4247,11 +4242,10 @@
                         window.productMaterialsCount = window.productMaterialsCount || {};
                         // Lưu dữ liệu theo type để tránh ghi đè giữa contract và backup
                         const data = materialsData.data || {};
-                        console.log('Received materials data:', data);
-                        
+
                         // Lưu toàn bộ data vào type key
                         window.productMaterialsCount[type] = data;
-                        
+
                         // Lưu từng key vào root level, nhưng ưu tiên key theo category (ví dụ: 109_backup)
                         for (const key in data) {
                             if (key.endsWith(`_${type}`)) {
@@ -4259,20 +4253,17 @@
                                 const baseKey = key.replace(`_${type}`, '');
                                 window.productMaterialsCount[baseKey] = data[key]; // Ưu tiên dữ liệu từ key có suffix
                                 window.productMaterialsCount[key] = data[key]; // Giữ lại key có suffix
-                                console.log(`Stored data from ${key} to both ${baseKey} and ${key}`);
                             } else {
                                 // Key không có suffix, chỉ lưu nếu không có xung đột
                                 if (!window.productMaterialsCount[key] || window.currentMaterialsType === type) {
                                     window.productMaterialsCount[key] = data[key];
-                                    console.log(`Stored data from ${key}`);
                                 } else {
                                     console.log(`Skipped storing ${key} to avoid conflict (current type: ${window.currentMaterialsType}, new type: ${type})`);
                                 }
                             }
                         }
                         window.currentMaterialsType = type; // Lưu type hiện tại
-                        console.log('Stored materials:', window.productMaterialsCount);
-                        
+
                         // Chạy autofill sau khi load xong materials data
                         setTimeout(() => {
                             if (typeof runAutofillForAllRows === 'function') {
@@ -4292,9 +4283,9 @@
                         // Lưu device codes theo type để sử dụng sau
                         window.deviceCodesData = window.deviceCodesData || {};
                         window.deviceCodesData[type] = data.deviceCodes;
-                        
+
                         renderDeviceCodeTable(data.deviceCodes, type);
-                        
+
                         // Cập nhật serial numbers trong giao diện chính theo type
                         updateMainInterfaceSerials(type);
                     } else {
@@ -4314,7 +4305,7 @@
                     // Load device codes cho contract
                     const contractResponse = await fetch(`/api/device-codes/${dispatchId}?type=contract`);
                     const contractData = await contractResponse.json();
-                    
+
                     if (contractData.success) {
                         window.deviceCodesData = window.deviceCodesData || {};
                         window.deviceCodesData['contract'] = contractData.deviceCodes;
@@ -4326,7 +4317,7 @@
                     // Load device codes cho backup
                     const backupResponse = await fetch(`/api/device-codes/${dispatchId}?type=backup`);
                     const backupData = await backupResponse.json();
-                    
+
                     if (backupData.success) {
                         window.deviceCodesData = window.deviceCodesData || {};
                         window.deviceCodesData['backup'] = backupData.deviceCodes;
@@ -4343,10 +4334,7 @@
             // Hàm cập nhật serial numbers trong giao diện chính theo type
             function updateMainInterfaceSerials(type) {
                 const deviceCodes = window.deviceCodesData?.[type] || [];
-                console.log(`updateMainInterfaceSerials for ${type}:`, deviceCodes);
-                console.log(`selectedContractProducts:`, selectedContractProducts);
-                console.log(`selectedBackupProducts:`, selectedBackupProducts);
-                
+
                 if (type === 'contract') {
                     // Cập nhật serial cho contract products
                     selectedContractProducts.forEach((product) => {
@@ -4375,13 +4363,12 @@
                                     return itemId && selectedContractProducts.find(p => p.id == itemId && p.product_id == product.id);
                                 });
                             }
-                            console.log(`Looking for contract serial select for product ${product.id}, index ${i}:`, serialSelect);
                             if (!serialSelect) continue;
                             if (desiredSerial) {
                                 // Đánh dấu lock ngay lập tức để tránh bị ghi đè
                                 serialSelect.setAttribute('data-lock-selected', 'true');
                                 serialSelect.setAttribute('data-mapped-serial', desiredSerial);
-                                
+
                                 let option = Array.from(serialSelect.options).find(opt => opt.value === desiredSerial);
                                 if (!option) {
                                     // Chủ động thêm option nếu API chưa trả về (trường hợp serial gốc hoặc vừa đổi tên)
@@ -4433,13 +4420,13 @@
                                 // Đánh dấu lock ngay lập tức để tránh bị ghi đè
                                 serialSelect.setAttribute('data-lock-selected', 'true');
                                 serialSelect.setAttribute('data-mapped-serial', desiredSerial);
-                                
+
                                 let option = Array.from(serialSelect.options).find(opt => opt.value === desiredSerial);
                                 if (!option) {
                                     const up2 = desiredSerial.toUpperCase();
                                     if (up2 !== 'N/A' && !up2.startsWith('N/A-')) {
                                         option = document.createElement('option');
-        								    option.value = desiredSerial;
+                                        option.value = desiredSerial;
                                         option.textContent = desiredSerial;
                                         serialSelect.appendChild(option);
                                     }
@@ -4465,35 +4452,23 @@
                 // Ưu tiên lấy từ type hiện tại nếu có
                 const currentType = window.currentDeviceCodeType || window.currentMaterialsType;
                 let productData = {};
-                
-                console.log('getProductMaterialsCountBySerial:', {
-                    productId,
-                    serial,
-                    currentType,
-                    available: Object.keys(window.productMaterialsCount || {})
-                });
-                
+
                 // Ưu tiên 1: Lấy từ key có suffix theo category (ví dụ: 109_backup)
                 if (currentType) {
                     const keyWithSuffix = `${productId}_${currentType}`;
                     if (window.productMaterialsCount?.[currentType]?.[keyWithSuffix]) {
                         productData = window.productMaterialsCount[currentType][keyWithSuffix];
-                        console.log('Found data using key with suffix:', keyWithSuffix);
                     } else if (window.productMaterialsCount?.[currentType]?.[productId]) {
                         productData = window.productMaterialsCount[currentType][productId];
-                        console.log('Found data using productId in type:', productId);
                     } else if (window.productMaterialsCount?.[keyWithSuffix]) {
                         productData = window.productMaterialsCount[keyWithSuffix];
-                        console.log('Found data using root key with suffix:', keyWithSuffix);
                     } else if (window.productMaterialsCount?.[productId]) {
                         productData = window.productMaterialsCount[productId];
-                        console.log('Found data using root productId:', productId);
                     }
                 } else if (window.productMaterialsCount?.[productId]) {
                     productData = window.productMaterialsCount[productId];
-                    console.log('Found data using root productId (no type):', productId);
                 }
-                
+
                 // Nếu productData là object với key là serial, lấy theo serial (kể cả key rỗng '')
                 if (typeof productData === 'object' && !Array.isArray(productData)) {
                     return productData.hasOwnProperty(serial) ? (productData[serial] || []) : [];
@@ -4508,15 +4483,6 @@
                 // Ưu tiên lấy từ type hiện tại nếu có
                 const currentType = window.currentDeviceCodeType || window.currentMaterialsType;
                 let data = null;
-                
-                console.log('getMaterialsForRow:', {
-                    productId,
-                    serial,
-                    rowIndex,
-                    assemblyIdForRow,
-                    productUnitForRow,
-                    currentType
-                });
 
                 // Không return rỗng ngay lập tức khi không có assembly_id và serial rỗng
                 // Thay vào đó, tiếp tục tìm kiếm materials từ product_materials (fallback từ backend)
@@ -4525,36 +4491,29 @@
                 if (noAssemblyAndNoSerial) {
                     console.log('getMaterialsForRow: No assembly_id and no serial, will try to find fallback materials from product_materials');
                 }
-                
+
                 // Ưu tiên 1: Lấy từ key có suffix theo category (ví dụ: 109_backup)
                 if (currentType) {
                     const keyWithSuffix = `${productId}_${currentType}`;
                     if (window.productMaterialsCount?.[currentType]?.[keyWithSuffix]) {
                         data = window.productMaterialsCount[currentType][keyWithSuffix];
-                        console.log('Found data using key with suffix in type:', keyWithSuffix);
                     } else if (window.productMaterialsCount?.[currentType]?.[productId]) {
                         data = window.productMaterialsCount[currentType][productId];
-                        console.log('Found data using productId in type:', productId);
                     } else if (window.productMaterialsCount?.[keyWithSuffix]) {
                         data = window.productMaterialsCount[keyWithSuffix];
-                        console.log('Found data using root key with suffix:', keyWithSuffix);
                     } else if (window.productMaterialsCount?.[productId]) {
                         data = window.productMaterialsCount[productId];
-                        console.log('Found data using root productId:', productId);
                     }
                 } else if (window.productMaterialsCount?.[productId]) {
                     data = window.productMaterialsCount[productId];
-                    console.log('Found data using root productId (no type):', productId);
                 }
-                
-                console.log('getMaterialsForRow data:', data);
 
                 // 0) Tra theo cặp assembly_id:product_unit nếu backend có cung cấp
                 if (data && typeof data === 'object' && !Array.isArray(data) && assemblyIdForRow !== undefined && productUnitForRow !== undefined) {
                     // Đảm bảo productUnitForRow là number
                     const productUnitNum = parseInt(productUnitForRow) || 0;
                     const assemblyIdStr = String(assemblyIdForRow || '');
-                    
+
                     // Ưu tiên 1: Tra trong __by_pair__ với format $assemblyId:productUnit
                     if (data.__by_pair__ && typeof data.__by_pair__ === 'object') {
                         const pairKeys = [
@@ -4563,18 +4522,17 @@
                             `${assemblyIdStr}:${productUnitNum}`,
                             `${assemblyIdStr}|${productUnitNum}`,
                         ];
-                        
+
                         for (const pk of pairKeys) {
                             if (Object.prototype.hasOwnProperty.call(data.__by_pair__, pk)) {
                                 const v = data.__by_pair__[pk];
                                 if (Array.isArray(v) && v.length > 0) {
-                                    console.log(`getMaterialsForRow: Found materials using pair key ${pk}`, v);
                                     return v;
                                 }
                             }
                         }
                     }
-                    
+
                     // Ưu tiên 2: Tra trực tiếp trong data object
                     const pairKeyCandidates = [
                         `${assemblyIdStr}:${productUnitNum}`,
@@ -4583,7 +4541,6 @@
                     ];
                     for (const pk of pairKeyCandidates) {
                         if (Object.prototype.hasOwnProperty.call(data, pk) && Array.isArray(data[pk]) && data[pk].length > 0) {
-                            console.log(`getMaterialsForRow: Found materials using direct key ${pk}`, data[pk]);
                             return data[pk];
                         }
                     }
@@ -4661,7 +4618,7 @@
             async function fetchAndFillComponentSerials(rowEl) {
                 try {
                     if (!rowEl) return;
-                    
+
                     // If inputs are already filled, don't override; otherwise allow filling even if device code exists
                     const existingFilled = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]')).some(inp => (inp.value || '').trim());
                     if (existingFilled) return;
@@ -4670,7 +4627,7 @@
                     const mainSerialInput = rowEl.querySelector('input[name*="serial_main"]');
                     const mainSerial = (mainSerialInput && mainSerialInput.value) ? mainSerialInput.value.trim() : '';
                     const productId = rowEl.getAttribute('data-product-id') || '';
-                    
+
                     // Tìm serial gốc từ productInfo để lấy materials đúng
                     const currentType = getCurrentModalType();
                     let originalSerial = mainSerial;
@@ -4687,19 +4644,19 @@
                             originalSerial = productInfo.serial_numbers[rowIndex] || mainSerial;
                         }
                     }
-                    
+
                     const materials = getProductMaterialsCountBySerial(parseInt(productId, 10) || 0, originalSerial);
-                    
+
                     if (!Array.isArray(materials) || materials.length === 0) {
                         return; // Không có vật tư để fill
                     }
-                    
+
                     // Thử lấy serial vật tư từ device_codes trước
                     const deviceCodes = window.deviceCodesData?.[currentType] || [];
                     const productDeviceCodes = deviceCodes.filter(dc => dc.product_id == productId);
                     const rowIndex = parseInt(rowEl.getAttribute('data-row-index') || '0');
                     const deviceCode = productDeviceCodes[rowIndex];
-                    
+
                     if (deviceCode && deviceCode.serial_components) {
                         let componentSerials = [];
                         try {
@@ -4711,7 +4668,7 @@
                         } catch (e) {
                             console.warn('Error parsing serial_components:', e);
                         }
-                        
+
                         if (Array.isArray(componentSerials) && componentSerials.length > 0) {
                             const componentInputs = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]'));
                             componentInputs.forEach((input, index) => {
@@ -4725,19 +4682,19 @@
                             return; // Đã fill xong, không cần gọi API
                         }
                     }
-                    
+
                     // Nếu không có trong device_codes, chỉ gọi API khi có mainSerial (serial chính)
                     if (mainSerial) {
                         const warehouseId = document.querySelector('select[name="warehouse_id"]')?.value;
                         if (!warehouseId) return;
-                        
+
                         const response = await fetch(`/api/device-info/${encodeURIComponent(mainSerial)}?product_id=${productId}&expected_count=${materials.length}&warehouse_id=${warehouseId}`);
                         const data = await response.json();
-                        
+
                         if (data.success && data.data && data.data.componentSerials) {
                             const componentSerials = data.data.componentSerials;
                             const componentInputs = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]'));
-                            
+
                             // Fill serial vật tư vào inputs theo thứ tự
                             componentInputs.forEach((input, index) => {
                                 if (!input.value && componentSerials[index]) {
@@ -4802,7 +4759,7 @@
 
                 // Nhóm device codes theo product_id để hiển thị
                 const groupedDeviceCodes = {};
-                
+
                 deviceCodes.forEach(deviceCode => {
                     if (!groupedDeviceCodes[deviceCode.product_id]) {
                         groupedDeviceCodes[deviceCode.product_id] = [];
@@ -4816,9 +4773,10 @@
                         groupedDeviceCodes[product.id] = [];
                     }
                 });
-                // Render từng nhóm product
-                Object.keys(groupedDeviceCodes).forEach(productId => {
-                    const productDeviceCodes = groupedDeviceCodes[productId];
+                // Render từng sản phẩm theo đúng thứ tự của productsToShow (giống giao diện chính)
+                productsToShow.forEach((product, productIndex) => {
+                    const productId = product.id;
+                    const productDeviceCodes = groupedDeviceCodes[productId] || [];
 
                     // Find product info from selected products
                     let productInfo = null;
@@ -4868,11 +4826,11 @@
                         // Tìm device code chính xác cho sản phẩm này và index này
                         // Sử dụng index để lấy đúng device code cho từng serial
                         const deviceCode = productDeviceCodes[i] || {};
-                        
+
                         // Ưu tiên serial_main từ database (serial mới được đổi tên)
                         // Nếu không có serial_main, mới dùng serial từ giao diện chính
                         let mainSerialValue = '';
-                        
+
                         // Chỉ hiển thị serial khi thực sự có device code cho index này
                         if (deviceCode.id && deviceCode.serial_main) {
                             mainSerialValue = deviceCode.serial_main; // Ưu tiên serial_main từ database
@@ -4881,7 +4839,7 @@
                             const serialSelect = document.querySelector(`select[name*="${type}_items"][name*="serial_numbers"][data-item-id="${productId}"][data-serial-index="${i}"]`);
                             if (serialSelect && serialSelect.value) {
                                 mainSerialValue = serialSelect.value;
-                        } else if (productInfo.serial_numbers && productInfo.serial_numbers[i]) {
+                            } else if (productInfo.serial_numbers && productInfo.serial_numbers[i]) {
                                 mainSerialValue = productInfo.serial_numbers[i]; // Fallback cuối cùng
                             }
                         }
@@ -4895,7 +4853,7 @@
                         // Nếu có device_codes (serial đã đổi tên), dùng serial gốc để tìm materials
                         const originalSerialValue = Array.isArray(productInfo.serial_numbers) ? (productInfo.serial_numbers[i] ?? '') : '';
                         const currentSerialValue = (deviceCode && deviceCode.serial_main) ? deviceCode.serial_main : originalSerialValue;
-                        
+
                         console.log('renderDeviceCodeTable - Getting materials for row', {
                             productId,
                             i,
@@ -4912,7 +4870,7 @@
                             originalSerialValue,
                             currentSerialValue,
                         });
-                        
+
                         // Lấy cặp assembly_id và product_unit đúng theo index để map vật tư
                         const assemblyIdsArr = String(productInfo.assembly_id || '').split(',').map(s => s.trim()).filter(s => s);
                         // product_unit lưu dạng JSON string "[0,1,2,3]" hoặc string "1" hoặc "0,2"
@@ -4940,13 +4898,13 @@
                             // Fallback: nếu không phải JSON thì split như cũ
                             productUnitsArr = String(productInfo.product_unit || '').split(',').map(s => parseInt(s.trim()) || 0);
                         }
-                        
+
                         // KHÔNG fallback về index 0 cho assembly: nếu thiếu ở index hiện tại, coi như rỗng
                         const assemblyIdForRow = assemblyIdsArr[i] !== undefined ? assemblyIdsArr[i] : '';
                         // product_unit cũng lấy theo đúng index; nếu thiếu thì 0
                         const productUnitForRowRaw = productUnitsArr[i] !== undefined ? productUnitsArr[i] : 0;
                         const productUnitForRow = parseInt(productUnitForRowRaw) || 0;
-                        
+
                         console.log('renderDeviceCodeTable - Parsed values', {
                             i,
                             assemblyIdsArr,
@@ -4958,10 +4916,10 @@
                             productUnitForRowType: typeof productUnitForRow,
                             pairKey: `$${assemblyIdForRow}:${productUnitForRow}`,
                         });
-                        
+
                         // Ưu tiên tra theo cặp assembly_id:product_unit, sau đó theo serial/index
                         const materials = getMaterialsForRow(productId, originalSerialValue, i, assemblyIdForRow, productUnitForRow);
-                        
+
                         console.log('renderDeviceCodeTable - Materials found', {
                             productId,
                             serial: originalSerialValue,
@@ -4990,7 +4948,6 @@
                             if (deviceCode && deviceCode.serial_components) {
                                 try {
                                     if (typeof deviceCode.serial_components === 'string') {
-                                        // Handle possible double-encoded JSON
                                         let first = JSON.parse(deviceCode.serial_components);
                                         if (typeof first === 'string') {
                                             renamedComponentSerials = JSON.parse(first) || [];
@@ -5006,7 +4963,43 @@
                                 }
                             }
 
-                            // Định nghĩa các đơn vị cần gộp serial
+                            // --- FIX ORDERING ISSUE ---
+                            // 1. Shallow copy and Sort templateMaterials FIRST to restore canonical order
+                            // Sort by material_code FIRST to group same materials together,
+                            // then by index within each material group
+                            // This ensures TERMINAL-4 (2), TERMINAL-4 (3), TERMINAL-4 (4) appear consecutively
+                            let sortedMaterials = [...templateMaterials];
+                            sortedMaterials.sort((a, b) => {
+                                // Primary sort: by material_code (or material_id if code not available)
+                                const codeA = (a.material_code || '').toLowerCase();
+                                const codeB = (b.material_code || '').toLowerCase();
+                                if (codeA !== codeB) {
+                                    return codeA.localeCompare(codeB, 'vi', { sensitivity: 'base' });
+                                }
+                                // Secondary sort: by material_id within same material_code
+                                const matIdA = parseInt(a.material_id) || 0;
+                                const matIdB = parseInt(b.material_id) || 0;
+                                if (matIdA !== matIdB) {
+                                    return matIdA - matIdB;
+                                }
+                                // Tertiary sort: by index within same material
+                                const idxA = parseInt(a.index) || 0;
+                                const idxB = parseInt(b.index) || 0;
+                                return idxA - idxB;
+                            });
+
+                            // 2. Map serials to the SORTED materials
+                            // renamedComponentSerials is an ordered array corresponding to the visual (sorted) order of inputs
+                            let mergedMaterials = sortedMaterials.map((mat, idx) => {
+                                return {
+                                    ...mat,
+                                    _overrideSerial: (Array.isArray(renamedComponentSerials) && renamedComponentSerials[idx]) ? renamedComponentSerials[idx] : null
+                                };
+                            });
+
+                            // mergedMaterials is now Sorted AND Correctly Mapped
+                            // ---------------------------
+
                             const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
                             const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
                             const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
@@ -5015,19 +5008,21 @@
 
                             // Nhóm vật tư theo material_id và unit để gộp serial
                             const groupedMaterials = {};
-                            templateMaterials.forEach((material, j) => {
+                            mergedMaterials.forEach((material, j) => {
                                 const materialUnit = (material.material_unit || '').trim();
                                 const shouldConsolidate = materialUnit && consolidateUnits.includes(materialUnit);
                                 const groupKey = shouldConsolidate ? `${material.material_id}_${materialUnit}` : `${material.material_id}_${j}`;
-                                
+
                                 if (!groupedMaterials[groupKey]) {
                                     groupedMaterials[groupKey] = {
                                         material: material,
                                         indices: [],
-                                        shouldConsolidate: shouldConsolidate
+                                        shouldConsolidate: shouldConsolidate,
+                                        items: [] // Store the actual merged items in the group
                                     };
                                 }
                                 groupedMaterials[groupKey].indices.push(j);
+                                groupedMaterials[groupKey].items.push(material);
                             });
 
                             // Render theo nhóm đã gộp
@@ -5035,27 +5030,29 @@
                                 const material = group.material;
                                 const shouldConsolidate = group.shouldConsolidate;
                                 const materialUnit = (material.material_unit || '').trim();
-                                
-                                // Lấy serial value - nếu gộp thì lấy từ renamedComponentSerials đầu tiên hoặc tất cả serials gộp lại
+
                                 let serialValue = '';
                                 const isNAProduct = !originalSerialValue || String(originalSerialValue).trim() === '';
-                                
+
                                 if (!isNAProduct) {
                                     if (shouldConsolidate) {
-                                        // Gộp serial: lấy tất cả serials của các vật tư cùng loại và gộp lại
+                                        // Gộp serial: collect from all items in this group
                                         const consolidatedSerials = [];
-                                        group.indices.forEach(j => {
-                                            if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
-                                                consolidatedSerials.push(renamedComponentSerials[j]);
+                                        group.items.forEach(m => {
+                                            if (m._overrideSerial) {
+                                                consolidatedSerials.push(m._overrideSerial);
                                             } else {
-                                                // Tìm material tương ứng với index j trong templateMaterials
-                                                const mat = templateMaterials[j];
-                                                if (mat && mat.serial && mat.serial !== 'null') {
-                                                    const parts = String(mat.serial)
+                                                // Fallback to internal serial if no override
+                                                if (m.serial && m.serial !== 'null') {
+                                                    // Logic parsing serial cũ vẫn giữ nguyên, nhưng m là object đã merged
+                                                    const parts = String(m.serial)
                                                         .split(/[\s,;|\/]+/)
                                                         .map(s => s.trim())
                                                         .filter(Boolean);
-                                                    const partIndex = (parseInt(mat.index, 10) || (j + 1)) - 1;
+                                                    // Note: m.index is valid. 
+                                                    // But previous logic used 'j' (loop index) for partIndex fallback.
+                                                    // Ideally m.index should be used.
+                                                    const partIndex = (parseInt(m.index, 10) || 1) - 1;
                                                     const part = parts[partIndex] || parts[0] || '';
                                                     if (part) consolidatedSerials.push(part);
                                                 }
@@ -5063,58 +5060,64 @@
                                         });
                                         serialValue = consolidatedSerials.join(', ');
                                     } else {
-                                        // Không gộp: lấy serial theo index đầu tiên trong nhóm
-                                        const j = group.indices[0];
-                                        if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
-                                            serialValue = renamedComponentSerials[j];
+                                        // Không gộp: lấy từ item đầu tiên trong nhóm (thường chỉ có 1)
+                                        const m = group.items[0];
+                                        if (m._overrideSerial) {
+                                            serialValue = m._overrideSerial;
                                         } else {
-                                            const mat = templateMaterials[j];
-                                            if (mat && mat.serial && mat.serial !== 'null') {
-                                                const parts = String(mat.serial)
+                                            if (m.serial && m.serial !== 'null') {
+                                                const parts = String(m.serial)
                                                     .split(/[\s,;|\/]+/)
                                                     .map(s => s.trim())
                                                     .filter(Boolean);
-                                                const partIndex = (parseInt(mat.index, 10) || (j + 1)) - 1;
+                                                const partIndex = (parseInt(m.index, 10) || 1) - 1;
                                                 serialValue = parts[partIndex] || parts[0] || '';
                                             }
                                         }
                                     }
                                 }
 
-                                // Tạo input name - dùng index đầu tiên trong nhóm
-                                const firstIndex = group.indices[0];
+                                // Tạo input name - dùng index đầu tiên trong nhóm?
+                                // WARN: Input Name array index MUST match the Backend expectation if backend expects 0,1,2...
+                                // Previous code: `name="${type}_serial_components[${productId}][${i}][${firstIndex}]"` where firstIndex was `group.indices[0]` (from j).
+                                // `j` is now the index in the SORTED array.
+                                // If backend interprets this index as "Position in saved array", then we might be saving back in Sorted Order.
+                                // This is actually GOOD usually (saving in logical order).
+
+                                // However, if `group.indices` logic was used to map back to unsorted... no, it used `j`.
+                                // So using `j` (loop index of sorted array) means we are re-indexing the array.
+                                // This is fine as long as we submit a contiguous array or correct indices.
+
+                                const firstIndex = group.indices[0]; // This is index in mergedMaterials
                                 const inputName = `${type}_serial_components[${productId}][${i}][${firstIndex}]`;
-                                
-                                // Tạo label - nếu gộp thì hiển thị số lượng, nếu không thì hiển thị index
+
                                 const labelText = shouldConsolidate
-                                    ? `${material.material_code} - ${material.material_name} (${group.indices.length} ${materialUnit})`
+                                    ? `${material.material_code} - ${material.material_name} (${group.items.length} ${materialUnit})`
                                     : `${material.material_code} - ${material.material_name} (${material.index})`;
 
-                                const prefillAttr = serialValue && !(Array.isArray(renamedComponentSerials) && renamedComponentSerials[firstIndex]) ? 'data-prefill="1"' : '';
-                                
-                                // Nếu gộp, thêm data attribute để biết đây là serial gộp và các indices cần gán
+                                const prefillAttr = serialValue && !group.items[0]._overrideSerial ? 'data-prefill="1"' : '';
+
                                 const consolidateAttr = shouldConsolidate ? `data-consolidate="true" data-material-indices="${group.indices.join(',')}"` : '';
-                                
-                                // Nếu gộp, tạo các input ẩn cho các indices còn lại để đảm bảo cấu trúc đúng khi lưu
+
                                 let hiddenInputs = '';
                                 if (shouldConsolidate && group.indices.length > 1) {
-                                    // Tạo input ẩn cho các indices còn lại (từ index thứ 2 trở đi)
                                     for (let idx = 1; idx < group.indices.length; idx++) {
                                         const hiddenIndex = group.indices[idx];
                                         hiddenInputs += `<input type="hidden" name="${type}_serial_components[${productId}][${i}][${hiddenIndex}]" value="" data-consolidate-hidden="true" data-consolidate-source="${firstIndex}">`;
                                     }
                                 }
-                                
+
                                 return `
                                 <div class="mb-1">
                                     <label class="text-xs text-gray-600 mb-1">${labelText}</label>
                                     <input type="text" 
                                         name="${inputName}" 
-                                        placeholder="Seri vật tư${shouldConsolidate ? ' (gộp, cách nhau bằng dấu phẩy)' : ''}"
+                                        placeholder="Seri vật tư${shouldConsolidate ? ' (gộp)' : ''}"
                                         value="${serialValue}"
                                         ${prefillAttr}
                                         ${consolidateAttr}
                                         data-material-id="${material.material_id}"
+                                        data-material-code="${material.material_code}"
                                         data-material-index="${material.index}"
                                         data-material-unit="${materialUnit}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
@@ -5126,7 +5129,7 @@
 
                         // Create row HTML
                         const rowHtml = `
-                            <tr data-product-id="${productId}" data-row-index="${i}" data-device-code-id="${deviceCode.id || ''}">
+                            <tr data-product-id="${productId}" data-row-index="${i}" data-device-code-id="${deviceCode.id || ''}" data-item-type="${deviceCode.item_type || productInfo.type || ''}">
                                 ${firstRowExtra}
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
@@ -5192,7 +5195,7 @@
 
             // Đóng modal
             if (closeDeviceCodeModalBtn) {
-                closeDeviceCodeModalBtn.addEventListener('click', function() {
+                closeDeviceCodeModalBtn.addEventListener('click', function () {
                     deviceCodeModal.classList.add('hidden');
                     // Reset active class và biến global
                     updateContractDeviceCodesBtn.classList.remove('active');
@@ -5204,7 +5207,7 @@
             }
 
             if (cancelDeviceCodesBtn) {
-                cancelDeviceCodesBtn.addEventListener('click', function() {
+                cancelDeviceCodesBtn.addEventListener('click', function () {
                     deviceCodeModal.classList.add('hidden');
                     // Reset active class và biến global
                     updateContractDeviceCodesBtn.classList.remove('active');
@@ -5216,7 +5219,7 @@
             }
             // Lưu thông tin mã thiết bị
             if (saveDeviceCodesBtn) {
-                saveDeviceCodesBtn.addEventListener('click', async function() {
+                saveDeviceCodesBtn.addEventListener('click', async function () {
                     try {
                         // Hiển thị trạng thái loading
                         saveDeviceCodesBtn.disabled = true;
@@ -5254,7 +5257,7 @@
                             // Lấy cả input visible và hidden (cho consolidated serials)
                             const componentSerialInputs = row.querySelectorAll(
                                 'input[name*="serial_components"]:not([data-consolidate-hidden="true"])');
-                            
+
                             // Lấy số lượng vật tư thực tế từ templateMaterials (nếu có) hoặc từ max index
                             let expectedMaterialCount = 0;
                             const productIdAttr = row.getAttribute('data-product-id');
@@ -5266,31 +5269,31 @@
                                     expectedMaterialCount = templateMaterials.length;
                                 }
                             }
-                            
+
                             // Tạo map để lưu serial theo index thực tế của material
                             const componentSerialsMap = new Map();
-                            
+
                             // Xử lý các input visible (bao gồm cả consolidated)
                             Array.from(componentSerialInputs).forEach(input => {
                                 const value = input.value.trim();
                                 // Chỉ loại bỏ giá trị '[' (invalid), giữ lại chuỗi trống
                                 const cleanValue = value === '[' ? '' : value;
-                                
+
                                 // Lấy index từ name attribute: serial_components[productId][rowIndex][materialIndex]
                                 const nameMatch = input.name.match(/\[(\d+)\]\[(\d+)\]\[(\d+)\]/);
                                 if (nameMatch) {
                                     const materialIndex = parseInt(nameMatch[3], 10);
-                                    
+
                                     // Kiểm tra xem có phải serial gộp không
                                     const isConsolidated = input.getAttribute('data-consolidate') === 'true';
                                     const materialIndicesAttr = input.getAttribute('data-material-indices');
-                                    
+
                                     if (isConsolidated && materialIndicesAttr) {
                                         // Nếu là serial gộp, tách ra và gán cho từng index
                                         const indices = materialIndicesAttr.split(',').map(i => parseInt(i.trim(), 10));
                                         // Tách serial gộp theo dấu phẩy hoặc khoảng trắng
                                         const serials = cleanValue ? cleanValue.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
-                                        
+
                                         indices.forEach((idx, idxPos) => {
                                             // Gán serial tương ứng với index, nếu không có thì để trống
                                             componentSerialsMap.set(idx, serials[idxPos] || '');
@@ -5301,27 +5304,60 @@
                                     }
                                 }
                             });
-                            
-                            // Xác định số lượng phần tử cần tạo
-                            // Ưu tiên dùng expectedMaterialCount, nếu không có thì dùng maxIndex từ map
-                            let maxIndex = -1;
-                            if (expectedMaterialCount > 0) {
-                                maxIndex = expectedMaterialCount - 1;
-                            } else if (componentSerialsMap.size > 0) {
-                                maxIndex = Math.max(...Array.from(componentSerialsMap.keys()));
-                            }
-                            
-                            // Chuyển map thành array theo thứ tự index từ 0 đến max
-                            const componentSerials = [];
-                            for (let i = 0; i <= maxIndex; i++) {
-                                componentSerials.push(componentSerialsMap.get(i) || '');
-                            }
 
-                            // Loại bỏ các phần tử rỗng ở cuối mảng để giảm kích thước JSON
-                            // Nhưng vẫn giữ các phần tử rỗng ở giữa (vì chúng có thể đại diện cho vật tư không có serial)
-                            while (componentSerials.length > 0 && componentSerials[componentSerials.length - 1] === '') {
-                                componentSerials.pop();
-                            }
+                            // Chuyển map thành array theo thứ tự key tăng dần (đảm bảo khớp với thứ tự sort của material)
+                            // Thay vì loop từ 0 đến maxIndex (gây lỗi nếu index bắt đầu từ 1 hoặc không liên tục),
+                            // ta lấy tất cả index hiện có, sort, và map ra value.
+                            // Điều này tạo ra một mảng 'dense' khớp 1-1 với danh sách vật tư đã sort.
+                            const sortedKeys = Array.from(componentSerialsMap.keys()).sort((a, b) => a - b);
+                            const componentSerials = sortedKeys.map(key => componentSerialsMap.get(key) || '');
+
+                            // === TẠO SERIAL_COMPONENTS_MAP VỚI KEY ĐÚNG FORMAT ===
+                            // Format: {materialCode_slotIndex: serialValue}
+                            // Ví dụ: {"DAY-DO-DEN_1": "30000", "LUOIHAN_1": "", ...}
+                            const serialComponentsMapKeyed = {};
+                            const materialSlotCounters = {}; // Đếm số lượng slot cho mỗi material code
+
+                            Array.from(componentSerialInputs).forEach(input => {
+                                const materialCode = input.getAttribute('data-material-code');
+                                if (!materialCode) return;
+
+                                // Tăng counter cho material code này
+                                if (!materialSlotCounters[materialCode]) {
+                                    materialSlotCounters[materialCode] = 0;
+                                }
+                                materialSlotCounters[materialCode]++;
+
+                                const slotIndex = materialSlotCounters[materialCode];
+                                const mapKey = `${materialCode}_${slotIndex}`;
+
+                                const value = input.value.trim();
+                                const cleanValue = value === '[' ? '' : value;
+
+                                // Xử lý serial gộp
+                                const isConsolidated = input.getAttribute('data-consolidate') === 'true';
+                                const materialIndicesAttr = input.getAttribute('data-material-indices');
+
+                                if (isConsolidated && materialIndicesAttr) {
+                                    const indicesCount = materialIndicesAttr.split(',').length;
+                                    const serials = cleanValue ? cleanValue.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
+
+                                    // Gán serial cho từng slot
+                                    for (let i = 0; i < indicesCount; i++) {
+                                        const subSlotIndex = slotIndex + i;
+                                        const subMapKey = `${materialCode}_${subSlotIndex}`;
+                                        serialComponentsMapKeyed[subMapKey] = serials[i] || '';
+                                    }
+                                    // Cập nhật counter
+                                    materialSlotCounters[materialCode] += indicesCount - 1;
+                                } else {
+                                    serialComponentsMapKeyed[mapKey] = cleanValue;
+                                }
+                            });
+
+                            const serialComponentsMapKeyedJson = Object.keys(serialComponentsMapKeyed).length > 0
+                                ? JSON.stringify(serialComponentsMapKeyed)
+                                : null;
 
                             // Convert componentSerials to JSON string for database storage
                             // Chỉ lưu nếu có ít nhất một phần tử
@@ -5363,14 +5399,20 @@
                                 }
                             }
 
+                            // Get item type
+                            const itemType = row.getAttribute('data-item-type');
+
                             // Create device code entry
                             deviceCodes.push({
                                 id: deviceCodeId,
                                 dispatch_id: dispatchId,
                                 product_id: productId,
+                                item_type: itemType, // Add item_type
+                                item_id: productId, // Usually same as product_id
                                 serial_main: mainSerialInput.value,
                                 old_serial: oldSerial,
                                 serial_components: componentSerialsJson,
+                                serial_components_map: serialComponentsMapKeyedJson, // Map với key chính xác
                                 serial_sim: simSerial,
                                 access_code: accessCode,
                                 iot_id: iotId,
@@ -5407,7 +5449,7 @@
                         // Lưu trữ serials từ modal trước khi đóng
                         const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
                         const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
-                        
+
                         // Làm mới dữ liệu ngay sau khi lưu để hiển thị tên mới tức thì
                         try {
                             const type = getCurrentModalType();
@@ -5431,18 +5473,18 @@
                         if (typeof enforceSelectedSerials === 'function') {
                             enforceSelectedSerials();
                         }
-                        
+
                         // Load lại device codes từ database để đảm bảo dữ liệu mới nhất
                         setTimeout(async () => {
                             const currentType = getCurrentModalType();
-                            
+
                             try {
                                 // Load lại device codes từ database
                                 await loadDeviceCodesFromDatabase(currentType);
-                                
+
                                 // Cập nhật lại giao diện chính
                                 updateMainInterfaceSerials(currentType);
-                                
+
                                 // Cập nhật lại window.deviceCodesData để modal hiển thị đúng
                                 const response = await fetch(`/api/device-codes/${dispatchId}?type=${currentType}`);
                                 const data = await response.json();
@@ -5453,7 +5495,7 @@
                             } catch (error) {
                                 console.error(`Error reloading device codes for type ${currentType}:`, error);
                             }
-                            
+
                             // Vô hiệu hóa sync sau khi hoàn tất
                             disableAllSync();
                         }, 500);
@@ -5474,13 +5516,13 @@
 
             // Import Excel
             if (importDeviceCodesBtn) {
-                importDeviceCodesBtn.addEventListener('click', function() {
+                importDeviceCodesBtn.addEventListener('click', function () {
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
                     fileInput.accept = '.xlsx,.xls';
                     fileInput.style.display = 'none';
 
-                    fileInput.addEventListener('change', async function(e) {
+                    fileInput.addEventListener('change', async function (e) {
                         const file = e.target.files[0];
                         if (!file) return;
 
@@ -5532,7 +5574,7 @@
                                 if (serialMainInput) {
                                     const currentValue = serialMainInput.value.trim();
                                     const originalSerial = serialMainInput.getAttribute('data-original-serial') || '';
-                                    
+
                                     // Map by current value
                                     if (currentValue) {
                                         if (!serialToRowsMap.has(currentValue)) {
@@ -5547,7 +5589,7 @@
                                         }
                                         serialToRowsMap.get(originalSerial).push(row);
                                     }
-                                    
+
                                     // If no serial yet, add to unmatched list
                                     if (!currentValue && !originalSerial) {
                                         unmatchedRows.push(row);
@@ -5566,11 +5608,11 @@
                                 console.log('Importing', result.data.length, 'items');
                                 console.log('Available rows:', allRows.length);
                                 console.log('Unmatched rows:', unmatchedRows.length);
-                                
+
                                 result.data.forEach((item, itemIndex) => {
                                     const serialMain = (item.serial_main || '').trim();
                                     console.log(`Processing item ${itemIndex}: serial_main="${serialMain}", serial_components="${item.serial_components}"`);
-                                    
+
                                     let matchedRow = null;
 
                                     // Strategy 1: Find row by serial_main (exact match)
@@ -5604,7 +5646,7 @@
                                     if (matchedRow) {
                                         matchedRows.add(matchedRow);
                                         console.log(`Matched row for serial_main="${serialMain}"`);
-                                        
+
                                         // Update serial_main
                                         const serialMainInput = matchedRow.querySelector('input[name*="serial_main"]');
                                         if (serialMainInput) {
@@ -5616,81 +5658,126 @@
                                             console.warn('Could not find serial_main input in matched row');
                                         }
 
-                                        // Update component serials
-                                        if (item.serial_components && item.serial_components !== 'null' && item.serial_components !== '[]' && item.serial_components !== '') {
+                                        // Update component serials - Sử dụng serial_components_map để match theo tên vật tư
+                                        const serialComponentsMap = item.serial_components_map || {};
+
+                                        // Get all component inputs
+                                        const componentInputs = Array.from(matchedRow.querySelectorAll('input[name*="serial_components"]:not([data-consolidate-hidden="true"])'));
+                                        console.log(`Found ${componentInputs.length} component inputs`);
+                                        console.log('Serial components map:', serialComponentsMap);
+
+                                        if (Object.keys(serialComponentsMap).length > 0 && componentInputs.length > 0) {
+                                            // Build a map of normalized label -> inputs for matching
+                                            const labelToInputsMap = new Map();
+
+                                            componentInputs.forEach(input => {
+                                                // Lấy label từ element cha
+                                                const parentDiv = input.closest('div.mb-1');
+                                                const labelElement = parentDiv ? parentDiv.querySelector('label.text-xs') : null;
+                                                let labelText = labelElement ? labelElement.textContent.trim() : '';
+
+                                                // Store by full label
+                                                if (labelText) {
+                                                    if (!labelToInputsMap.has(labelText)) {
+                                                        labelToInputsMap.set(labelText, []);
+                                                    }
+                                                    labelToInputsMap.get(labelText).push(input);
+                                                }
+
+                                                // Store by base label (if different from full label)
+                                                // Also handle optional [CODE] prefix that might come from header
+                                                const baseLabel = labelText.replace(/\s*\(\d+\)\s*$/, '').trim();
+                                                if (baseLabel && baseLabel !== labelText) {
+                                                    if (!labelToInputsMap.has(baseLabel)) {
+                                                        labelToInputsMap.set(baseLabel, []);
+                                                    }
+                                                    labelToInputsMap.get(baseLabel).push(input);
+                                                }
+                                            });
+
+                                            // Get product code of the current matched row
+                                            const productNameInput = matchedRow.querySelector('input[name*="_product_info"]');
+                                            let currentProductCode = '';
+                                            if (productNameInput && productNameInput.value) {
+                                                // Match full product code before " - " (the separator has spaces around dash)
+                                                // Example: "NHUA-X96-IOT-CSET-2KENH75W-CB63 - Tên sản phẩm" → "NHUA-X96-IOT-CSET-2KENH75W-CB63"
+                                                const codeMatch = productNameInput.value.match(/^(.+?)\s+-\s+/);
+                                                if (codeMatch) {
+                                                    currentProductCode = codeMatch[1].trim();
+                                                } else {
+                                                    // Fallback: lấy toàn bộ value nếu không có separator
+                                                    currentProductCode = productNameInput.value.trim();
+                                                }
+                                            }
+                                            console.log(`Current row product code: "${currentProductCode}"`);
+
+                                            // Match serials từ map với inputs theo label
+                                            for (const [headerName, serials] of Object.entries(serialComponentsMap)) {
+                                                // Check for [CODE] prefix in header using more permissive regex
+                                                // Matches [Anything] Space(s) Anything
+                                                const prefixMatch = headerName.match(/^\[([^\]]+)\]\s+(.+)$/);
+                                                let targetLabel = headerName;
+                                                let headerProductCode = null;
+
+                                                if (prefixMatch) {
+                                                    headerProductCode = prefixMatch[1].trim();
+                                                    targetLabel = prefixMatch[2].trim();
+                                                }
+
+                                                // So sánh chính xác product code (không dùng includes nữa vì dễ match sai)
+                                                if (headerProductCode && currentProductCode) {
+                                                    // So sánh chính xác (case-insensitive)
+                                                    if (headerProductCode.toLowerCase() !== currentProductCode.toLowerCase()) {
+                                                        console.log(`Skipping header "${headerName}" - Code mismatch: "${headerProductCode}" vs "${currentProductCode}"`);
+                                                        continue;
+                                                    }
+                                                }
+
+                                                // Tìm inputs có label trùng khớp (dùng targetLabel đã strip prefix)
+                                                const matchingInputs = labelToInputsMap.get(targetLabel) || [];
+
+                                                console.log(`Header "${headerName}" has ${serials.length} serials, found ${matchingInputs.length} matching inputs`);
+
+                                                // Fill serials vào các inputs tương ứng (bỏ qua giá trị rỗng)
+                                                let inputIdx = 0;
+                                                serials.forEach(serial => {
+                                                    if (inputIdx < matchingInputs.length && serial !== '') {
+                                                        matchingInputs[inputIdx].value = serial;
+                                                        console.log(`Filled input[${inputIdx}] for "${headerName}" with: ${serial}`);
+                                                        inputIdx++;
+                                                    }
+                                                });
+                                            }
+                                        } else if (item.serial_components && item.serial_components !== 'null' && item.serial_components !== '[]' && item.serial_components !== '') {
+                                            // Fallback: Dùng serial_components array nếu không có map (tương thích format cũ)
                                             let componentSerials = [];
-                                            
-                                            // Parse serial_components nếu là string
+
                                             if (typeof item.serial_components === 'string') {
                                                 try {
                                                     componentSerials = JSON.parse(item.serial_components);
-                                                    console.log(`Parsed serial_components:`, componentSerials);
                                                 } catch (e) {
-                                                    console.error('Error parsing serial_components during import:', e, 'Raw value:', item.serial_components);
+                                                    console.error('Error parsing serial_components:', e);
                                                     componentSerials = [];
                                                 }
                                             } else if (Array.isArray(item.serial_components)) {
                                                 componentSerials = item.serial_components;
                                             }
-                                            
-                                            console.log(`Component serials to fill:`, componentSerials);
-                                            
-                                            // Get all component inputs (including consolidated ones)
-                                            const componentInputs = Array.from(matchedRow.querySelectorAll('input[name*="serial_components"]:not([data-consolidate-hidden="true"])'));
-                                            console.log(`Found ${componentInputs.length} component inputs`);
-                                            
-                                            if (componentSerials.length > 0 && componentInputs.length > 0) {
-                                                // When importing, fill each serial into separate input fields
-                                                // Don't consolidate during import - each serial goes to its own input
-                                                
-                                                // Get all inputs sorted by their material index
-                                                const inputsWithIndex = componentInputs.map(input => {
-                                                    // Extract material index from name: serial_components[productId][rowIndex][materialIndex]
-                                                    const nameMatch = input.name.match(/\[(\d+)\]\[(\d+)\]\[(\d+)\]/);
-                                                    const materialIndex = nameMatch ? parseInt(nameMatch[3], 10) : -1;
-                                                    
-                                                    // Check if this is a consolidated input
-                                                    const isConsolidated = input.getAttribute('data-consolidate') === 'true';
-                                                    const materialIndices = input.getAttribute('data-material-indices');
-                                                    
-                                                    return {
-                                                        input,
-                                                        materialIndex,
-                                                        isConsolidated,
-                                                        materialIndices: materialIndices ? materialIndices.split(',').map(i => parseInt(i.trim(), 10)) : []
-                                                    };
-                                                });
-                                                
-                                                // Sort by material index to ensure correct order
-                                                inputsWithIndex.sort((a, b) => {
-                                                    // If both have material indices, use the first one
-                                                    const aFirstIndex = a.materialIndices.length > 0 ? a.materialIndices[0] : a.materialIndex;
-                                                    const bFirstIndex = b.materialIndices.length > 0 ? b.materialIndices[0] : b.materialIndex;
-                                                    return aFirstIndex - bFirstIndex;
-                                                });
-                                                
-                                                // Fill each serial into its corresponding input
-                                                componentSerials.forEach((serial, idx) => {
-                                                    if (idx < inputsWithIndex.length) {
-                                                        const inputInfo = inputsWithIndex[idx];
-                                                        console.log(`Filling input[${idx}] (materialIndex: ${inputInfo.materialIndex}) with serial: ${serial}`);
-                                                        
-                                                        // If this is a consolidated input, we still fill it with just this one serial
-                                                        // The user can manually combine them later if needed
-                                                        inputInfo.input.value = serial || '';
-                                                    }
-                                                });
-                                                
-                                                // Clear any remaining inputs that weren't filled
-                                                for (let i = componentSerials.length; i < inputsWithIndex.length; i++) {
-                                                    inputsWithIndex[i].input.value = '';
+
+                                            // Filter out empty serials
+                                            componentSerials = componentSerials.filter(s => s && s.trim() !== '');
+
+                                            // Get all inputs sorted by material index
+                                            const inputsWithIndex = componentInputs.map(input => {
+                                                const nameMatch = input.name.match(/\[(\d+)\]\[(\d+)\]\[(\d+)\]/);
+                                                const materialIndex = nameMatch ? parseInt(nameMatch[3], 10) : -1;
+                                                return { input, materialIndex };
+                                            }).sort((a, b) => a.materialIndex - b.materialIndex);
+
+                                            componentSerials.forEach((serial, idx) => {
+                                                if (idx < inputsWithIndex.length) {
+                                                    inputsWithIndex[idx].input.value = serial || '';
                                                 }
-                                            } else if (componentSerials.length === 0) {
-                                                // Clear all component inputs if no serials
-                                                componentInputs.forEach(input => {
-                                                    input.value = '';
-                                                });
-                                            }
+                                            });
                                         }
 
                                         // Update other fields
@@ -5707,13 +5794,13 @@
                                                 console.warn(`Could not find input for field: ${field}`);
                                             }
                                         });
-                                        
+
                                         console.log('Successfully updated row for serial_main:', serialMain);
                                     } else {
                                         console.warn(`Could not find matching row for item:`, item);
                                     }
                                 });
-                                
+
                                 console.log(`Import completed. Matched ${matchedRows.size} rows out of ${result.data.length} items`);
                             } else {
                                 console.warn('No data to import');
@@ -5742,22 +5829,22 @@
                 if (window.currentDeviceCodeType) {
                     return window.currentDeviceCodeType;
                 }
-                
+
                 // Fallback: kiểm tra button nào đang active
                 const contractBtn = document.getElementById('update_contract_device_codes_btn');
                 const backupBtn = document.getElementById('update_backup_device_codes_btn');
-                
+
                 if (contractBtn && contractBtn.classList.contains('active')) {
                     return 'contract';
                 } else if (backupBtn && backupBtn.classList.contains('active')) {
                     return 'backup';
                 }
-                
+
                 // Fallback cuối cùng: kiểm tra biến local
                 if (typeof currentDeviceCodeType !== 'undefined' && currentDeviceCodeType) {
                     return currentDeviceCodeType;
                 }
-                
+
                 // Default fallback
                 return 'contract';
             }
@@ -5768,22 +5855,22 @@
                 if (!syncEnabled) {
                     return false;
                 }
-                
+
                 // Chỉ sync khi được yêu cầu rõ ràng
                 if (!syncRequested) {
                     return false;
                 }
-                
+
                 // Chỉ sync khi thực sự cần thiết
                 const modal = document.getElementById('device-code-modal');
                 if (!modal || modal.classList.contains('hidden')) {
                     return false;
                 }
-                
+
                 // Kiểm tra xem có input nào đã thay đổi không
                 const changedInputs = modal.querySelectorAll('input[data-changed="true"]');
                 const hasChanges = changedInputs.length > 0;
-                
+
                 return hasChanges;
             }
 
@@ -5793,21 +5880,21 @@
                 if (!shouldSync()) {
                     return;
                 }
-                
+
                 // Lấy loại hiện tại của modal
                 const currentType = getCurrentModalType();
-                
+
                 // Debug: Kiểm tra tất cả select elements và data-type
                 const allSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
                 allSerialSelects.forEach((select, index) => {
                 });
-                
+
                 // Đồng bộ từ giao diện chính sang modal
                 syncFromMainToModal(currentType);
-                
+
                 // Đồng bộ từ modal sang giao diện chính
                 syncFromModalToMain(currentType);
-                
+
                 // Reset data-changed flags sau khi sync
                 const changedInputs = document.querySelectorAll('#device-code-modal input[data-changed="true"]');
                 changedInputs.forEach(input => input.removeAttribute('data-changed'));
@@ -5838,24 +5925,24 @@
                 if (!syncEnabled) {
                     return;
                 }
-                
+
                 // Chỉ sync với serial numbers của loại tương ứng
                 let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${type}"]`);
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
-                
+
                 // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
                 if (mainSerialSelects.length === 0) {
                     const namePatternSelects = document.querySelectorAll(`select[name*="${type}_items"][name*="serial_numbers"]`);
-                    
+
                     if (namePatternSelects.length > 0) {
                         // Sử dụng name pattern selects
                         mainSerialSelects = namePatternSelects;
                     }
                 }
-                
+
                 // Tạo mapping giữa main serials và modal serials
                 const mainSerials = Array.from(mainSerialSelects).map(select => select.value).filter(Boolean);
-                
+
                 modalSerialInputs.forEach((input, index) => {
                     if (mainSerials[index]) {
                         input.value = mainSerials[index];
@@ -5869,37 +5956,37 @@
                 if (!syncEnabled) {
                     return;
                 }
-                
+
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
-                
+
                 // Debug: Kiểm tra tất cả select elements trước khi filter
                 const allSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
                 allSerialSelects.forEach((select, index) => {
                 });
-                
+
                 // Chỉ sync với serial numbers của loại tương ứng
                 const mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${type}"]`);
-                
+
                 // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
                 if (mainSerialSelects.length === 0) {
                     const namePatternSelects = document.querySelectorAll(`select[name*="${type}_items"][name*="serial_numbers"]`);
-                    
+
                     if (namePatternSelects.length > 0) {
                         // Sử dụng name pattern selects
                         mainSerialSelects = namePatternSelects;
                     }
                 }
-                
+
                 // Tạo mapping giữa modal serials và main serials
                 const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
-                
+
                 mainSerialSelects.forEach((select, index) => {
                     if (modalSerials[index]) {
                         const modalSerial = modalSerials[index];
-                        
+
                         // Tìm option tương ứng trong select
                         const option = Array.from(select.options).find(opt => opt.value === modalSerial);
-                        
+
                         if (option) {
                             select.value = modalSerial;
                         } else {
@@ -5910,18 +5997,18 @@
                             select.appendChild(newOption);
                             select.value = modalSerial;
                         }
-                        
+
                         // Trigger change event để các listeners khác biết
                         select.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
-                
+
             }
 
             // Thêm event listeners cho đồng bộ hóa
             function addSerialSyncListeners() {
                 // Lắng nghe thay đổi trong giao diện chính
-                document.addEventListener('change', function(e) {
+                document.addEventListener('change', function (e) {
                     if (e.target.matches('select[name*="serial_numbers"]')) {
                         // Đồng bộ sang modal nếu modal đang mở
                         if (!document.getElementById('device-code-modal').classList.contains('hidden')) {
@@ -5937,7 +6024,7 @@
                 });
 
                 // Lắng nghe thay đổi trong modal - CHỈ sync khi blur (mất focus), không sync real-time
-                document.addEventListener('blur', function(e) {
+                document.addEventListener('blur', function (e) {
                     if (e.target.matches('#device-code-modal input[name*="serial_main"]')) {
                         // Chỉ sync khi user hoàn thành việc nhập (blur event)
                         const currentType = getCurrentModalType();
@@ -5945,17 +6032,17 @@
                         e.target.setAttribute('data-changed', 'true');
                     }
                 }, true);
-                
+
                 // Lắng nghe thay đổi serial vật tư trong modal - CHỈ sync khi blur
-                document.addEventListener('blur', function(e) {
+                document.addEventListener('blur', function (e) {
                     if (e.target.matches('#device-code-modal input[name*="serial_components"]')) {
                         // Chỉ sync khi user hoàn thành việc nhập (blur event)
                         e.target.setAttribute('data-changed', 'true');
                     }
                 }, true);
-                
+
                 // Lắng nghe thay đổi serial chính trong modal - CHỈ sync khi change (enter hoặc select)
-                document.addEventListener('change', function(e) {
+                document.addEventListener('change', function (e) {
                     if (e.target.matches('#device-code-modal input[name*="serial_main"]')) {
                         // Chỉ sync khi user thực sự thay đổi (change event)
                         const currentType = getCurrentModalType();
@@ -5967,29 +6054,29 @@
             // Hàm refresh giao diện chính để hiển thị serial mới
             function refreshMainInterface() {
                 const currentType = getCurrentModalType();
-                
+
                 // Lấy tất cả serial chính từ modal đã lưu
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
                 const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
-                
-                
+
+
                 // Cập nhật từng select trong giao diện chính (chỉ loại tương ứng)
                 let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
-                
+
                 // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
                 if (mainSerialSelects.length === 0) {
                     const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
-                    
+
                     if (namePatternSelects.length > 0) {
                         // Sử dụng name pattern selects
                         mainSerialSelects = namePatternSelects;
                     }
                 }
-                
+
                 mainSerialSelects.forEach((select, index) => {
                     if (modalSerials[index]) {
                         const modalSerial = modalSerials[index];
-                        
+
                         // Tìm hoặc tạo option mới
                         let option = Array.from(select.options).find(opt => opt.value === modalSerial);
                         if (!option) {
@@ -5998,10 +6085,10 @@
                             option.textContent = modalSerial;
                             select.appendChild(option);
                         }
-                        
+
                         // Cập nhật giá trị
                         select.value = modalSerial;
-                        
+
                         // Trigger change event
                         select.dispatchEvent(new Event('change', { bubbles: true }));
                     }
@@ -6014,20 +6101,20 @@
                 // Chỉ kiểm tra với serial numbers của loại tương ứng
                 let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
-                
+
                 // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
                 if (mainSerialSelects.length === 0) {
                     const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
-                    
+
                     if (namePatternSelects.length > 0) {
                         // Sử dụng name pattern selects
                         mainSerialSelects = namePatternSelects;
                     }
                 }
-                
+
                 const mainSerials = Array.from(mainSerialSelects).map(select => select.value).filter(Boolean);
                 const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
-                
+
                 // Kiểm tra xem có sự khác biệt không
                 const inconsistencies = [];
                 mainSerials.forEach((serial, index) => {
@@ -6039,12 +6126,12 @@
                         });
                     }
                 });
-                
+
                 if (inconsistencies.length > 0) {
                     console.warn(`Serial number inconsistencies detected for type ${currentType}:`, inconsistencies);
                     return false;
                 }
-                
+
                 return true;
             }
 
@@ -6052,7 +6139,7 @@
             function showInconsistencyWarning() {
                 const currentType = getCurrentModalType();
                 const typeText = currentType === 'contract' ? 'hợp đồng' : 'dự phòng';
-                
+
                 // Xóa cảnh báo cũ
                 const oldWarning = document.querySelector('.serial-inconsistency-warning');
                 if (oldWarning) {
@@ -6079,9 +6166,9 @@
             }
 
             // Khởi tạo đồng bộ hóa khi trang load
-            document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function () {
                 addSerialSyncListeners();
-                
+
                 // Kiểm tra tính nhất quán định kỳ
                 setInterval(() => {
                     if (!document.getElementById('device-code-modal').classList.contains('hidden')) {

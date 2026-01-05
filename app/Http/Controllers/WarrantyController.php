@@ -105,6 +105,21 @@ class WarrantyController extends Controller
 
             // Build project items
             foreach ($projectDispatches as $dispatch) {
+                // Pre-fetch device codes for this dispatch to update serials
+                $dispatchDeviceCodes = \App\Models\DeviceCode::where('dispatch_id', $dispatch->id)->get();
+                $serialMap = []; // old_serial => new_serial
+                foreach ($dispatchDeviceCodes as $dc) {
+                    if (!empty($dc->old_serial) && !empty($dc->serial_main) && $dc->old_serial !== $dc->serial_main) {
+                        $serialMap[$dc->old_serial] = $dc->serial_main;
+                    }
+                }
+
+                \Log::info('DEBUG SERIAL MAP', [
+                    'dispatch_id' => $dispatch->id,
+                    'found_device_codes' => $dispatchDeviceCodes->count(),
+                    'map_content' => $serialMap
+                ]);
+
                 foreach ($dispatch->items as $dispatchItem) {
                     $itemDetails = null;
                     switch ($dispatchItem->item_type) {
@@ -120,12 +135,35 @@ class WarrantyController extends Controller
                     }
 
                     if ($itemDetails) {
+                        // Cập nhật serials từ map
+                        $rawSerials = $dispatchItem->serial_numbers;
+                        $currentSerials = is_array($rawSerials) ? $rawSerials : explode(',', $rawSerials);
+                        $currentSerials = array_map('trim', $currentSerials);
+
+                        $origSerials = $currentSerials;
+
+                        if (!empty($serialMap)) {
+                            foreach ($currentSerials as $k => $v) {
+                                if (isset($serialMap[$v])) {
+                                    $currentSerials[$k] = $serialMap[$v];
+                                }
+                            }
+                        }
+
+                        // Loại bỏ rỗng
+                        $currentSerials = array_filter($currentSerials, function ($value) {
+                            return !is_null($value) && trim($value) !== '';
+                        });
+
+                        // Re-index
+                        $currentSerials = array_values($currentSerials);
+
                         $projectItems[] = [
                             'code' => $itemDetails->code,
                             'name' => $itemDetails->name,
                             'quantity' => $dispatchItem->quantity,
                             'type' => $dispatchItem->item_type,
-                            'serial_numbers' => $dispatchItem->serial_numbers,
+                            'serial_numbers' => $currentSerials,
                             'dispatch_item_id' => $dispatchItem->id,
                             'dispatch_id' => $dispatch->id,
                         ];
@@ -135,57 +173,266 @@ class WarrantyController extends Controller
 
             // Build product materials với batch query
             $productItems = collect($projectItems)->where('type', 'product');
+
+            \Log::info('DEBUG PRODUCT ITEMS', [
+                'count' => $productItems->count(),
+                'first_item' => $productItems->first(),
+                'all_types' => collect($projectItems)->pluck('type')->unique()
+            ]);
+
             if ($productItems->isNotEmpty()) {
+                // Collect tất cả serial numbers
                 // Collect tất cả serial numbers
                 $allSerials = [];
                 foreach ($productItems as $item) {
-                    if (!empty($item['serial_numbers'])) {
-                        $serials = is_array($item['serial_numbers']) ? $item['serial_numbers'] : [$item['serial_numbers']];
-                        $allSerials = array_merge($allSerials, $serials);
+                    $itemRaw = $item['serial_numbers'];
+                    $serials = is_array($itemRaw) ? $itemRaw : explode(',', $itemRaw);
+
+                    // Log raw info to debug missing items
+                    \Log::info('DEBUG ALL SERIALS LOOP', [
+                        'code' => $item['code'],
+                        'raw_type' => gettype($itemRaw),
+                        'raw_content' => $itemRaw
+                    ]);
+
+                    foreach ($serials as $s) {
+                        $s = trim($s);
+                        if ($s !== '') {
+                            $allSerials[] = $s;
+                        }
                     }
                 }
-                $allSerials = array_unique(array_filter($allSerials));
+                $allSerials = array_unique($allSerials);
+                // end foreach
+
 
                 // Batch load assembly products có chứa serial numbers cần tìm
                 if (!empty($allSerials)) {
-                    // Tìm tất cả AssemblyProduct có chứa serial trong danh sách
-                    $serialConditions = [];
-                    foreach ($allSerials as $serial) {
-                        $serialConditions[] = "FIND_IN_SET('" . addslashes($serial) . "', serials) > 0";
+                    // Mở rộng phạm vi tìm kiếm AssemblyProduct:
+                    // Vì AssemblyProduct có thể lưu serial cũ (vd: a111), còn $allSerials chứa serial mới (vd: a111123456)
+                    // nên cần tìm thêm old_serial tương ứng để query.
+                    $lookupSerials = $allSerials;
+                    $relatedOldSerials = \App\Models\DeviceCode::whereIn('serial_main', $allSerials)
+                        ->whereNotNull('old_serial')
+                        ->pluck('old_serial')
+                        ->toArray();
+
+                    if (!empty($relatedOldSerials)) {
+                        $lookupSerials = array_merge($lookupSerials, $relatedOldSerials);
                     }
 
-                    $assemblyProducts = \App\Models\AssemblyProduct::whereRaw('(' . implode(' OR ', $serialConditions) . ')')
-                        ->with(['assembly.materials.material'])
-                        ->get();
+                    // Tìm assembly products với danh sách serial mở rộng
+                    $assemblyProducts = \App\Models\AssemblyProduct::where(function ($q) use ($lookupSerials) {
+                        foreach ($lookupSerials as $serial) {
+                            $q->orWhere('serials', 'like', "%$serial%"); // Dùng LIKE để tìm trong chuỗi serials (csv)
+                        }
+                    })->with(['assembly.materials.material'])->get();
 
                     // Group materials by serial
                     $materialsBySerial = [];
                     foreach ($assemblyProducts as $assemblyProduct) {
                         $serials = $assemblyProduct->serials ? explode(',', $assemblyProduct->serials) : [];
-                        foreach ($serials as $serial) {
+                        foreach ($serials as $serialIndex => $serial) {
                             $serial = trim($serial);
-                            if (in_array($serial, $allSerials) && $assemblyProduct->assembly) {
-                                if (!isset($materialsBySerial[$serial])) {
-                                    $materialsBySerial[$serial] = [
+                            $displaySerial = $serial;
+                            $isFound = false;
+
+                            // Case 1: Serial khớp trực tiếp
+                            if (in_array($serial, $allSerials)) {
+                                $isFound = true;
+                            }
+                            // Case 2: Serial cũ khớp với serial mới trong danh sách hiển thị (thông qua DeviceCode)
+                            else {
+                                // Tìm xem serial này có phải là old_serial của một device code nào đó trong ds hiển thị không
+                                $mappedDevice = \App\Models\DeviceCode::where('old_serial', $serial)
+                                    ->where('item_id', $assemblyProduct->product_id)
+                                    ->first();
+
+                                if ($serial === 'b222' || $serial === 'b222 ') {
+                                    \Log::info('DEBUG MAPPING CHECK', [
+                                        'serial_Assembly' => $serial,
+                                        'product_id' => $assemblyProduct->product_id,
+                                        'device_found' => $mappedDevice ? 'YES' : 'NO',
+                                        'device_main' => $mappedDevice ? $mappedDevice->serial_main : 'N/A',
+                                        'in_all_serials' => ($mappedDevice && in_array($mappedDevice->serial_main, $allSerials)) ? 'YES' : 'NO'
+                                    ]);
+                                }
+
+                                if ($mappedDevice && in_array($mappedDevice->serial_main, $allSerials)) {
+                                    $displaySerial = $mappedDevice->serial_main;
+                                    $isFound = true;
+                                    // Cập nhật serial để logic phía dưới dùng serial mới (quan trọng để tìm device code ở bước sau)
+                                    $serial = $displaySerial;
+                                }
+                            }
+
+                            // LOG DEBUG CHO TỪNG SERIAL
+                            \Log::info('Checking serial in loop', [
+                                'orig' => $origSerial ?? 'N/A',
+                                'current' => $serial,
+                                'display' => $displaySerial,
+                                'is_found' => $isFound ? 'YES' : 'NO',
+                                'in_all_serials' => in_array($serial, $allSerials) ? 'YES' : 'NO'
+                            ]);
+
+                            if ($isFound && $assemblyProduct->assembly) {
+                                if (!isset($materialsBySerial[$displaySerial])) {
+                                    $materialsBySerial[$displaySerial] = [
                                         'product' => $assemblyProduct,
                                         'materials' => []
                                     ];
                                 }
-                                // Lấy materials từ assembly
-                                foreach ($assemblyProduct->assembly->materials as $am) {
-                                    if ($am->material) {
-                                        $materialsBySerial[$serial]['materials'][$am->material->code] = [
-                                            'code' => $am->material->code,
-                                            'name' => $am->material->name,
-                                            'quantity' => $am->quantity,
-                                            'assembly_code' => $assemblyProduct->assembly->code ?? 'N/A',
-                                            'serial' => $am->serial ?? 'N/A'
-                                        ];
+
+                                // product_unit = serialIndex (vị trí trong danh sách serial gốc của assembly)
+                                $productUnit = $serialIndex;
+
+                                // ===== TÌM DEVICE CODE ĐỂ LẤY SERIAL VẬT TƯ ĐÃ CẬP NHẬT =====
+                                $deviceCode = \App\Models\DeviceCode::where('item_id', $assemblyProduct->product_id)
+                                    ->where(function ($q) use ($serial) {
+                                        $q->where('serial_main', $serial)
+                                            ->orWhere('old_serial', $serial);
+                                    })
+                                    ->first();
+
+                                // Parse serial_components từ DeviceCode
+                                $deviceCodeSerials = [];
+                                if ($deviceCode && $deviceCode->serial_components) {
+                                    $rawValue = $deviceCode->serial_components;
+                                    if (is_array($rawValue)) {
+                                        $deviceCodeSerials = $rawValue;
+                                    } elseif (is_string($rawValue)) {
+                                        $decoded = json_decode($rawValue, true);
+                                        if (is_array($decoded)) {
+                                            $deviceCodeSerials = $decoded;
+                                        } elseif (is_string($decoded)) {
+                                            // Double-encoded
+                                            $decoded2 = json_decode($decoded, true);
+                                            if (is_array($decoded2)) {
+                                                $deviceCodeSerials = $decoded2;
+                                            }
+                                        }
                                     }
+                                }
+
+                                // Lấy materials từ assembly CHỉ cho product_unit này
+                                $materials = \App\Models\AssemblyMaterial::where('assembly_id', $assemblyProduct->assembly_id)
+                                    ->where('target_product_id', $assemblyProduct->product_id)
+                                    ->where('product_unit', $productUnit)
+                                    ->with('material')
+                                    ->orderBy('id', 'asc') // Đảm bảo thứ tự nhất quán
+                                    ->get();
+
+                                \Log::info('DEBUG MATERIALS', [
+                                    'orig_serial' => $originalSerial ?? 'N/A', // $serial has been updated, so use fallback or capture earlier
+                                    'mapped_serial' => $serial,
+                                    'assembly_id' => $assemblyProduct->assembly_id,
+                                    'product_id' => $assemblyProduct->product_id,
+                                    'product_unit' => $productUnit,
+                                    'materials_count' => $materials->count(),
+                                    'device_code_found' => $deviceCode ? 'YES' : 'NO',
+                                    'device_code_serials_count' => count($deviceCodeSerials)
+                                ]);
+
+                                // Tạo flatList để map với serial_components
+                                $flatList = [];
+                                $groupedByMaterial = [];
+                                foreach ($materials as $am) {
+                                    if ($am->material) {
+                                        $mid = $am->material_id;
+                                        if (!isset($groupedByMaterial[$mid])) {
+                                            $groupedByMaterial[$mid] = [
+                                                'material' => $am->material,
+                                                'assembly_code' => $assemblyProduct->assembly->code ?? 'N/A',
+                                                'total_qty' => 0,
+                                                'assembly_serials' => [] // Serials từ assembly
+                                            ];
+                                        }
+                                        $groupedByMaterial[$mid]['total_qty'] += $am->quantity;
+                                        if (!empty($am->serial)) {
+                                            $parts = array_map('trim', explode(',', $am->serial));
+                                            foreach ($parts as $p) {
+                                                if (!empty($p)) {
+                                                    $groupedByMaterial[$mid]['assembly_serials'][] = $p;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Sort theo material_id để đảm bảo thứ tự nhất quán với DeviceCodeController
+                                ksort($groupedByMaterial);
+
+                                // Flatten và map serial
+                                $flatIndex = 0;
+                                foreach ($groupedByMaterial as $mid => $data) {
+                                    $matCode = $data['material']->code;
+                                    $matName = $data['material']->name;
+                                    $qty = $data['total_qty'];
+                                    $assemblySerials = $data['assembly_serials'];
+                                    $materialUnit = $data['material']->unit ?? '';
+
+                                    $serialsList = [];
+                                    $typeIndex = 1; // 1-based index for map keys
+
+                                    // Parse map (if JSON string)
+                                    $deviceCodeMap = [];
+                                    if ($deviceCode && !empty($deviceCode->serial_components_map)) {
+                                        $mapRaw = $deviceCode->serial_components_map;
+                                        $deviceCodeMap = is_array($mapRaw) ? $mapRaw : json_decode($mapRaw, true);
+                                    }
+
+                                    // ===== KIỂM TRA ĐƠN VỊ GỘP =====
+                                    // Các đơn vị chiều dài/cân nặng được gộp thành 1 trường nhập liệu trong form
+                                    $consolidatedUnits = ['mm', 'cm', 'm', 'Mm', 'Cm', 'M', 'g', 'kg', 'G', 'Kg', 'KG'];
+                                    $isConsolidatedUnit = in_array($materialUnit, $consolidatedUnits);
+
+                                    // Nếu là đơn vị gộp, chỉ tìm 1 serial (key _1)
+                                    $loopCount = $isConsolidatedUnit ? 1 : $qty;
+
+                                    for ($i = 0; $i < $loopCount; $i++) {
+                                        $mapKey = $matCode . '_' . $typeIndex;
+                                        $s = 'N/A';
+
+                                        // Priority 1: Map (Exact match) - STRICT MODE (No fallback if map exists)
+                                        if (!empty($deviceCodeMap)) {
+                                            if (isset($deviceCodeMap[$mapKey])) {
+                                                $val = trim($deviceCodeMap[$mapKey]);
+                                                $s = !empty($val) ? $val : 'N/A';
+                                            }
+                                            // Nếu có map mà không tìm thấy key -> Coi như N/A (Không fallback về flat list để tránh sai lệch)
+                                        }
+                                        // Priority 2: Flat List (Legacy - Only if map is empty)
+                                        elseif (!empty($deviceCodeSerials) && isset($deviceCodeSerials[$flatIndex])) {
+                                            $val = trim($deviceCodeSerials[$flatIndex]);
+                                            $s = !empty($val) ? $val : 'N/A';
+                                        }
+                                        // Priority 3: Assembly Serial
+                                        elseif (isset($assemblySerials[$i]) && !empty($assemblySerials[$i])) {
+                                            $s = $assemblySerials[$i];
+                                        }
+
+                                        $serialsList[] = $s;
+
+                                        $flatIndex++;
+                                        $typeIndex++;
+                                    }
+
+                                    // Điều chỉnh quantity hiển thị cho đơn vị gộp
+                                    $displayQty = $isConsolidatedUnit ? $qty . ' ' . $materialUnit : $qty;
+
+                                    $materialsBySerial[$serial]['materials'][$matCode] = [
+                                        'code' => $matCode,
+                                        'name' => $matName,
+                                        'quantity' => $displayQty,
+                                        'assembly_code' => $data['assembly_code'],
+                                        'serial' => implode(', ', $serialsList)
+                                    ];
                                 }
                             }
                         }
                     }
+
+
 
                     // Build product materials array
                     foreach ($productItems as $item) {

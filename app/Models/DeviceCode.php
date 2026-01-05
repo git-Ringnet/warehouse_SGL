@@ -14,6 +14,7 @@ class DeviceCode extends Model
         'old_serial',
         'serial_main',
         'serial_components',
+        'serial_components_map', // Keyed object for robust reading
         'serial_sim',
         'access_code',
         'iot_id',
@@ -23,11 +24,12 @@ class DeviceCode extends Model
     ];
 
     protected $casts = [
-        'serial_components' => 'array'
+        'serial_components' => 'array',
+        'serial_components_map' => 'array'
     ];
 
     public function dispatch()
     {
         return $this->belongsTo(Dispatch::class);
     }
-} 
+}

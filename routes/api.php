@@ -17,6 +17,31 @@ use App\Http\Controllers\InventoryImportController;
 |
 */
 
+// DEBUG route (temporary)
+Route::get('/debug-dc/{dispatch_id}', function ($dispatch_id) {
+    $dcs = \App\Models\DeviceCode::where('dispatch_id', $dispatch_id)->get();
+    $result = ['device_codes' => [], 'dispatch_items' => []];
+    foreach ($dcs as $dc) {
+        $result['device_codes'][] = [
+            'id' => $dc->id,
+            'serial_main' => $dc->serial_main,
+            'product_id' => $dc->product_id,
+            'item_id' => $dc->item_id,
+            'serial_components' => $dc->serial_components,
+            'serial_components_map' => $dc->serial_components_map,
+        ];
+    }
+    // Also get dispatch_items
+    $dispatchItems = \DB::table('dispatch_items')
+        ->where('dispatch_id', $dispatch_id)
+        ->select('id', 'item_id', 'item_type', 'assembly_id', 'product_unit', 'serial_numbers')
+        ->get();
+    foreach ($dispatchItems as $di) {
+        $result['dispatch_items'][] = (array) $di;
+    }
+    return response()->json($result);
+});
+
 // API Authentication routes
 Route::post('/login', [App\Http\Controllers\AuthController::class, 'apiLogin'])->name('api.login');
 Route::middleware('auth:sanctum')->group(function () {
@@ -25,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.me');
     Route::get('/user-profile', [App\Http\Controllers\AuthController::class, 'apiProfile'])->name('api.user-profile');
     Route::put('/user/change-password', [App\Http\Controllers\AuthController::class, 'apiChangePassword'])->name('api.user.change-password');
-    
+
     // Notifications API
     Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'apiIndex'])->name('api.notifications.index');
     Route::put('/notifications/mark-read', [App\Http\Controllers\NotificationController::class, 'apiMarkAsRead'])->name('api.notifications.mark-read');
@@ -47,10 +72,10 @@ Route::post('device-codes/sync-serial-numbers', [DeviceCodeController::class, 's
 
 // Product API routes
 Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductController::class, 'createFromAssembly'])
-    ->middleware(['web', \App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create']); 
-    
+    ->middleware(['web', \App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create']);
+
 // Lấy hình ảnh sản phẩm
-Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::class, 'getProductImages']); 
+Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::class, 'getProductImages']);
 
 // Add this route in the api.php file
 Route::get('/products/materials-count', [App\Http\Controllers\Api\ProductController::class, 'getMaterialsCount']);
@@ -66,11 +91,11 @@ Route::get('/dispatch/resolve-assembly', [App\Http\Controllers\DispatchControlle
 // Route cho phiếu nhập kho
 Route::prefix('inventory-imports')->group(function () {
     Route::get('generate-code', [InventoryImportController::class, 'generateCode']);
-}); 
+});
 
 Route::get('/materials/{material}/warehouses', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableWarehouses']);
 Route::get('/materials/{material}/serials/{warehouse}', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableSerials']);
-Route::post('/materials/batch-serials', [App\Http\Controllers\Api\MaterialController::class, 'getBatchSerials']); 
+Route::post('/materials/batch-serials', [App\Http\Controllers\Api\MaterialController::class, 'getBatchSerials']);
 
 
 
@@ -78,13 +103,13 @@ Route::post('/materials/batch-serials', [App\Http\Controllers\Api\MaterialContro
 Route::get('/warehouse-transfers/generate-code', [App\Http\Controllers\WarehouseTransferController::class, 'generateCode']);
 Route::get('/warehouse-transfers/get-serials', [App\Http\Controllers\WarehouseTransferController::class, 'getAvailableSerials']);
 Route::get('/warehouse-transfers/check-serial-data', [App\Http\Controllers\WarehouseTransferController::class, 'checkSerialData']);
-Route::get('/warehouse-transfers/get-items-by-warehouse', [App\Http\Controllers\WarehouseTransferController::class, 'getItemsByWarehouse']); 
+Route::get('/warehouse-transfers/get-items-by-warehouse', [App\Http\Controllers\WarehouseTransferController::class, 'getItemsByWarehouse']);
 
 // API kiểm tra tồn kho
-Route::get('/check-stock/{itemType}/{itemId}', [App\Http\Controllers\Api\StockController::class, 'checkStock']); 
+Route::get('/check-stock/{itemType}/{itemId}', [App\Http\Controllers\Api\StockController::class, 'checkStock']);
 
 // Device codes route
-Route::get('/device-codes/{dispatchId}', [App\Http\Controllers\Api\DeviceCodeController::class, 'getDeviceCodes']); 
+Route::get('/device-codes/{dispatchId}', [App\Http\Controllers\Api\DeviceCodeController::class, 'getDeviceCodes']);
 
 // Testing API routes
 Route::get('/testing/check-code', [App\Http\Controllers\TestingController::class, 'checkTestCode']);
@@ -95,31 +120,31 @@ Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, '
 
 // Maintenance Request API routes (Yêu cầu hỗ trợ bảo hành/sửa chữa)
 Route::middleware('auth:sanctum')->prefix('maintenance-requests')->group(function () {
-	Route::get('/all', [App\Http\Controllers\MaintenanceRequestController::class, 'apiGetAllProject'])->name('api.maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
-	Route::get('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndex'])->name('api.maintenance-requests.index'); // Tương thích ngược
-	Route::get('/project', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndexProject'])->name('api.maintenance-requests.project'); // API riêng cho bảo trì dự án (có lọc, phân trang)
-	Route::get('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiShow'])->name('api.maintenance-requests.show'); // Lấy chi tiết một phiếu bảo trì theo ID
-	Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
-	// Cập nhật yêu cầu bảo hành/sửa chữa: Không cần API này
-	// Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
-	// Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
-	// Liệt kê thiết bị theo dự án/cho thuê cho API bên ngoài
-	Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevicesApi'])->name('api.maintenance-requests.devices');
-	// Lấy danh sách serial thiết bị dựa trên device_code và project_id
-	Route::post('/device-serials', [App\Http\Controllers\MaintenanceRequestController::class, 'getDeviceSerials'])->name('api.maintenance-requests.device-serials');
-	// Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
-	Route::post('/projects-or-rentals', [App\Http\Controllers\MaintenanceRequestController::class, 'getProjectsOrRentals'])->name('api.maintenance-requests.projects-or-rentals');
+    Route::get('/all', [App\Http\Controllers\MaintenanceRequestController::class, 'apiGetAllProject'])->name('api.maintenance-requests.all'); // Lấy TẤT CẢ (không lọc, không phân trang)
+    Route::get('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndex'])->name('api.maintenance-requests.index'); // Tương thích ngược
+    Route::get('/project', [App\Http\Controllers\MaintenanceRequestController::class, 'apiIndexProject'])->name('api.maintenance-requests.project'); // API riêng cho bảo trì dự án (có lọc, phân trang)
+    Route::get('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiShow'])->name('api.maintenance-requests.show'); // Lấy chi tiết một phiếu bảo trì theo ID
+    Route::post('/', [App\Http\Controllers\MaintenanceRequestController::class, 'apiStore'])->name('api.maintenance-requests.store');
+    // Cập nhật yêu cầu bảo hành/sửa chữa: Không cần API này
+    // Route::patch('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate'])->name('api.maintenance-requests.update');
+    // Route::put('/{id}', [App\Http\Controllers\MaintenanceRequestController::class, 'apiUpdate']);
+    // Liệt kê thiết bị theo dự án/cho thuê cho API bên ngoài
+    Route::post('/devices', [App\Http\Controllers\MaintenanceRequestController::class, 'getDevicesApi'])->name('api.maintenance-requests.devices');
+    // Lấy danh sách serial thiết bị dựa trên device_code và project_id
+    Route::post('/device-serials', [App\Http\Controllers\MaintenanceRequestController::class, 'getDeviceSerials'])->name('api.maintenance-requests.device-serials');
+    // Lấy danh sách dự án/phiếu cho thuê dựa trên project_type và thông tin khách hàng
+    Route::post('/projects-or-rentals', [App\Http\Controllers\MaintenanceRequestController::class, 'getProjectsOrRentals'])->name('api.maintenance-requests.projects-or-rentals');
 });
 
 // Customer Maintenance Request API routes (Khách yêu cầu bảo trì)
 Route::middleware('auth:sanctum')->prefix('customer-maintenance-requests')->group(function () {
-	Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy danh sách (có phân trang)
-	Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
-	Route::get('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiShow'])->name('api.customer-maintenance-requests.show'); // Lấy chi tiết một phiếu
-	Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì (cũ)
-	Route::post('/create', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiCreateRequest'])->name('api.customer-maintenance-requests.create'); // Tạo phiếu khách yêu cầu bảo trì (mới - theo yêu cầu)
-	Route::patch('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate'])->name('api.customer-maintenance-requests.update'); // Cập nhật phiếu khách yêu cầu bảo trì
-	Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
+    Route::get('/all', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiGetAll'])->name('api.customer-maintenance-requests.all'); // Lấy danh sách (có phân trang)
+    Route::get('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiIndex'])->name('api.customer-maintenance-requests.index'); // Có lọc và phân trang
+    Route::get('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiShow'])->name('api.customer-maintenance-requests.show'); // Lấy chi tiết một phiếu
+    Route::post('/', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiStore'])->name('api.customer-maintenance-requests.store'); // Tạo phiếu khách yêu cầu bảo trì (cũ)
+    Route::post('/create', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiCreateRequest'])->name('api.customer-maintenance-requests.create'); // Tạo phiếu khách yêu cầu bảo trì (mới - theo yêu cầu)
+    Route::patch('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate'])->name('api.customer-maintenance-requests.update'); // Cập nhật phiếu khách yêu cầu bảo trì
+    Route::put('/{id}', [App\Http\Controllers\CustomerMaintenanceRequestController::class, 'apiUpdate']);
 });
 
 // Repair API routes - Public (no auth required)
@@ -132,17 +157,17 @@ Route::prefix('repairs')->group(function () {
 Route::middleware('auth:sanctum')->prefix('repairs')->group(function () {
     Route::get('/search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->name('api.repairs.search-warehouse-devices');
     Route::get('/repair-history', [App\Http\Controllers\RepairController::class, 'getRepairHistory'])->name('api.repairs.repair-history');
-    
+
     // Test endpoint - xóa sau khi debug xong
-    Route::get('/test-warranties', function() {
+    Route::get('/test-warranties', function () {
         $warranties = \App\Models\Warranty::select('id', 'warranty_code', 'customer_phone', 'customer_name', 'status')
             ->orderBy('created_at', 'desc')
             ->take(10)
             ->get();
-        
+
         // Kiểm tra warranty cụ thể
         $specificWarranty = \App\Models\Warranty::where('warranty_code', 'BH2025100016')->first();
-        
+
         return response()->json([
             'total_warranties' => \App\Models\Warranty::count(),
             'sample_warranties' => $warranties,
