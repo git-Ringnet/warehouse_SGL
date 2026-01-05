@@ -25,18 +25,20 @@ class AuthController extends Controller
         if (Auth::guard('web')->check()) {
             // Nếu là nhân viên, kiểm tra quyền trước khi chuyển hướng
             $employee = Auth::guard('web')->user();
-            if ($employee->role === 'admin' || 
-                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+            if (
+                $employee->role === 'admin' ||
+                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))
+            ) {
                 return redirect('/dashboard');
             }
             return redirect('/'); // Chuyển về trang chủ nếu không có quyền
         }
-        
+
         if (Auth::guard('customer')->check()) {
             // Khách hàng luôn được chuyển về trang chủ riêng
             return redirect('/customer/dashboard');
         }
-        
+
         return view('auth.login');
     }
 
@@ -52,7 +54,7 @@ class AuthController extends Controller
 
         // Ghi log để debug
         Log::info('Đang thử đăng nhập với username: ' . $credentials['username']);
-        
+
         // Thử đăng nhập với bảng employees (nhân viên)
         $employee = Employee::where('username', $credentials['username'])->first();
         if ($employee) {
@@ -67,10 +69,10 @@ class AuthController extends Controller
             if (Hash::check($credentials['password'], $employee->password)) {
                 Auth::guard('web')->login($employee);
                 Log::info('Đăng nhập thành công với nhân viên: ' . $credentials['username']);
-                
+
                 // Lưu thông tin loại người dùng vào session
                 Session::put('user_type', 'employee');
-                
+
                 // Ghi nhật ký đăng nhập
                 UserLog::logActivity(
                     $employee->id,
@@ -80,27 +82,49 @@ class AuthController extends Controller
                     null,
                     ['username' => $employee->username, 'name' => $employee->name]
                 );
-                
+
                 $request->session()->regenerate();
-                
+
                 // Kiểm tra quyền truy cập dashboard
-                if ($employee->role === 'admin' || 
-                    ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+                if (
+                    $employee->role === 'admin' ||
+                    ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))
+                ) {
                     return redirect()->intended('/dashboard');
                 }
                 // Nếu nhân viên chưa có quyền, chuyển đến trang thông báo
                 return view('errors.no-permission');
             }
         }
-        
+
         // Nếu không thành công, thử đăng nhập với bảng users (khách hàng)
-        $user = User::where('username', $credentials['username'])->first();
+        // Hỗ trợ đăng nhập bằng username hoặc số điện thoại
+        $user = null;
+        $customer = null;
+        $loginIdentifier = $credentials['username'];
+
+        // Kiểm tra xem input có phải là số điện thoại không (chỉ chứa số và có 10-11 ký tự)
+        $isPhoneNumber = preg_match('/^[0-9]{10,11}$/', $loginIdentifier);
+
+        if ($isPhoneNumber) {
+            // Tìm khách hàng theo số điện thoại
+            $customer = Customer::where('phone', $loginIdentifier)->first();
+            if ($customer && $customer->has_account) {
+                // Tìm user liên kết với khách hàng này
+                $user = User::where('customer_id', $customer->id)->where('role', 'customer')->first();
+            }
+        } else {
+            // Tìm theo username
+            $user = User::where('username', $loginIdentifier)->first();
+            if ($user && $user->role === 'customer') {
+                $customer = Customer::find($user->customer_id);
+            }
+        }
+
         if ($user && $user->role === 'customer') {
             // Kiểm tra trạng thái tài khoản khách hàng
-            $customer = Customer::find($user->customer_id);
-            
             if ($customer && $customer->is_locked) {
-                Log::warning('Tài khoản khách hàng đã bị khóa: ' . $credentials['username']);
+                Log::warning('Tài khoản khách hàng đã bị khóa: ' . $loginIdentifier);
                 return back()->withErrors([
                     'login_error' => 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
                 ])->withInput($request->only('username'));
@@ -108,11 +132,11 @@ class AuthController extends Controller
 
             if (Hash::check($credentials['password'], $user->password)) {
                 Auth::guard('customer')->login($user);
-                Log::info('Đăng nhập thành công với khách hàng: ' . $credentials['username']);
-                
+                Log::info('Đăng nhập thành công với khách hàng: ' . $loginIdentifier . ($isPhoneNumber ? ' (bằng số điện thoại)' : ''));
+
                 // Lưu thông tin loại người dùng vào session
                 Session::put('user_type', 'customer');
-                
+
                 // Ghi nhật ký đăng nhập - chỉ ghi cho employee
                 if ($user->role !== 'customer') {
                     UserLog::logActivity(
@@ -122,32 +146,33 @@ class AuthController extends Controller
                         'Đăng nhập thành công (khách hàng)',
                         null,
                         [
-                            'username' => $user->username, 
+                            'username' => $user->username,
                             'name' => $user->name,
                             'customer_name' => $customer ? $customer->name : null,
                             'customer_company' => $customer ? $customer->company_name : null
                         ]
                     );
                 }
-                
+
                 $request->session()->regenerate();
                 return redirect()->intended('/customer/dashboard');
             }
         }
-        
+
         // Kiểm tra xem người dùng có tồn tại không
         if (!$employee && !($user && $user->role === 'customer')) {
-            Log::warning('Không tìm thấy người dùng với username: ' . $credentials['username']);
+            Log::warning('Không tìm thấy người dùng với username/phone: ' . $loginIdentifier);
             return back()->withErrors([
-                'username' => 'Không tìm thấy tài khoản với tên đăng nhập này.',
+                'username' => 'Không tìm thấy tài khoản với tên đăng nhập hoặc số điện thoại này.',
             ])->withInput($request->only('username'));
         }
-        
+
         Log::warning('Đăng nhập thất bại với username: ' . $credentials['username']);
         return back()->withErrors([
             'login_error' => 'Tên đăng nhập hoặc mật khẩu không đúng.',
         ])->withInput($request->only('username'));
     }
+
 
     /**
      * Xử lý đăng xuất
@@ -156,7 +181,7 @@ class AuthController extends Controller
     {
         // Xác định guard đang sử dụng
         $userType = Session::get('user_type');
-        
+
         // Ghi nhật ký đăng xuất trước khi logout - chỉ ghi cho employee
         if (Auth::check() && $userType !== 'customer') {
             $user = Auth::user();
@@ -169,13 +194,13 @@ class AuthController extends Controller
                 null
             );
         }
-        
+
         if ($userType === 'customer') {
             Auth::guard('customer')->logout();
         } else {
             Auth::guard('web')->logout();
         }
-        
+
         Session::forget('user_type');
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -188,7 +213,7 @@ class AuthController extends Controller
     public function profile()
     {
         $userType = Session::get('user_type');
-        
+
         // Kiểm tra loại người dùng để hiển thị view phù hợp
         if ($userType === 'employee') {
             $employee = Auth::guard('web')->user();
@@ -202,24 +227,24 @@ class AuthController extends Controller
             if (!$user) {
                 return redirect()->route('login')->with('error', 'Vui lòng đăng nhập lại');
             }
-            
+
             $customer = Customer::find($user->customer_id);
             if (!$customer) {
                 Log::error('Không tìm thấy thông tin khách hàng cho user_id: ' . $user->id);
                 return redirect()->route('dashboard')->with('error', 'Không tìm thấy thông tin khách hàng');
             }
-            
+
             return view('auth.customer_profile', ['user' => $user, 'customer' => $customer]);
         }
     }
-    
+
     /**
      * Cập nhật mật khẩu người dùng
      */
     public function updatePassword(Request $request)
     {
         $userType = Session::get('user_type');
-        
+
         $request->validate([
             'current_password' => 'required',
             'password' => 'required|confirmed|min:8',
@@ -229,7 +254,7 @@ class AuthController extends Controller
             'password.confirmed' => 'Xác nhận mật khẩu không khớp',
             'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự',
         ]);
-        
+
         try {
             // Cập nhật mật khẩu dựa trên loại người dùng
             if ($userType === 'employee') {
@@ -237,18 +262,18 @@ class AuthController extends Controller
                 if (!$user) {
                     return redirect()->route('login')->with('error', 'Vui lòng đăng nhập lại');
                 }
-                
+
                 // Kiểm tra mật khẩu hiện tại
                 if (!Hash::check($request->current_password, $user->password)) {
                     return back()->withErrors([
                         'current_password' => 'Mật khẩu hiện tại không đúng',
                     ]);
                 }
-                
+
                 DB::table('employees')
                     ->where('id', $user->id)
                     ->update(['password' => Hash::make($request->password)]);
-                
+
                 // Ghi nhật ký thay đổi mật khẩu
                 UserLog::logActivity(
                     $user->id,
@@ -263,25 +288,25 @@ class AuthController extends Controller
                 if (!$user) {
                     return redirect()->route('login')->with('error', 'Vui lòng đăng nhập lại');
                 }
-                
+
                 // Kiểm tra mật khẩu hiện tại
                 if (!Hash::check($request->current_password, $user->password)) {
                     return back()->withErrors([
                         'current_password' => 'Mật khẩu hiện tại không đúng',
                     ]);
                 }
-                
+
                 DB::table('users')
                     ->where('id', $user->id)
                     ->update(['password' => Hash::make($request->password)]);
-                
+
                 // Cập nhật mật khẩu gốc trong bảng customers
                 if ($user->role === 'customer' && $user->customer_id) {
                     DB::table('customers')
                         ->where('id', $user->customer_id)
                         ->update(['account_password' => $request->password]);
                 }
-                
+
                 // Ghi nhật ký thay đổi mật khẩu
                 UserLog::logActivity(
                     $user->id,
@@ -292,7 +317,7 @@ class AuthController extends Controller
                     ['username' => $user->username]
                 );
             }
-            
+
             return back()->with('success', 'Mật khẩu đã được cập nhật thành công');
         } catch (\Exception $e) {
             Log::error('Lỗi cập nhật mật khẩu: ' . $e->getMessage());
@@ -316,7 +341,7 @@ class AuthController extends Controller
 
             // Thử đăng nhập với nhân viên (Employee)
             $employee = Employee::where('username', $request->username)->first();
-            
+
             if ($employee) {
                 // Kiểm tra trạng thái tài khoản
                 if (!$employee->is_active) {
@@ -361,12 +386,31 @@ class AuthController extends Controller
             }
 
             // Thử đăng nhập với khách hàng (User)
-            $user = User::where('username', $request->username)->first();
-            
+            // Hỗ trợ đăng nhập bằng username hoặc số điện thoại
+            $user = null;
+            $customer = null;
+            $loginIdentifier = $request->username;
+
+            // Kiểm tra xem input có phải là số điện thoại không (chỉ chứa số và có 10-11 ký tự)
+            $isPhoneNumber = preg_match('/^[0-9]{10,11}$/', $loginIdentifier);
+
+            if ($isPhoneNumber) {
+                // Tìm khách hàng theo số điện thoại
+                $customer = Customer::where('phone', $loginIdentifier)->first();
+                if ($customer && $customer->has_account) {
+                    // Tìm user liên kết với khách hàng này
+                    $user = User::where('customer_id', $customer->id)->where('role', 'customer')->first();
+                }
+            } else {
+                // Tìm theo username
+                $user = User::where('username', $loginIdentifier)->first();
+                if ($user && $user->role === 'customer') {
+                    $customer = Customer::find($user->customer_id);
+                }
+            }
+
             if ($user && $user->role === 'customer') {
                 // Kiểm tra trạng thái tài khoản khách hàng
-                $customer = Customer::find($user->customer_id);
-                
                 if ($customer && $customer->is_locked) {
                     return response()->json([
                         'success' => false,
@@ -381,7 +425,7 @@ class AuthController extends Controller
 
                     return response()->json([
                         'success' => true,
-                        'message' => 'Đăng nhập thành công',
+                        'message' => 'Đăng nhập thành công' . ($isPhoneNumber ? ' (bằng số điện thoại)' : ''),
                         'data' => [
                             'token' => $token,
                             'token_type' => 'Bearer',
@@ -392,7 +436,8 @@ class AuthController extends Controller
                                 'email' => $user->email,
                                 'role' => $user->role,
                                 'customer_id' => $user->customer_id,
-                                'type' => 'customer'
+                                'type' => 'customer',
+                                'phone' => $customer ? $customer->phone : null
                             ]
                         ]
                     ]);
@@ -402,7 +447,7 @@ class AuthController extends Controller
             // Đăng nhập thất bại
             return response()->json([
                 'success' => false,
-                'message' => 'Tên đăng nhập hoặc mật khẩu không chính xác.'
+                'message' => 'Tên đăng nhập/số điện thoại hoặc mật khẩu không chính xác.'
             ], 401);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -427,7 +472,7 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             if ($user) {
                 // Xóa token hiện tại
                 $request->user()->currentAccessToken()->delete();
@@ -471,7 +516,7 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
@@ -611,7 +656,7 @@ class AuthController extends Controller
             // Custom validation cho password complexity
             $validator->after(function ($validator) use ($request) {
                 $password = $request->new_password;
-                
+
                 if ($password) {
                     if (!preg_match('/[a-z]/', $password)) {
                         $validator->errors()->add('new_password', 'Mật khẩu mới phải chứa ít nhất 1 ký tự thường.');
