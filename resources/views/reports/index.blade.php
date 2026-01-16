@@ -35,67 +35,71 @@
                         <!-- Bộ lọc thời gian -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Thời gian</label>
-                            <select name="time_filter" id="timeFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="custom" {{ $timeFilter == 'custom' || !$timeFilter ? 'selected' : '' }}>Tùy chọn</option>
+                            <select name="time_filter" id="timeFilter"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="custom" {{ $timeFilter == 'custom' || !$timeFilter ? 'selected' : '' }}>Tùy
+                                    chọn</option>
                                 <option value="quarter" {{ $timeFilter == 'quarter' ? 'selected' : '' }}>Theo Quý</option>
                                 <option value="year" {{ $timeFilter == 'year' ? 'selected' : '' }}>Theo Năm</option>
                             </select>
                         </div>
-                        
+
                         <!-- Từ ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
-                            <input type="text" name="from_date" id="fromDate" placeholder="DD/MM/YYYY" value="{{ $dateFrom }}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="from_date" id="fromDate" placeholder="DD/MM/YYYY"
+                                value="{{ $dateFrom }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        
+
                         <!-- Đến ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
-                            <input type="text" name="to_date" id="toDate" placeholder="DD/MM/YYYY" value="{{ $dateTo }}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="to_date" id="toDate" placeholder="DD/MM/YYYY" value="{{ $dateTo }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        
+
                         <!-- Tìm kiếm -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
                             <input type="text" name="search" value="{{ $search }}" placeholder="Mã, tên vật tư..."
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        
+
                         <!-- Danh mục -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Danh mục</label>
-                            <select name="category_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select name="category_filter"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả danh mục</option>
                                 @foreach($categories as $cat)
                                     <option value="{{ $cat }}" {{ $category == $cat ? 'selected' : '' }}>{{ $cat }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        
+
                         <!-- Nút áp dụng -->
                         <div class="flex items-end">
-                            <button type="button" onclick="applyFilter()" 
-                                    class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+                            <button type="button" onclick="applyFilter()"
+                                class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
                                 <i class="fas fa-search mr-1"></i> Áp dụng
                             </button>
                         </div>
-                        
+
                         <!-- Nút xuất -->
                         <div class="flex items-end space-x-1">
-                            <button type="button" onclick="exportToExcel()" 
-                                    class="flex-1 bg-green-600 text-white px-2 py-2 rounded-md hover:bg-green-700 transition duration-200 text-sm">
+                            <button type="button" onclick="exportToExcel()"
+                                class="flex-1 bg-green-600 text-white px-2 py-2 rounded-md hover:bg-green-700 transition duration-200 text-sm">
                                 <i class="fas fa-file-excel"></i> Excel
                             </button>
-                            <button type="button" onclick="exportToPdf()" 
-                                    class="flex-1 bg-red-600 text-white px-2 py-2 rounded-md hover:bg-red-700 transition duration-200 text-sm">
+                            <button type="button" onclick="exportToPdf()"
+                                class="flex-1 bg-red-600 text-white px-2 py-2 rounded-md hover:bg-red-700 transition duration-200 text-sm">
                                 <i class="fas fa-file-pdf"></i> PDF
                             </button>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Loading indicator -->
                 <div id="loadingIndicator" class="hidden mt-4 text-center">
                     <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-600 rounded-lg">
@@ -112,7 +116,8 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Tổng số vật tư</div>
-                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['total_items']) }}</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['total_items']) }}
+                                </div>
                                 <div class="mt-1 text-xs text-green-500 font-medium">
                                     <i class="fas fa-arrow-up mr-1"></i> +8.2% so với tháng trước
                                 </div>
@@ -128,7 +133,8 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Số lượng danh mục vật tư</div>
-                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['total_categories']) }}</div>
+                                <div class="text-2xl font-bold text-gray-800">
+                                    {{ number_format($stats['total_categories']) }}</div>
                                 <div class="mt-1 text-xs text-green-500 font-medium">
                                     <i class="fas fa-arrow-up mr-1"></i> +4.6% so với tháng trước
                                 </div>
@@ -144,10 +150,14 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Nhập kho (trong kỳ)</div>
-                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['imports']) }}</div>
-                                <div class="mt-1 text-xs {{ $stats['imports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
-                                    <i class="fas fa-arrow-{{ $stats['imports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i> 
-                                    {{ $stats['imports_change'] >= 0 ? '+' : '' }}{{ $stats['imports_change'] }}% so với kỳ trước
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['imports']) }}
+                                </div>
+                                <div
+                                    class="mt-1 text-xs {{ $stats['imports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
+                                    <i
+                                        class="fas fa-arrow-{{ $stats['imports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i>
+                                    {{ $stats['imports_change'] >= 0 ? '+' : '' }}{{ $stats['imports_change'] }}% so với
+                                    kỳ trước
                                 </div>
                             </div>
                             <div class="bg-green-100 rounded-full h-12 w-12 flex items-center justify-center">
@@ -161,10 +171,14 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Xuất kho (trong kỳ)</div>
-                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['exports']) }}</div>
-                                <div class="mt-1 text-xs {{ $stats['exports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
-                                    <i class="fas fa-arrow-{{ $stats['exports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i> 
-                                    {{ $stats['exports_change'] >= 0 ? '+' : '' }}{{ $stats['exports_change'] }}% so với kỳ trước
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['exports']) }}
+                                </div>
+                                <div
+                                    class="mt-1 text-xs {{ $stats['exports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
+                                    <i
+                                        class="fas fa-arrow-{{ $stats['exports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i>
+                                    {{ $stats['exports_change'] >= 0 ? '+' : '' }}{{ $stats['exports_change'] }}% so với
+                                    kỳ trước
                                 </div>
                             </div>
                             <div class="bg-red-100 rounded-full h-12 w-12 flex items-center justify-center">
@@ -178,7 +192,8 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Vật tư hư hỏng (trong kỳ)</div>
-                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['damaged_quantity'] ?? 0) }}</div>
+                                <div class="text-2xl font-bold text-gray-800">
+                                    {{ number_format($stats['damaged_quantity'] ?? 0) }}</div>
                                 <div class="mt-1 text-xs text-orange-500 font-medium">
                                     <i class="fas fa-exclamation-triangle mr-1"></i> Từ kiểm thử
                                 </div>
@@ -218,7 +233,7 @@
                         @endif
                     </div>
                 </div>
-                
+
                 <!-- Ghi chú giải thích -->
                 <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <div class="flex items-start">
@@ -227,8 +242,10 @@
                             <p class="font-medium mb-1">Ghi chú:</p>
                             <ul class="list-disc list-inside space-y-1">
                                 <li><strong>Tồn cuối kỳ:</strong> Tồn đầu kỳ + Nhập - Xuất (tính theo công thức)</li>
-                                <li><strong>Tồn hiện tại:</strong> Số lượng thực tế trong kho tại thời điểm hiện tại</li>
-                                <li><strong>Chênh lệch:</strong> Tồn hiện tại - Tồn cuối kỳ (dương = thừa, âm = thiếu)</li>
+                                <li><strong>Tồn hiện tại:</strong> Số lượng thực tế trong kho tại thời điểm hiện tại
+                                </li>
+                                <li><strong>Chênh lệch:</strong> Tồn hiện tại - Tồn cuối kỳ (dương = thừa, âm = thiếu)
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -238,128 +255,157 @@
                     <table class="min-w-full bg-white border border-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(1)">
+                                <th
+                                    class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    STT</th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(1)">
                                     Mã vật tư <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(2)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(2)">
                                     Tên vật tư <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(4)">
+                                <th
+                                    class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Đơn vị</th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(4)">
                                     Tồn đầu kỳ <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(5)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(5)">
                                     Nhập <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(6)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(6)">
                                     Xuất <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(7)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(7)">
                                     Tồn cuối kỳ <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(8)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(8)">
                                     Tồn hiện tại <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(9)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(9)">
                                     Chênh lệch <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(10)">
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                    onclick="sortTable(10)">
                                     Hư hỏng <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
-                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                <th
+                                    class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Thao tác</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             @forelse($reportData as $index => $item)
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">{{ $loop->index + 1 }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ $item['item_code'] }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_name'] }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_unit'] }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">{{ number_format($item['opening_stock']) }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">
-                                    @if($item['imports'] > 0)
-                                        +{{ number_format($item['imports']) }}
-                                    @else
-                                        0
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">
-                                    @if($item['exports'] > 0)
-                                        -{{ number_format($item['exports']) }}
-                                    @else
-                                        0
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ number_format($item['closing_stock']) }}</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ number_format($item['current_stock']) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium {{ ($item['current_stock'] - $item['closing_stock']) >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    @php
-                                        $difference = $item['current_stock'] - $item['closing_stock'];
-                                    @endphp
-                                    @if($difference >= 0)
-                                        +{{ number_format($difference) }}
-                                    @else
-                                        {{ number_format($difference) }}
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-orange-600 font-medium">
-                                    @if($item['damaged_quantity'] > 0)
-                                        {{ number_format($item['damaged_quantity']) }}
-                                    @else
-                                        0
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-sm">
-                                    <a href="{{ route('materials.show', $item['item_id']) }}" class="text-blue-500 hover:text-blue-700 mr-2" title="Xem chi tiết">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="#" onclick="openHistoryModal({{ $item['item_id'] }})" class="text-gray-500 hover:text-gray-700" title="Lịch sử">
-                                        <i class="fas fa-history"></i>
-                                    </a>
-                                </td>
-                            </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 text-sm text-gray-900">{{ $loop->index + 1 }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ $item['item_code'] }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_name'] }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_unit'] }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-900">{{ number_format($item['opening_stock']) }}
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 text-green-600">
+                                        @if($item['imports'] > 0)
+                                            +{{ number_format($item['imports']) }}
+                                        @else
+                                            0
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 text-red-600">
+                                        @if($item['exports'] > 0)
+                                            -{{ number_format($item['exports']) }}
+                                        @else
+                                            0
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 font-medium">
+                                        {{ number_format($item['closing_stock']) }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 font-medium">
+                                        {{ number_format($item['current_stock']) }}</td>
+                                    <td
+                                        class="py-3 px-4 text-sm font-medium {{ ($item['current_stock'] - $item['closing_stock']) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                        @php
+                                            $difference = $item['current_stock'] - $item['closing_stock'];
+                                        @endphp
+                                        @if($difference >= 0)
+                                            +{{ number_format($difference) }}
+                                        @else
+                                            {{ number_format($difference) }}
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-gray-900 text-orange-600 font-medium">
+                                        @if($item['damaged_quantity'] > 0)
+                                            {{ number_format($item['damaged_quantity']) }}
+                                        @else
+                                            0
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-sm">
+                                        <a href="{{ route('materials.show', $item['item_id']) }}"
+                                            class="text-blue-500 hover:text-blue-700 mr-2" title="Xem chi tiết">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="#" onclick="openHistoryModal({{ $item['item_id'] }})"
+                                            class="text-gray-500 hover:text-gray-700" title="Lịch sử">
+                                            <i class="fas fa-history"></i>
+                                        </a>
+                                    </td>
+                                </tr>
                             @empty
-                            <tr>
-                                <td colspan="12" class="py-8 px-4 text-center text-gray-500">
-                                    <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
-                                    <p class="text-lg font-medium">Không có dữ liệu</p>
-                                    <p class="text-sm">Thử thay đổi bộ lọc để xem kết quả khác</p>
-                                </td>
-                            </tr>
+                                <tr>
+                                    <td colspan="12" class="py-8 px-4 text-center text-gray-500">
+                                        <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
+                                        <p class="text-lg font-medium">Không có dữ liệu</p>
+                                        <p class="text-sm">Thử thay đổi bộ lọc để xem kết quả khác</p>
+                                    </td>
+                                </tr>
                             @endforelse
                         </tbody>
                         @if($reportData->count() > 0)
-                        <tfoot class="bg-gray-50">
-                            <tr>
-                                <td colspan="4" class="py-3 px-4 text-sm font-medium text-gray-700 text-right">Tổng:</td>
-                                <td class="py-3 px-4 text-sm font-medium text-gray-700">{{ number_format($reportData->sum('opening_stock')) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium text-green-600">+{{ number_format($reportData->sum('imports')) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium text-red-600">-{{ number_format($reportData->sum('exports')) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium text-gray-700">{{ number_format($reportData->sum('closing_stock')) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium text-gray-700">{{ number_format($reportData->sum('current_stock')) }}</td>
-                                <td class="py-3 px-4 text-sm font-medium {{ ($reportData->sum('current_stock') - $reportData->sum('closing_stock')) >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    @php
-                                        $totalDifference = $reportData->sum('current_stock') - $reportData->sum('closing_stock');
-                                    @endphp
-                                    @if($totalDifference >= 0)
-                                        +{{ number_format($totalDifference) }}
-                                    @else
-                                        {{ number_format($totalDifference) }}
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-sm font-medium text-orange-600">{{ number_format($reportData->sum('damaged_quantity')) }}</td>
-                                <td class="py-3 px-4"></td>
-                            </tr>
-                        </tfoot>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="4" class="py-3 px-4 text-sm font-medium text-gray-700 text-right">Tổng:
+                                    </td>
+                                    <td class="py-3 px-4 text-sm font-medium text-gray-700">
+                                        {{ number_format($reportData->sum('opening_stock')) }}</td>
+                                    <td class="py-3 px-4 text-sm font-medium text-green-600">
+                                        +{{ number_format($reportData->sum('imports')) }}</td>
+                                    <td class="py-3 px-4 text-sm font-medium text-red-600">
+                                        -{{ number_format($reportData->sum('exports')) }}</td>
+                                    <td class="py-3 px-4 text-sm font-medium text-gray-700">
+                                        {{ number_format($reportData->sum('closing_stock')) }}</td>
+                                    <td class="py-3 px-4 text-sm font-medium text-gray-700">
+                                        {{ number_format($reportData->sum('current_stock')) }}</td>
+                                    <td
+                                        class="py-3 px-4 text-sm font-medium {{ ($reportData->sum('current_stock') - $reportData->sum('closing_stock')) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                        @php
+                                            $totalDifference = $reportData->sum('current_stock') - $reportData->sum('closing_stock');
+                                        @endphp
+                                        @if($totalDifference >= 0)
+                                            +{{ number_format($totalDifference) }}
+                                        @else
+                                            {{ number_format($totalDifference) }}
+                                        @endif
+                                    </td>
+                                    <td class="py-3 px-4 text-sm font-medium text-orange-600">
+                                        {{ number_format($reportData->sum('damaged_quantity')) }}</td>
+                                    <td class="py-3 px-4"></td>
+                                </tr>
+                            </tfoot>
                         @endif
                     </table>
-                    
+
                     <div id="reportFooter" class="mt-4 flex justify-between items-center">
                         <div class="text-sm text-gray-500">
                             @if($reportData->count() > 0)
-                                Hiển thị {{ $reportData->count() }} kết quả từ {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} đến {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}
+                                Hiển thị {{ $reportData->count() }} kết quả từ {{ $dateFrom }} đến {{ $dateTo }}
                             @else
                                 Không có kết quả
                             @endif
@@ -377,9 +423,10 @@
     <!-- Modal lịch sử xuất nhập vật tư -->
     <div id="historyModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-30 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6 relative h-3/4 overflow-y-scroll">
-            <button onclick="closeHistoryModal()" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl">&times;</button>
+            <button onclick="closeHistoryModal()"
+                class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl">&times;</button>
             <h3 class="text-lg font-semibold mb-4 text-gray-800">Lịch sử xuất nhập vật tư</h3>
-            
+
             <!-- Bộ lọc thời gian -->
             <div class="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div class="flex gap-4 items-center">
@@ -392,10 +439,12 @@
                         <input type="text" id="historyToDate" class="form-input text-sm border-gray-300 rounded-md">
                     </div>
                     <div class="mt-6">
-                        <button onclick="filterHistory()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                        <button onclick="filterHistory()"
+                            class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
                             <i class="fas fa-filter mr-1"></i> Lọc
                         </button>
-                        <button onclick="clearHistoryFilter()" class="px-4 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 ml-2">
+                        <button onclick="clearHistoryFilter()"
+                            class="px-4 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 ml-2">
                             <i class="fas fa-times mr-1"></i> Xóa lọc
                         </button>
                     </div>
@@ -429,10 +478,10 @@
         function applyFilter() {
             // Hiển thị loading
             showLoading();
-            
+
             // Lấy dữ liệu từ form
             const formData = getFilterFormData();
-            
+
             // Gọi API
             fetch('{{ route("reports.filter.ajax") }}', {
                 method: 'POST',
@@ -442,56 +491,56 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                hideLoading();
-                console.log('Response data:', data); // Debug log
-                
-                if (data.success) {
-                    // Lưu thông tin sắp xếp hiện tại trước khi cập nhật DOM
-                    const currentSort = getCurrentSortInfo();
-                    
-                    // Cập nhật bảng
-                    document.getElementById('reportTableContainer').innerHTML = data.html;
-                    
-                    // Khôi phục thứ tự sắp xếp nếu có
-                    if (currentSort) {
-                        // Đợi một chút để DOM được cập nhật
-                        setTimeout(() => {
-                            sortTable(currentSort.column);
-                        }, 100);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
-                    // Cập nhật số lượng kết quả
-                    document.getElementById('resultCount').textContent = 
-                        data.count > 0 ? `${data.count} kết quả` : 'Không có kết quả';
-                    
-                    // Cập nhật thống kê tổng quan
-                    if (data.stats) {
-                        updateStats(data.stats);
+                    return response.json();
+                })
+                .then(data => {
+                    hideLoading();
+                    console.log('Response data:', data); // Debug log
+
+                    if (data.success) {
+                        // Lưu thông tin sắp xếp hiện tại trước khi cập nhật DOM
+                        const currentSort = getCurrentSortInfo();
+
+                        // Cập nhật bảng
+                        document.getElementById('reportTableContainer').innerHTML = data.html;
+
+                        // Khôi phục thứ tự sắp xếp nếu có
+                        if (currentSort) {
+                            // Đợi một chút để DOM được cập nhật
+                            setTimeout(() => {
+                                sortTable(currentSort.column);
+                            }, 100);
+                        }
+
+                        // Cập nhật số lượng kết quả
+                        document.getElementById('resultCount').textContent =
+                            data.count > 0 ? `${data.count} kết quả` : 'Không có kết quả';
+
+                        // Cập nhật thống kê tổng quan
+                        if (data.stats) {
+                            updateStats(data.stats);
+                        }
+
+                        // Cập nhật biểu đồ
+                        if (data.chartData) {
+                            updateCharts(data.chartData);
+                        }
+
+                        console.log('Dữ liệu đã được cập nhật thành công');
+                    } else {
+                        console.error('API returned error:', data);
+                        alert('Có lỗi xảy ra khi lọc dữ liệu: ' + (data.message || 'Unknown error'));
                     }
-                    
-                    // Cập nhật biểu đồ
-                    if (data.chartData) {
-                        updateCharts(data.chartData);
-                    }
-                        
-                    console.log('Dữ liệu đã được cập nhật thành công');
-                } else {
-                    console.error('API returned error:', data);
-                    alert('Có lỗi xảy ra khi lọc dữ liệu: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                hideLoading();
-                console.error('Fetch error:', error);
-                alert('Có lỗi xảy ra khi lọc dữ liệu: ' + error.message);
-            });
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Fetch error:', error);
+                    alert('Có lỗi xảy ra khi lọc dữ liệu: ' + error.message);
+                });
         }
 
 
@@ -501,13 +550,13 @@
             const form = document.getElementById('filterForm');
             const inputs = form.querySelectorAll('input, select');
             const data = {};
-            
+
             inputs.forEach(input => {
                 if (input.value !== null && input.value !== undefined && input.value.trim() !== '') {
                     data[input.name] = input.value.trim();
                 }
             });
-            
+
             // Thêm thông tin sắp xếp hiện tại
             const currentSort = getCurrentSortInfo();
             if (currentSort) {
@@ -525,17 +574,17 @@
                     9: 'current_stock', // Chênh lệch (sort by current_stock)
                     10: 'damaged_quantity', // Hư hỏng
                 };
-                
+
                 data.sort_column = columnMap[currentSort.column] || 'item_name';
                 data.sort_direction = currentSort.direction;
             }
-            
+
             // Thêm thông tin filter thời gian
             const timeFilter = document.getElementById('timeFilter');
             if (timeFilter && timeFilter.value !== 'custom') {
                 data.time_filter = timeFilter.value;
             }
-            
+
             console.log('Filter data:', data); // Debug log
             return data;
         }
@@ -553,20 +602,20 @@
         // Cập nhật thống kê tổng quan
         function updateStats(stats) {
             // Cập nhật tổng số vật tư
-            document.querySelector('.text-2xl.font-bold.text-gray-800').textContent = 
+            document.querySelector('.text-2xl.font-bold.text-gray-800').textContent =
                 stats.total_items.toLocaleString();
-            
+
             // Cập nhật số danh mục vật tư
             const statCards = document.querySelectorAll('.text-2xl.font-bold.text-gray-800');
             if (statCards[1]) {
                 statCards[1].textContent = stats.total_categories.toLocaleString();
             }
-            
+
             // Cập nhật nhập kho
             if (statCards[2]) {
                 statCards[2].textContent = stats.imports.toLocaleString();
             }
-            
+
             // Cập nhật xuất kho
             if (statCards[3]) {
                 statCards[3].textContent = stats.exports.toLocaleString();
@@ -576,7 +625,7 @@
             if (statCards[4]) {
                 statCards[4].textContent = stats.damaged_quantity.toLocaleString();
             }
-            
+
             // Cập nhật % thay đổi nhập kho
             const importsChange = document.querySelector('.text-xs.text-green-500.font-medium, .text-xs.text-red-500.font-medium');
             if (importsChange && typeof stats.imports_change !== 'undefined') {
@@ -584,7 +633,7 @@
                 importsChange.innerHTML = `<i class="fas fa-arrow-${stats.imports_change >= 0 ? 'up' : 'down'} mr-1"></i> ${changeText}% so với kỳ trước`;
                 importsChange.className = `text-xs ${stats.imports_change >= 0 ? 'text-green-500' : 'text-red-500'} font-medium`;
             }
-            
+
             // Cập nhật % thay đổi xuất kho  
             const exportsChangeElements = document.querySelectorAll('.text-xs.text-green-500.font-medium, .text-xs.text-red-500.font-medium');
             if (exportsChangeElements[3] && typeof stats.exports_change !== 'undefined') {
@@ -599,36 +648,36 @@
         let topChart = null;
 
         // Xử lý filter thời gian
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const timeFilter = document.getElementById('timeFilter');
             const fromDate = document.getElementById('fromDate');
             const toDate = document.getElementById('toDate');
 
             if (timeFilter && fromDate && toDate) {
-                timeFilter.addEventListener('change', function() {
+                timeFilter.addEventListener('change', function () {
                     const selectedValue = this.value;
                     const today = new Date();
-                    
+
                     switch (selectedValue) {
                         case 'quarter':
                             // Tính quý hiện tại
                             const currentQuarter = Math.ceil((today.getMonth() + 1) / 3);
                             const quarterStart = new Date(today.getFullYear(), (currentQuarter - 1) * 3, 1);
                             const quarterEnd = new Date(today.getFullYear(), currentQuarter * 3, 0);
-                            
+
                             fromDate.value = quarterStart.toISOString().split('T')[0];
                             toDate.value = quarterEnd.toISOString().split('T')[0];
                             break;
-                            
+
                         case 'year':
                             // Tính năm hiện tại
                             const yearStart = new Date(today.getFullYear(), 0, 1);
                             const yearEnd = new Date(today.getFullYear(), 11, 31);
-                            
+
                             fromDate.value = yearStart.toISOString().split('T')[0];
                             toDate.value = yearEnd.toISOString().split('T')[0];
                             break;
-                            
+
                         case 'custom':
                         default:
                             // Giữ nguyên giá trị hiện tại
@@ -647,7 +696,7 @@
                 trendsChart.data.datasets[1].data = chartData.exports_data;
                 trendsChart.update();
             }
-            
+
             // Cập nhật biểu đồ top vật tư
             if (topChart) {
                 topChart.data.labels = chartData.top_items_labels;
@@ -666,28 +715,28 @@
         // Cập nhật hàm xuất PDF để dùng filter hiện tại
         function exportToPdf() {
             const formData = getFilterFormData();
-            
+
             // Thêm thông tin sắp xếp hiện tại
             const currentSort = getCurrentSortInfo();
             if (currentSort) {
                 formData.sort_column = currentSort.column;
                 formData.sort_direction = currentSort.direction;
             }
-            
+
             const params = new URLSearchParams(formData);
-            
+
             // Hiển thị loading
             const pdfButton = document.querySelector('button[onclick="exportToPdf()"]');
             const originalText = pdfButton.innerHTML;
             pdfButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo PDF...';
             pdfButton.disabled = true;
-            
+
             fetch('{{ route("reports.export.pdf") }}?' + params.toString())
                 .then(response => {
                     // Reset button
                     pdfButton.innerHTML = originalText;
                     pdfButton.disabled = false;
-                    
+
                     if (!response.ok) {
                         if (response.status === 403) {
                             alert('Bạn không có quyền xuất file PDF');
@@ -698,7 +747,7 @@
                             throw new Error(errorData.message || 'Server error: ' + response.status);
                         });
                     }
-                    
+
                     // Kiểm tra content type
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/pdf')) {
@@ -708,12 +757,12 @@
                             const a = document.createElement('a');
                             a.style.display = 'none';
                             a.href = url;
-                            a.download = 'bao_cao_vat_tu_' + new Date().toISOString().slice(0,19).replace(/[-:]/g, '_').replace('T', '_') + '.pdf';
+                            a.download = 'bao_cao_vat_tu_' + new Date().toISOString().slice(0, 19).replace(/[-:]/g, '_').replace('T', '_') + '.pdf';
                             document.body.appendChild(a);
                             a.click();
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
-                            
+
                             // Hiển thị thông báo thành công
                             alert('Xuất PDF thành công! File đã được tải xuống.');
                         });
@@ -730,14 +779,14 @@
                     // Reset button nếu chưa reset
                     pdfButton.innerHTML = originalText;
                     pdfButton.disabled = false;
-                    
+
                     console.error('PDF Export Error:', error);
                     alert('Có lỗi xảy ra khi xuất PDF: ' + error.message);
                 });
         }
 
         // Khởi tạo khi trang load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Biểu đồ xu hướng nhập xuất
             const trendsCtx = document.getElementById('inventoryTrendsChart').getContext('2d');
             trendsChart = new Chart(trendsCtx, {
@@ -828,7 +877,7 @@
         function getCurrentSortInfo() {
             const table = document.querySelector('table');
             if (!table) return null;
-            
+
             const headerCells = table.querySelectorAll('th');
             for (let i = 0; i < headerCells.length; i++) {
                 if (headerCells[i].classList.contains('sort-asc') || headerCells[i].classList.contains('sort-desc')) {
@@ -845,14 +894,14 @@
         function sortTable(columnIndex) {
             const table = document.querySelector('table');
             if (!table) return;
-            
+
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const headerCells = table.querySelectorAll('th');
-            
+
             // Determine sort direction
             let sortDirection = headerCells[columnIndex].classList.contains('sort-asc') ? 'desc' : 'asc';
-            
+
             // Reset all header sort indicators
             headerCells.forEach(cell => {
                 cell.classList.remove('sort-asc', 'sort-desc');
@@ -861,40 +910,40 @@
                     icon.className = 'fas fa-sort text-gray-300 ml-1';
                 }
             });
-            
+
             // Set current header sort indicator
             headerCells[columnIndex].classList.add('sort-' + sortDirection);
             const currentIcon = headerCells[columnIndex].querySelector('i');
             if (currentIcon) {
-                currentIcon.className = sortDirection === 'asc' ? 
-                    'fas fa-sort-up text-blue-500 ml-1' : 
+                currentIcon.className = sortDirection === 'asc' ?
+                    'fas fa-sort-up text-blue-500 ml-1' :
                     'fas fa-sort-down text-blue-500 ml-1';
             }
-            
+
             // Sort the rows
             rows.sort((a, b) => {
                 const aValue = a.cells[columnIndex].textContent.trim();
                 const bValue = b.cells[columnIndex].textContent.trim();
-                
+
                 // Check if it's a number
                 if (!isNaN(parseFloat(aValue)) && !isNaN(parseFloat(bValue))) {
-                    return sortDirection === 'asc' ? 
-                        parseFloat(aValue) - parseFloat(bValue) : 
+                    return sortDirection === 'asc' ?
+                        parseFloat(aValue) - parseFloat(bValue) :
                         parseFloat(bValue) - parseFloat(aValue);
                 }
-                
+
                 // Sort as strings
-                return sortDirection === 'asc' ? 
-                    aValue.localeCompare(bValue) : 
+                return sortDirection === 'asc' ?
+                    aValue.localeCompare(bValue) :
                     bValue.localeCompare(aValue);
             });
-            
+
             // Re-add rows to the table
             rows.forEach(row => tbody.appendChild(row));
         }
 
         // Initialize flatpickr for date inputs
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const dateConfig = {
                 locale: 'vn',
                 dateFormat: 'd/m/Y',
@@ -915,33 +964,33 @@
         function openHistoryModal(materialId) {
             currentMaterialId = materialId;
             document.getElementById('historyModal').classList.remove('hidden');
-            
+
             // Reset bộ lọc
             document.getElementById('historyFromDate').value = '';
             document.getElementById('historyToDate').value = '';
-            
+
             loadHistoryData();
         }
 
         function loadHistoryData() {
             if (!currentMaterialId) return;
-            
+
             document.getElementById('historyLoading').classList.remove('hidden');
             document.getElementById('historyError').classList.add('hidden');
             document.getElementById('historyTotal').classList.add('hidden');
             document.querySelector('#historyTable tbody').innerHTML = '';
-            
+
             // Lấy giá trị bộ lọc
             const fromDate = document.getElementById('historyFromDate').value;
             const toDate = document.getElementById('historyToDate').value;
-            
+
             // Tạo URL với params
             let url = `/materials/${currentMaterialId}/history-ajax`;
             const params = new URLSearchParams();
             if (fromDate) params.append('from_date', fromDate);
             if (toDate) params.append('to_date', toDate);
             if (params.toString()) url += '?' + params.toString();
-            
+
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
@@ -951,13 +1000,13 @@
                         document.getElementById('historyError').classList.remove('hidden');
                         return;
                     }
-                    
+
                     const tbody = document.querySelector('#historyTable tbody');
                     if (data.data.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500 py-4">Không có lịch sử xuất nhập</td></tr>';
                         return;
                     }
-                    
+
                     tbody.innerHTML = data.data.map(item => `
                         <tr>
                             <td class="py-2 px-3 border-b">${item.date}</td>
@@ -967,7 +1016,7 @@
                             <td class="py-2 px-3 border-b">${item.user_name}</td>
                         </tr>
                     `).join('');
-                    
+
                     // Hiển thị tổng số bản ghi
                     document.getElementById('historyTotal').textContent = `Tổng cộng: ${data.total} giao dịch`;
                     document.getElementById('historyTotal').classList.remove('hidden');
@@ -996,4 +1045,4 @@
     </script>
 </body>
 
-</html> 
+</html>
