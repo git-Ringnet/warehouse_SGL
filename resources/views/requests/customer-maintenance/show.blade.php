@@ -127,14 +127,21 @@
                 <div>
                     <p class="text-sm text-gray-500">Thiết bị được chọn</p>
                     <p class="font-medium {{ isset($request->selected_item_info->is_deleted) ? 'text-red-600' : '' }}">
-                        {{ $request->selected_item_info->name }}
+                        <span class="font-normal text-gray-500 text-xs">Tên:</span> {{ $request->selected_item_info->name }}
                     </p>
-                    <p class="text-xs text-gray-500">{{ $request->selected_item_info->code ?? 'N/A' }}</p>
+                    <p class="text-sm text-gray-700 mt-1">
+                        <span class="font-normal text-gray-500 text-xs">Mã:</span> {{ $request->selected_item_info->code ?? 'N/A' }}
+                    </p>
                     @if(isset($request->selected_item_info->selected_serial))
-                        <p class="text-xs text-blue-600">Serial: {{ $request->selected_item_info->selected_serial }}</p>
+                        <p class="text-sm text-blue-600 mt-1">
+                            <span class="font-normal text-gray-500 text-xs">Serial:</span> {{ $request->selected_item_info->selected_serial }}
+                        </p>
+                    @else
+                        <p class="text-xs text-gray-400 mt-1 italic">(Không có serial)</p>
                     @endif
+                    
                     @if(isset($request->selected_item_info->is_deleted))
-                        <p class="text-xs text-red-500">⚠️ Thiết bị này có thể đã bị xóa</p>
+                        <p class="text-xs text-red-500 mt-1">⚠️ Thiết bị này có thể đã bị xóa khỏi hệ thống</p>
                     @endif
                 </div>
                 @endif

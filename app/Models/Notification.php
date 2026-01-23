@@ -17,6 +17,7 @@ class Notification extends Model
         'icon',
         'link',
         'user_id',
+        'user_type',
         'is_read',
         'related_type',
         'related_id',
@@ -32,6 +33,9 @@ class Notification extends Model
      */
     public function user()
     {
+        if ($this->user_type === 'customer') {
+            return $this->belongsTo(User::class, 'user_id');
+        }
         return $this->belongsTo(Employee::class, 'user_id');
     }
 
@@ -45,7 +49,7 @@ class Notification extends Model
         } elseif ($this->related_type === 'testing') {
             return $this->belongsTo(\App\Models\Testing::class, 'related_id');
         }
-        
+
         return null;
     }
 
@@ -56,17 +60,17 @@ class Notification extends Model
     {
         $this->is_read = true;
         $this->save();
-        
+
         return $this;
     }
 
     /**
      * Tạo thông báo mới
      */
-    public static function createNotification($title, $message, $type = 'info', $userId = null, $relatedType = null, $relatedId = null, $link = null, $data = null)
+    public static function createNotification($title, $message, $type = 'info', $userId = null, $relatedType = null, $relatedId = null, $link = null, $data = null, $userType = 'employee')
     {
         $icon = self::getIconByType($type);
-        
+
         return self::create([
             'title' => $title,
             'message' => $message,
@@ -75,6 +79,7 @@ class Notification extends Model
             'icon' => $icon,
             'link' => $link,
             'user_id' => $userId,
+            'user_type' => $userType,
             'related_type' => $relatedType,
             'related_id' => $relatedId,
             'is_read' => false,

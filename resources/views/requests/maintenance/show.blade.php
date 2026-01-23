@@ -335,7 +335,7 @@
     @endphp
     
     <!-- Debug info -->
-    @if(config('app.debug'))
+    <!-- @if(config('app.debug'))
         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
             <div class="flex">
                 <div class="py-1"><i class="fas fa-info-circle text-yellow-500"></i></div>
@@ -347,7 +347,7 @@
                 </div>
             </div>
         </div>
-    @endif
+    @endif -->
     
     @if($repairs && $repairsCount > 0)
         <div class="bg-white rounded-xl shadow-md p-6 mt-6">

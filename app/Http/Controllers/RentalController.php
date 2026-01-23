@@ -23,9 +23,9 @@ class RentalController extends Controller
         $search = $request->input('search');
         $filter = $request->input('filter');
         $warranty_status = $request->input('warranty_status');
-        
+
         $query = Rental::with('customer');
-        
+
         // Xử lý tìm kiếm
         if ($search) {
             if ($filter) {
@@ -38,9 +38,9 @@ class RentalController extends Controller
                         $query->where('rental_name', 'like', "%{$search}%");
                         break;
                     case 'customer':
-                        $query->whereHas('customer', function($q) use ($search) {
+                        $query->whereHas('customer', function ($q) use ($search) {
                             $q->where('company_name', 'like', "%{$search}%")
-                              ->orWhere('name', 'like', "%{$search}%");
+                                ->orWhere('name', 'like', "%{$search}%");
                         });
                         break;
                 }
@@ -48,15 +48,15 @@ class RentalController extends Controller
                 // Tìm kiếm tổng quát nếu không chọn bộ lọc
                 $query->where(function ($q) use ($search) {
                     $q->where('rental_code', 'like', "%{$search}%")
-                      ->orWhere('rental_name', 'like', "%{$search}%")
-                      ->orWhereHas('customer', function($subq) use ($search) {
-                          $subq->where('company_name', 'like', "%{$search}%")
-                               ->orWhere('name', 'like', "%{$search}%");
-                      });
+                        ->orWhere('rental_name', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($subq) use ($search) {
+                            $subq->where('company_name', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
                 });
             }
         }
-        
+
         // Xử lý bộ lọc bảo hành
         if ($warranty_status) {
             switch ($warranty_status) {
@@ -70,16 +70,16 @@ class RentalController extends Controller
                     break;
             }
         }
-        
+
         $rentals = $query->latest()->paginate(10);
-        
+
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $rentals->appends([
             'search' => $search,
             'filter' => $filter,
             'warranty_status' => $warranty_status
         ]);
-        
+
         return view('rentals.index', compact('rentals', 'search', 'filter', 'warranty_status'));
     }
 
@@ -158,6 +158,22 @@ class RentalController extends Controller
                 );
             }
 
+            // Gửi thông báo cho khách hàng
+            $customerUsers = \App\Models\User::where('customer_id', $rental->customer_id)->where('active', true)->get();
+            foreach ($customerUsers as $user) {
+                Notification::createNotification(
+                    'Phiếu cho thuê mới',
+                    'Phiếu cho thuê #' . $rental->rental_code . ' đã được tạo cho đơn vị của bạn.',
+                    'info',
+                    $user->id,
+                    'rental',
+                    $rental->id,
+                    route('customer.dashboard'),
+                    null,
+                    'customer'
+                );
+            }
+
             return redirect()->route('rentals.index')
                 ->with('success', 'Phiếu cho thuê đã được thêm thành công.');
         } catch (\Exception $e) {
@@ -173,26 +189,26 @@ class RentalController extends Controller
     {
         $rental = Rental::with(['customer'])->findOrFail($id);
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        
+
         // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
         $contractItems = collect();
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->whereIn('status', ['approved', 'completed'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
-            
+
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'contract')->get();
-            
+
             foreach ($items as $item) {
                 $serialNumbers = $item->serial_numbers ?? [];
-                
+
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
                     $serial = trim($serial);
                     if (!empty($serial)) {
                         $isVirtual = strpos($serial, 'N/A-') === 0;
-                        
+
                         $contractItems->push([
                             'dispatch_item' => $item,
                             'dispatch' => $dispatch,
@@ -209,16 +225,16 @@ class RentalController extends Controller
         $backupItems = collect();
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
-            
+
             foreach ($items as $item) {
                 $serialNumbers = $item->serial_numbers ?? [];
-                
+
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
                     $serial = trim($serial);
                     if (!empty($serial)) {
                         $isVirtual = strpos($serial, 'N/A-') === 0;
-                        
+
                         $backupItems->push([
                             'dispatch_item' => $item,
                             'dispatch' => $dispatch,
@@ -242,7 +258,7 @@ class RentalController extends Controller
                 $rental->toArray()
             );
         }
-        
+
         return view('rentals.show', compact('rental', 'warehouses', 'backupItems', 'contractItems'));
     }
 
@@ -254,7 +270,7 @@ class RentalController extends Controller
         $rental = Rental::with(['customer'])->findOrFail($id);
         $customers = Customer::all();
         $employees = Employee::where('is_active', true)->get();
-        
+
         return view('rentals.edit', compact('rental', 'customers', 'employees'));
     }
 
@@ -271,7 +287,7 @@ class RentalController extends Controller
 
         // Validation
         $validator = Validator::make($request->all(), [
-            'rental_code' => 'required|string|max:255|unique:rentals,rental_code,'.$id,
+            'rental_code' => 'required|string|max:255|unique:rentals,rental_code,' . $id,
             'rental_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
             'employee_id' => 'nullable|exists:employees,id',
@@ -344,6 +360,22 @@ class RentalController extends Controller
                 );
             }
 
+            // Gửi thông báo cho khách hàng
+            $customerUsers = \App\Models\User::where('customer_id', $rental->customer_id)->where('active', true)->get();
+            foreach ($customerUsers as $user) {
+                Notification::createNotification(
+                    'Phiếu cho thuê được cập nhật',
+                    'Thông tin phiếu cho thuê #' . $rental->rental_code . ' đã được cập nhật.',
+                    'info',
+                    $user->id,
+                    'rental',
+                    $rental->id,
+                    route('customer.dashboard'),
+                    null,
+                    'customer'
+                );
+            }
+
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được cập nhật thành công.');
         } catch (\Exception $e) {
@@ -360,7 +392,7 @@ class RentalController extends Controller
      */
     private function syncWarrantiesFromRental(Rental $rental)
     {
-        $warranties = \App\Models\Warranty::whereIn('item_type', ['rental','project'])
+        $warranties = \App\Models\Warranty::whereIn('item_type', ['rental', 'project'])
             ->where('item_id', $rental->id)
             ->get();
 
@@ -370,15 +402,15 @@ class RentalController extends Controller
 
         $customerName = optional($rental->customer)->name;
         $startDate = \Carbon\Carbon::parse($rental->rental_date);
-        $endDate   = \Carbon\Carbon::parse($rental->due_date);
+        $endDate = \Carbon\Carbon::parse($rental->due_date);
         $periodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
 
         foreach ($warranties as $warranty) {
             $warranty->update([
-                'project_name'           => $rental->rental_name,
-                'customer_name'          => $customerName,
-                'warranty_start_date'    => $startDate->toDateString(),
-                'warranty_end_date'      => $endDate->toDateString(),
+                'project_name' => $rental->rental_name,
+                'customer_name' => $customerName,
+                'warranty_start_date' => $startDate->toDateString(),
+                'warranty_end_date' => $endDate->toDateString(),
                 'warranty_period_months' => $periodMonths,
             ]);
         }
@@ -422,6 +454,22 @@ class RentalController extends Controller
                 );
             }
 
+            // Gửi thông báo cho khách hàng
+            $customerUsers = \App\Models\User::where('customer_id', $rental->customer_id)->where('active', true)->get();
+            foreach ($customerUsers as $user) {
+                Notification::createNotification(
+                    'Phiếu cho thuê đã bị xóa',
+                    'Phiếu cho thuê #' . $rentalCode . ' - ' . $oldData['rental_name'] . ' đã bị xóa khỏi hệ thống.',
+                    'error',
+                    $user->id,
+                    'rental',
+                    null,
+                    route('customer.dashboard'),
+                    null,
+                    'customer'
+                );
+            }
+
             return redirect()->route('rentals.index')
                 ->with('success', 'Phiếu cho thuê đã được xóa thành công.');
         } catch (\Exception $e) {
@@ -450,14 +498,14 @@ class RentalController extends Controller
 
             // Lưu dữ liệu cũ trước khi gia hạn
             $oldData = $rental->toArray();
-            
+
             // Gia hạn thêm số ngày
             $newDueDate = date('Y-m-d', strtotime($rental->due_date . ' + ' . $request->extend_days . ' days'));
-            
+
             // Cập nhật ghi chú
             $notes = $rental->notes ?? '';
             $notes .= "\n[" . date('Y-m-d H:i:s') . "] Gia hạn thêm " . $request->extend_days . " ngày. " . ($request->extend_notes ?? '');
-            
+
             $rental->update([
                 'due_date' => $newDueDate,
                 'notes' => trim($notes),
@@ -477,7 +525,7 @@ class RentalController extends Controller
                     $rental->toArray()
                 );
             }
-            
+
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được gia hạn thành công. Phiếu bảo hành điện tử đã được cập nhật.');
         } catch (\Exception $e) {
@@ -491,18 +539,18 @@ class RentalController extends Controller
     public function getRentalItems($rentalId)
     {
         $rental = \App\Models\Rental::find($rentalId);
-        
+
         if (!$rental) {
             return response()->json(['error' => 'Không tìm thấy đơn thuê'], 404);
         }
-        
+
         // Lấy danh sách thiết bị từ các phiếu xuất kho của đơn thuê
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
-            
+
         $allItems = collect();
-        
+
         foreach ($dispatches as $dispatch) {
             // Lấy danh sách products (thiết bị) - chỉ lấy category = 'contract'
             $products = $dispatch->items()
@@ -514,11 +562,11 @@ class RentalController extends Controller
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
-                    
+
                     if (!empty($serialNumbers)) {
                         if (is_array($serialNumbers)) {
                             // Lọc bỏ các giá trị rỗng
-                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                            $serialNumbersArray = array_filter($serialNumbers, function ($serial) {
                                 return !empty(trim($serial));
                             });
                             $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
@@ -527,7 +575,7 @@ class RentalController extends Controller
                             $serialNumbersArray = [trim($serialNumbers)];
                         }
                     }
-                    
+
                     // Sử dụng SerialDisplayHelper để lấy serial hiển thị
                     $displaySerials = SerialDisplayHelper::getDisplaySerials(
                         $dispatch->id,
@@ -546,7 +594,7 @@ class RentalController extends Controller
                         'quantity' => $item->quantity
                     ];
                 });
-            
+
             // Lấy danh sách goods (hàng hóa) - chỉ lấy category = 'contract'
             $goods = $dispatch->items()
                 ->with(['good'])
@@ -557,11 +605,11 @@ class RentalController extends Controller
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
-                    
+
                     if (!empty($serialNumbers)) {
                         if (is_array($serialNumbers)) {
                             // Lọc bỏ các giá trị rỗng
-                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                            $serialNumbersArray = array_filter($serialNumbers, function ($serial) {
                                 return !empty(trim($serial));
                             });
                             $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
@@ -570,7 +618,7 @@ class RentalController extends Controller
                             $serialNumbersArray = [trim($serialNumbers)];
                         }
                     }
-                    
+
                     // Sử dụng SerialDisplayHelper để lấy serial hiển thị
                     $displaySerials = SerialDisplayHelper::getDisplaySerials(
                         $dispatch->id,
@@ -589,14 +637,14 @@ class RentalController extends Controller
                         'quantity' => $item->quantity
                     ];
                 });
-            
+
             // Kết hợp cả products và goods
             $allItems = $allItems->concat($products)->concat($goods);
         }
-        
+
         return response()->json($allItems);
     }
-    
+
     /**
      * Đếm số lượng thiết bị dự phòng/bảo hành của rental
      */
@@ -607,33 +655,33 @@ class RentalController extends Controller
         if (!$rental) {
             return 0;
         }
-        
+
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
-        
+
         $backupItemsCount = 0;
-        
+
         foreach ($dispatches as $dispatch) {
             // Đếm thiết bị dự phòng/bảo hành (category = 'backup')
             $backupItems = $dispatch->items()
                 ->where('category', 'backup')
                 ->get();
-            
+
             foreach ($backupItems as $item) {
                 // Kiểm tra xem thiết bị đã bị thu hồi chưa
                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
-                
+
                 // Kiểm tra xem thiết bị đã được sử dụng trong bảo hành/thay thế chưa
                 $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
-                
+
                 // Chỉ đếm những thiết bị chưa bị thu hồi VÀ chưa được sử dụng trong bảo hành/thay thế
                 if (!$isReturned && !$isUsed) {
                     $backupItemsCount++;
                 }
             }
         }
-        
+
         return $backupItemsCount;
     }
-} 
+}

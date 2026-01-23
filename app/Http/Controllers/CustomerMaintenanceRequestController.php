@@ -37,7 +37,7 @@ class CustomerMaintenanceRequestController extends Controller
         try {
             // Lấy số bản ghi mỗi trang từ request, mặc định là 15
             $perPage = $request->get('per_page', 15);
-            $perPage = min(max(1, (int)$perPage), 100); // Giới hạn từ 1 đến 100
+            $perPage = min(max(1, (int) $perPage), 100); // Giới hạn từ 1 đến 100
 
             // Lấy customer_id từ token (nếu là customer thì chỉ lấy phiếu của mình)
             $user = $request->user();
@@ -168,7 +168,7 @@ class CustomerMaintenanceRequestController extends Controller
             if ($maintenanceRequest->approved_by && $maintenanceRequest->approvedByUser) {
                 $approvalInfo = [
                     'approver_name' => $maintenanceRequest->approvedByUser->name,
-                    'approved_at' => $maintenanceRequest->approved_at ? 
+                    'approved_at' => $maintenanceRequest->approved_at ?
                         $maintenanceRequest->approved_at->format('d/m/Y H:i:s') : null,
                     'note' => $maintenanceRequest->rejection_reason ?? $maintenanceRequest->notes,
                 ];
@@ -178,7 +178,7 @@ class CustomerMaintenanceRequestController extends Controller
             $data = [
                 'id' => $maintenanceRequest->id,
                 'request_code' => $maintenanceRequest->request_code,
-                'request_date' => $maintenanceRequest->request_date ? 
+                'request_date' => $maintenanceRequest->request_date ?
                     $maintenanceRequest->request_date->format('Y-m-d') : null,
                 'maintenance_reason' => $maintenanceRequest->maintenance_reason,
                 'maintenance_details' => $maintenanceRequest->maintenance_details,
@@ -301,7 +301,7 @@ class CustomerMaintenanceRequestController extends Controller
 
             // Phân trang
             $perPage = $request->get('per_page', 15);
-            $perPage = min(max(1, (int)$perPage), 100); // Giới hạn từ 1 đến 100
+            $perPage = min(max(1, (int) $perPage), 100); // Giới hạn từ 1 đến 100
 
             $customerMaintenanceRequests = $query->paginate($perPage);
 
@@ -321,7 +321,7 @@ class CustomerMaintenanceRequestController extends Controller
                     'project_name' => $item->project_name,
                     'project_description' => $item->project_description,
                     'selected_item' => $item->selected_item,
-                    'estimated_cost' => $item->estimated_cost ? (float)$item->estimated_cost : null,
+                    'estimated_cost' => $item->estimated_cost ? (float) $item->estimated_cost : null,
                     'customer_id' => $item->customer_id,
                     'customer_name' => $item->customer_name,
                     'customer_phone' => $item->customer_phone,
@@ -431,7 +431,7 @@ class CustomerMaintenanceRequestController extends Controller
 
             // Lấy thông tin khách hàng
             $customer = Customer::findOrFail($request->customer_id);
-            
+
             // Kiểm tra trạng thái khách hàng
             if ($customer->is_locked) {
                 return response()->json([
@@ -442,10 +442,10 @@ class CustomerMaintenanceRequestController extends Controller
 
             // Sử dụng transaction
             $maintenanceRequest = null;
-            $requestDate = $request->filled('request_date') 
-                ? DateHelper::convertToDatabaseFormat($request->request_date) 
+            $requestDate = $request->filled('request_date')
+                ? DateHelper::convertToDatabaseFormat($request->request_date)
                 : now()->format('Y-m-d');
-            
+
             DB::transaction(function () use ($validatedData, $customer, $requestDate, &$maintenanceRequest) {
                 // Tạo mã phiếu mới
                 $requestCode = $this->generateUniqueRequestCode();
@@ -638,7 +638,7 @@ class CustomerMaintenanceRequestController extends Controller
             // Sử dụng transaction
             $maintenanceRequest = null;
             $requestDate = now()->format('Y-m-d');
-            
+
             DB::transaction(function () use ($validatedData, $customer, $requestDate, $projectName, $projectDescription, $selectedItem, &$maintenanceRequest) {
                 // Tạo mã phiếu mới
                 $requestCode = $this->generateUniqueRequestCode();
@@ -703,8 +703,8 @@ class CustomerMaintenanceRequestController extends Controller
             }
 
             // Format created_at theo yêu cầu: dd/mm/YYYY HH:mm:ss
-            $createdAt = $maintenanceRequest->created_at ? 
-                $maintenanceRequest->created_at->format('d/m/Y H:i:s') : 
+            $createdAt = $maintenanceRequest->created_at ?
+                $maintenanceRequest->created_at->format('d/m/Y H:i:s') :
                 now()->format('d/m/Y H:i:s');
 
             return response()->json([
@@ -858,20 +858,20 @@ class CustomerMaintenanceRequestController extends Controller
     public function index()
     {
         $this->checkAccess();
-        
+
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer) {
                 $requests = CustomerMaintenanceRequest::forCustomer($customer->id)
                     ->orderBy('created_at', 'desc')
                     ->paginate(10);
-                    
+
                 return view('requests.customer-maintenance.index', compact('requests'));
             }
         }
-        
+
         $requests = CustomerMaintenanceRequest::orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -889,40 +889,40 @@ class CustomerMaintenanceRequestController extends Controller
             return redirect()->route('requests.index')
                 ->with('warning', 'Tính năng tạo phiếu yêu cầu bảo trì chỉ dành cho khách hàng.');
         }
-        
+
         if (!Auth::guard('customer')->check()) {
             return redirect()->route('login')
                 ->with('error', 'Vui lòng đăng nhập với tài khoản khách hàng để sử dụng chức năng này.');
         }
-        
+
         $request = new CustomerMaintenanceRequest();
         $request->request_date = Carbon::now()->format('Y-m-d');
-        
+
         // Lấy thông tin của khách hàng
         $customerUser = Auth::guard('customer')->user();
         $customer = $customerUser->customer;
-        
+
         if (!$customer) {
             return redirect()->route('customer.dashboard')
                 ->with('error', 'Không tìm thấy thông tin khách hàng của bạn.');
         }
-        
+
         $request->customer_id = $customer->id;
         $request->customer_name = $customer->company_name ?? $customer->name;
         $request->customer_phone = $customer->phone;
         $request->customer_email = $customer->email;
         $request->customer_address = $customer->address;
-        
+
         // Lấy danh sách dự án của khách hàng
         $customerProjects = \App\Models\Project::where('customer_id', $customer->id)
             ->orderBy('project_name')
             ->get();
-            
+
         // Lấy danh sách thuê thiết bị của khách hàng
         $customerRentals = \App\Models\Rental::where('customer_id', $customer->id)
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return view('requests.customer-maintenance.create', compact('request', 'customerProjects', 'customerRentals'));
     }
 
@@ -938,15 +938,15 @@ class CustomerMaintenanceRequestController extends Controller
                 return redirect()->route('requests.index')
                     ->with('warning', 'Tính năng tạo phiếu yêu cầu bảo trì chỉ dành cho khách hàng.');
             }
-            
+
             if (!Auth::guard('customer')->check()) {
                 return redirect()->route('login')
                     ->with('error', 'Vui lòng đăng nhập với tài khoản khách hàng để sử dụng chức năng này.');
             }
-            
+
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if (!$customer) {
                 return redirect()->route('customer.dashboard')
                     ->with('error', 'Không tìm thấy thông tin khách hàng của bạn.');
@@ -954,13 +954,13 @@ class CustomerMaintenanceRequestController extends Controller
             // Nếu là sao chép từ phiếu khác
             if ($request->has('copy_from')) {
                 $originalRequest = CustomerMaintenanceRequest::findOrFail($request->copy_from);
-                
+
                 // Sử dụng transaction để tránh race condition
                 $newRequest = null;
                 DB::transaction(function () use ($originalRequest, &$newRequest) {
                     // Tạo mã phiếu mới an toàn
                     $requestCode = $this->generateUniqueRequestCode();
-                    
+
                     // Tạo phiếu mới với thông tin từ phiếu cũ
                     $newRequest = new CustomerMaintenanceRequest();
                     $newRequest->request_code = $requestCode;
@@ -977,17 +977,17 @@ class CustomerMaintenanceRequestController extends Controller
                     $newRequest->priority = $originalRequest->priority;
                     $newRequest->status = 'pending';
                     $newRequest->notes = $originalRequest->notes;
-                    
+
                     $newRequest->save();
                 });
-                
+
                 // Kiểm tra xem phiếu đã được tạo thành công chưa
                 if (!$newRequest) {
                     return redirect()->back()
                         ->with('error', 'Có lỗi xảy ra khi sao chép phiếu yêu cầu bảo trì.')
                         ->withInput();
                 }
-                
+
                 // Ghi nhật ký tạo phiếu yêu cầu bảo trì từ sao chép
                 if (Auth::guard('customer')->check()) {
                     $userId = Auth::guard('customer')->user()->id;
@@ -1002,11 +1002,11 @@ class CustomerMaintenanceRequestController extends Controller
                         );
                     }
                 }
-                
+
                 return redirect()->route('customer.dashboard')
                     ->with('success', 'Đã sao chép phiếu yêu cầu bảo trì thành công.');
             }
-            
+
             // Xử lý tạo phiếu mới
             $rules = [
                 'project_name' => 'required|string|max:255',
@@ -1090,7 +1090,7 @@ class CustomerMaintenanceRequestController extends Controller
 
             return redirect()->route('customer.dashboard')
                 ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
-                
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->validator)
@@ -1098,7 +1098,7 @@ class CustomerMaintenanceRequestController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('CustomerMaintenanceRequest store error: ' . $e->getMessage());
             \Illuminate\Support\Facades\Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             return redirect()->back()
                 ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage())
                 ->withInput();
@@ -1111,19 +1111,19 @@ class CustomerMaintenanceRequestController extends Controller
     public function show(string $id)
     {
         $this->checkAccess();
-        
+
         $request = CustomerMaintenanceRequest::with(['customer', 'approvedByUser'])->findOrFail($id);
-        
+
         // Kiểm tra quyền truy cập
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer && $request->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
         }
-        
+
         // Ghi nhật ký xem chi tiết phiếu yêu cầu bảo trì
         if (Auth::guard('customer')->check()) {
             $userId = Auth::guard('customer')->user()->id;
@@ -1150,7 +1150,7 @@ class CustomerMaintenanceRequestController extends Controller
                 );
             }
         }
-        
+
         return view('requests.customer-maintenance.show', compact('request'));
     }
 
@@ -1160,27 +1160,27 @@ class CustomerMaintenanceRequestController extends Controller
     public function edit(string $id)
     {
         $this->checkAccess();
-        
+
         $request = CustomerMaintenanceRequest::findOrFail($id);
-        
+
         // Chỉ cho phép chỉnh sửa khi phiếu còn ở trạng thái chờ duyệt
         if ($request->status !== 'pending') {
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Không thể chỉnh sửa phiếu yêu cầu đã được duyệt.');
         }
-        
+
         // Kiểm tra quyền truy cập
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer && $request->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
         }
-        
+
         $customers = Customer::orderBy('company_name')->get();
-        
+
         return view('requests.customer-maintenance.edit', compact('request', 'customers'));
     }
 
@@ -1190,20 +1190,20 @@ class CustomerMaintenanceRequestController extends Controller
     public function update(Request $request, string $id)
     {
         $this->checkAccess();
-        
+
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
-        
+
         // Chỉ cho phép cập nhật khi phiếu còn ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Không thể cập nhật phiếu yêu cầu đã được duyệt.');
         }
-        
+
         // Kiểm tra quyền truy cập
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer && $maintenanceRequest->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
@@ -1211,7 +1211,7 @@ class CustomerMaintenanceRequestController extends Controller
 
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $maintenanceRequest->toArray();
-        
+
         // Chuẩn hoá định dạng ngày tháng trước khi validate
         $request->merge([
             'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
@@ -1279,29 +1279,29 @@ class CustomerMaintenanceRequestController extends Controller
     public function destroy(string $id)
     {
         $this->checkAccess();
-        
+
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
         $requestCode = $maintenanceRequest->request_code;
         $requestData = $maintenanceRequest->toArray();
-        
+
         // Cho phép xóa khi phiếu ở trạng thái chờ duyệt hoặc đã từ chối
         if (!in_array($maintenanceRequest->status, ['pending', 'rejected'])) {
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Chỉ có thể xóa phiếu yêu cầu ở trạng thái Chờ duyệt hoặc Đã từ chối.');
         }
-        
+
         // Kiểm tra quyền truy cập
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer && $maintenanceRequest->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
         }
-        
+
         $maintenanceRequest->delete();
-        
+
         // Ghi nhật ký xóa phiếu yêu cầu bảo trì
         if (Auth::guard('customer')->check()) {
             $userId = Auth::guard('customer')->user()->id;
@@ -1328,7 +1328,7 @@ class CustomerMaintenanceRequestController extends Controller
                 );
             }
         }
-        
+
         // Redirect về đúng trang tùy theo user type
         if (Auth::guard('customer')->check()) {
             return redirect()->route('customer.dashboard')
@@ -1346,19 +1346,19 @@ class CustomerMaintenanceRequestController extends Controller
     public function preview(string $id)
     {
         $this->checkAccess();
-        
+
         $request = CustomerMaintenanceRequest::with(['customer', 'approvedByUser'])->findOrFail($id);
-        
+
         // Kiểm tra quyền truy cập
         if (Auth::guard('customer')->check()) {
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
-            
+
             if ($customer && $request->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
         }
-        
+
         return view('requests.customer-maintenance.preview', compact('request'));
     }
 
@@ -1368,17 +1368,17 @@ class CustomerMaintenanceRequestController extends Controller
     public function approve(Request $request, string $id)
     {
         $this->checkAccess();
-        
+
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
         $oldData = $maintenanceRequest->toArray();
-        
+
         if ($maintenanceRequest->status !== 'pending') {
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Phiếu yêu cầu này không ở trạng thái chờ duyệt.');
         }
-        
+
         $maintenanceRequest->status = 'approved';
-        
+
         // Sửa: Chỉ lấy ID từ guard web (nhân viên), không lấy từ guard customer
         if (Auth::guard('web')->check()) {
             $maintenanceRequest->approved_by = Auth::guard('web')->id();
@@ -1387,7 +1387,7 @@ class CustomerMaintenanceRequestController extends Controller
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Bạn không có quyền duyệt phiếu yêu cầu này.');
         }
-        
+
         $maintenanceRequest->approved_at = now();
         $maintenanceRequest->save();
 
@@ -1405,7 +1405,23 @@ class CustomerMaintenanceRequestController extends Controller
                 );
             }
         }
-        
+
+        // Gửi thông báo cho khách hàng
+        $customerUsers = \App\Models\User::where('customer_id', $maintenanceRequest->customer_id)->where('active', true)->get();
+        foreach ($customerUsers as $user) {
+            Notification::createNotification(
+                'Phiếu yêu cầu được duyệt',
+                'Phiếu yêu cầu #' . $maintenanceRequest->request_code . ' của bạn đã được duyệt.',
+                'success',
+                $user->id,
+                'customer_maintenance_request',
+                $maintenanceRequest->id,
+                route('requests.customer-maintenance.show', $maintenanceRequest->id),
+                null,
+                'customer'
+            );
+        }
+
         return redirect()->route('requests.customer-maintenance.show', $id)
             ->with('success', 'Đã duyệt phiếu yêu cầu bảo trì thành công!');
     }
@@ -1416,19 +1432,19 @@ class CustomerMaintenanceRequestController extends Controller
     public function reject(Request $request, string $id)
     {
         $this->checkAccess();
-        
+
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
         $oldData = $maintenanceRequest->toArray();
-        
+
         if ($maintenanceRequest->status !== 'pending') {
             return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Phiếu yêu cầu này không ở trạng thái chờ duyệt.');
         }
-        
+
         $request->validate([
             'rejection_reason' => 'required|string'
         ]);
-        
+
         $maintenanceRequest->status = 'rejected';
         $maintenanceRequest->rejection_reason = $request->rejection_reason;
         $maintenanceRequest->save();
@@ -1447,7 +1463,23 @@ class CustomerMaintenanceRequestController extends Controller
                 );
             }
         }
-        
+
+        // Gửi thông báo cho khách hàng
+        $customerUsers = \App\Models\User::where('customer_id', $maintenanceRequest->customer_id)->where('active', true)->get();
+        foreach ($customerUsers as $user) {
+            Notification::createNotification(
+                'Phiếu yêu cầu bị từ chối',
+                'Phiếu yêu cầu #' . $maintenanceRequest->request_code . ' của bạn đã bị từ chối. Lý do: ' . $maintenanceRequest->rejection_reason,
+                'error',
+                $user->id,
+                'customer_maintenance_request',
+                $maintenanceRequest->id,
+                route('requests.customer-maintenance.show', $maintenanceRequest->id),
+                null,
+                'customer'
+            );
+        }
+
         return redirect()->route('requests.customer-maintenance.show', $id)
             ->with('success', 'Đã từ chối phiếu yêu cầu bảo trì thành công!');
     }
@@ -1459,30 +1491,30 @@ class CustomerMaintenanceRequestController extends Controller
     {
         $maxAttempts = 10;
         $attempt = 0;
-        
+
         do {
             $attempt++;
-            
+
             // Sử dụng timestamp để tránh race condition
             $timestamp = now()->format('ymdHis');
             $random = str_pad(mt_rand(0, 999), 3, '0', STR_PAD_LEFT);
             $requestCode = 'CUST-MAINT-' . $timestamp . '-' . $random;
-            
+
             // Kiểm tra xem mã này đã tồn tại chưa
             $exists = CustomerMaintenanceRequest::where('request_code', $requestCode)->exists();
-            
+
             if (!$exists) {
                 return $requestCode;
             }
-            
+
             // Nếu đã thử quá nhiều lần, sử dụng fallback method
             if ($attempt >= $maxAttempts) {
                 return $this->generateFallbackRequestCode();
             }
-            
+
         } while (true);
     }
-    
+
     /**
      * Fallback method để tạo mã khi timestamp method thất bại
      */
@@ -1493,17 +1525,17 @@ class CustomerMaintenanceRequestController extends Controller
             $latestRequest = CustomerMaintenanceRequest::orderBy('id', 'desc')->first();
             $requestNumber = $latestRequest ? intval(substr($latestRequest->request_code, -4)) + 1 : 1;
             $requestCode = 'CUST-MAINT-' . str_pad($requestNumber, 4, '0', STR_PAD_LEFT);
-            
+
             // Kiểm tra xem mã này đã tồn tại chưa
             $exists = CustomerMaintenanceRequest::where('request_code', $requestCode)->exists();
-            
+
             if (!$exists) {
                 return $requestCode;
             }
-            
+
             // Nếu mã đã tồn tại, tăng số lên và thử lại
             $requestNumber++;
-            
+
         } while (true);
     }
 }

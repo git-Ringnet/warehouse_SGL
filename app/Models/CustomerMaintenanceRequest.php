@@ -104,7 +104,8 @@ class CustomerMaintenanceRequest extends Model
             return null;
         }
 
-        $parts = explode(':', $this->selected_item);
+        // Limit to 3 parts so serial number can contain colons
+        $parts = explode(':', $this->selected_item, 3);
         if (count($parts) < 2) {
             return null;
         }

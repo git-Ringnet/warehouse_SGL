@@ -316,6 +316,19 @@ class AuthController extends Controller
                     null,
                     ['username' => $user->username]
                 );
+
+                // Gửi thông báo
+                \App\Models\Notification::createNotification(
+                    'Đổi mật khẩu thành công',
+                    'Mật khẩu tài khoản của bạn đã được thay đổi thành công.',
+                    'success',
+                    $user->id,
+                    'user',
+                    $user->id,
+                    route('profile'),
+                    null,
+                    'customer'
+                );
             }
 
             return back()->with('success', 'Mật khẩu đã được cập nhật thành công');
@@ -739,6 +752,19 @@ class AuthController extends Controller
                     'Đổi mật khẩu thành công qua API (khách hàng)',
                     null,
                     ['username' => $user->username]
+                );
+
+                // Gửi thông báo
+                \App\Models\Notification::createNotification(
+                    'Đổi mật khẩu thành công',
+                    'Mật khẩu tài khoản của bạn đã được thay đổi thành công qua API.',
+                    'success',
+                    $user->id,
+                    'user',
+                    $user->id,
+                    null,
+                    null,
+                    'customer'
                 );
             }
 

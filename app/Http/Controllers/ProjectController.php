@@ -184,6 +184,22 @@ class ProjectController extends Controller
             $method->invokeArgs($observer, [$project]);
         }
 
+        // Gửi thông báo cho khách hàng
+        $customerUsers = \App\Models\User::where('customer_id', $project->customer_id)->where('active', true)->get();
+        foreach ($customerUsers as $user) {
+            Notification::createNotification(
+                'Dự án mới: ' . $project->project_name,
+                'Dự án #' . $project->project_code . ' đã được tạo cho đơn vị của bạn. Ngày bắt đầu: ' . \Carbon\Carbon::parse($project->start_date)->format('d/m/Y'),
+                'info',
+                $user->id,
+                'project',
+                $project->id,
+                route('customer.dashboard'),
+                null,
+                'customer'
+            );
+        }
+
         return redirect()->route('projects.index')
             ->with('success', 'Dự án đã được thêm thành công');
     }
@@ -489,6 +505,22 @@ class ProjectController extends Controller
             }
         }
 
+        // Gửi thông báo cho khách hàng
+        $customerUsers = \App\Models\User::where('customer_id', $project->customer_id)->where('active', true)->get();
+        foreach ($customerUsers as $user) {
+            Notification::createNotification(
+                'Dự án được cập nhật',
+                'Thông tin dự án #' . $project->project_code . ' đã được cập nhật.',
+                'info',
+                $user->id,
+                'project',
+                $project->id,
+                route('customer.dashboard'),
+                null,
+                'customer'
+            );
+        }
+
         return redirect()->route('projects.show', $id)
             ->with('success', 'Thông tin dự án đã được cập nhật thành công');
     }
@@ -544,6 +576,22 @@ class ProjectController extends Controller
                     'project',
                     null,
                     route('projects.index')
+                );
+            }
+
+            // Gửi thông báo cho khách hàng
+            $customerUsers = \App\Models\User::where('customer_id', $project->customer_id)->where('active', true)->get();
+            foreach ($customerUsers as $user) {
+                Notification::createNotification(
+                    'Dự án đã bị xóa',
+                    'Dự án #' . $project->project_code . ' - ' . $project->project_name . ' đã bị xóa khỏi hệ thống.',
+                    'error',
+                    $user->id,
+                    'project',
+                    null,
+                    route('customer.dashboard'),
+                    null,
+                    'customer'
                 );
             }
 

@@ -14,16 +14,33 @@ class NotificationController extends Controller
      */
     public function index()
     {
-        $user = Auth::guard('web')->user();
-        $notifications = Notification::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-            
+        $user = request()->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $query = Notification::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc');
+
+        // Nếu là customer, chỉ hiển thị các thông báo liên quan
+        if ($user->role === 'customer') {
+            $query->whereIn('related_type', [
+                'project',
+                'rental',
+                'customer_maintenance_request',
+                'maintenance_request',
+                'customer',
+                'account'
+            ]);
+        }
+
+        $notifications = $query->paginate(10);
+
         // Handle AJAX requests
         if (request()->ajax()) {
             return view('notifications.partials.notification-list', compact('notifications'))->render();
         }
-            
+
         return view('notifications.index', compact('notifications'));
     }
 
@@ -40,7 +57,7 @@ class NotificationController extends Controller
         try {
             // Lấy user từ token
             $user = $request->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
@@ -50,13 +67,25 @@ class NotificationController extends Controller
             }
 
             // Lấy params
-            $page = max(1, (int)$request->get('page', 1));
-            $limit = max(1, min(100, (int)$request->get('limit', 10))); // Giới hạn từ 1 đến 100
+            $page = max(1, (int) $request->get('page', 1));
+            $limit = max(1, min(100, (int) $request->get('limit', 10))); // Giới hạn từ 1 đến 100
             $filter = $request->get('filter', 'all'); // all, unread, read
 
             // Query notifications của user
             $query = Notification::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc');
+
+            // Nếu là customer, chỉ hiển thị các thông báo liên quan
+            if ($user->role === 'customer') {
+                $query->whereIn('related_type', [
+                    'project',
+                    'rental',
+                    'customer_maintenance_request',
+                    'maintenance_request',
+                    'customer',
+                    'account'
+                ]);
+            }
 
             // Áp dụng filter
             if ($filter === 'unread') {
@@ -68,12 +97,25 @@ class NotificationController extends Controller
             // Phân trang
             $notifications = $query->paginate($limit, ['*'], 'page', $page);
 
+            // Base query cho count
+            $countQuery = Notification::where('user_id', $user->id);
+            if ($user->role === 'customer') {
+                $countQuery->whereIn('related_type', [
+                    'project',
+                    'rental',
+                    'customer_maintenance_request',
+                    'maintenance_request',
+                    'customer',
+                    'account'
+                ]);
+            }
+
             // Đếm số thông báo theo từng loại
-            $allCount = Notification::where('user_id', $user->id)->count();
-            $unreadCount = Notification::where('user_id', $user->id)
+            $allCount = (clone $countQuery)->count();
+            $unreadCount = (clone $countQuery)
                 ->where('is_read', false)
                 ->count();
-            $readCount = Notification::where('user_id', $user->id)
+            $readCount = (clone $countQuery)
                 ->where('is_read', true)
                 ->count();
 
@@ -86,7 +128,7 @@ class NotificationController extends Controller
                     'type' => $notification->type,
                     'color' => Notification::getColorByType($notification->type),
                     'data' => $notification->data ?? null,
-                    'is_read' => (bool)$notification->is_read,
+                    'is_read' => (bool) $notification->is_read,
                     'created_at' => $notification->created_at ? $notification->created_at->format('d/m/Y H:i:s') : null,
                     'icon' => $notification->icon ?? '',
                 ];
@@ -128,7 +170,7 @@ class NotificationController extends Controller
         try {
             // Lấy user từ token
             $user = $request->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
@@ -193,87 +235,117 @@ class NotificationController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Lấy thông báo mới nhất cho người dùng hiện tại (AJAX)
      */
     public function getLatest()
     {
-        $user = Auth::guard('web')->user();
+        $user = request()->user();
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-        
-        $notifications = Notification::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
-            
-        $unreadCount = Notification::where('user_id', $user->id)
-            ->where('is_read', false)
-            ->count();
-            
+
+        $userType = ($user instanceof \App\Models\User || (isset($user->role) && $user->role === 'customer')) ? 'customer' : 'employee';
+
+        $query = Notification::where('user_id', $user->id)
+            ->where('user_type', $userType)
+            ->orderBy('created_at', 'desc');
+
+        $countQuery = Notification::where('user_id', $user->id)
+            ->where('user_type', $userType)
+            ->where('is_read', false);
+
+        // Filter for customer
+        if ($userType === 'customer') {
+            $allowedTypes = [
+                'project',
+                'rental',
+                'customer_maintenance_request',
+                'maintenance_request',
+                'customer',
+                'account',
+                'user'
+            ];
+            $query->whereIn('related_type', $allowedTypes);
+            $countQuery->whereIn('related_type', $allowedTypes);
+        }
+
+        $notifications = $query->take(5)->get();
+        $unreadCount = $countQuery->count();
+
         return response()->json([
             'notifications' => $notifications,
             'unreadCount' => $unreadCount
         ]);
     }
-    
+
     /**
      * Đánh dấu tất cả thông báo là đã đọc
      */
     public function markAllAsRead()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         Notification::where('user_id', $user->id)
             ->where('is_read', false)
             ->update(['is_read' => true]);
-            
+
         return response()->json([
             'success' => true,
             'message' => 'Đã đánh dấu tất cả thông báo là đã đọc'
         ]);
     }
-    
+
     /**
      * Đánh dấu một thông báo cụ thể là đã đọc
      */
     public function markAsRead($id)
     {
-        $user = Auth::guard('web')->user();
+        $user = request()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $notification = Notification::where('id', $id)
             ->where('user_id', $user->id)
             ->first();
-            
+
         if (!$notification) {
             return response()->json(['error' => 'Không tìm thấy thông báo'], 404);
         }
-        
+
         $notification->markAsRead();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Đã đánh dấu thông báo là đã đọc'
         ]);
     }
-    
+
     /**
      * Xóa một thông báo
      */
     public function destroy($id)
     {
-        $user = Auth::guard('web')->user();
+        $user = request()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $notification = Notification::where('id', $id)
             ->where('user_id', $user->id)
             ->first();
-            
+
         if (!$notification) {
             return response()->json(['error' => 'Không tìm thấy thông báo'], 404);
         }
-        
+
         $notification->delete();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Đã xóa thông báo'
@@ -291,8 +363,8 @@ class NotificationController extends Controller
             'type' => 'required|in:success,warning,error,info'
         ]);
 
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             $request->title,
             $request->message,
@@ -312,8 +384,8 @@ class NotificationController extends Controller
      */
     public function createAssemblyTestNotification()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             'Phiếu lắp ráp mới',
             'Bạn đã được phân công lắp ráp phiếu #ASM-TEST-001',
@@ -335,8 +407,8 @@ class NotificationController extends Controller
      */
     public function createTestingTestNotification()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             'Phiếu kiểm thử mới',
             'Phiếu kiểm thử #QA-TEST-001 đã được tạo từ phiếu lắp ráp #ASM-TEST-001',
@@ -358,8 +430,8 @@ class NotificationController extends Controller
      */
     public function createDispatchTestNotification()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             'Phiếu xuất kho mới',
             'Phiếu xuất kho #PX-TEST-001 đã được tạo từ phiếu lắp ráp #ASM-TEST-001',
@@ -381,8 +453,8 @@ class NotificationController extends Controller
      */
     public function createProjectTestNotification()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             'Dự án mới được tạo',
             'Dự án #PRJ-TEST-001 - Dự án test đã được tạo và phân công cho bạn.',
@@ -404,8 +476,8 @@ class NotificationController extends Controller
      */
     public function createProjectExpiryTestNotification()
     {
-        $user = Auth::guard('web')->user();
-        
+        $user = request()->user();
+
         $notification = Notification::createNotification(
             'Dự án sắp hết hạn bảo hành',
             'Dự án #PRJ-TEST-001 sẽ hết hạn bảo hành trong 7 ngày.',

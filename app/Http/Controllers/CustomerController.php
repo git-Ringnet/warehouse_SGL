@@ -225,6 +225,22 @@ class CustomerController extends Controller
             );
         }
 
+        // Gửi thông báo cho khách hàng
+        $customerUsers = User::where('customer_id', $customer->id)->where('active', true)->get();
+        foreach ($customerUsers as $user) {
+            \App\Models\Notification::createNotification(
+                'Cập nhật thông tin',
+                'Thông tin khách hàng của bạn đã được cập nhật bởi quản trị viên.',
+                'info',
+                $user->id,
+                'user',
+                $user->id,
+                route('profile'),
+                null,
+                'customer'
+            );
+        }
+
         return redirect()->route('customers.show', $id)
             ->with('success', 'Thông tin khách hàng đã được cập nhật thành công.');
     }
@@ -325,6 +341,19 @@ class CustomerController extends Controller
                     ]
                 );
             }
+
+            // Gửi thông báo chào mừng
+            \App\Models\Notification::createNotification(
+                'Tài khoản đã được kích hoạt',
+                'Chào mừng bạn đến với hệ thống. Tài khoản của bạn đã được kích hoạt thành công.',
+                'success',
+                $user->id,
+                'user',
+                $user->id,
+                route('profile'),
+                null,
+                'customer'
+            );
 
             return redirect()->route('customers.show', $id)
                 ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
@@ -471,6 +500,21 @@ class CustomerController extends Controller
                     'user' => $user->toArray(),
                     'action' => $action
                 ]
+            );
+        }
+
+        // Nếu mở khóa, gửi thông báo
+        if (!$isLocked) {
+            \App\Models\Notification::createNotification(
+                'Tài khoản đã được mở khóa',
+                'Tài khoản của bạn đã được mở khóa. Bạn có thể truy cập lại vào hệ thống.',
+                'success',
+                $user->id,
+                'user',
+                $user->id,
+                route('profile'),
+                null,
+                'customer'
             );
         }
 
