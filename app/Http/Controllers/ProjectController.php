@@ -221,7 +221,7 @@ class ProjectController extends Controller
         // Chỉ lấy:
         // - Phiếu xuất thành phẩm từ kiểm thử (Sinh từ phiếu kiểm thử)
         // - Phiếu xuất trực tiếp đi dự án (không qua lắp ráp)
-        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['project', 'warranty'])
             ->where('project_id', $project->id)
             ->whereIn('status', ['approved', 'completed'])
             ->where(function ($query) {
@@ -648,7 +648,7 @@ class ProjectController extends Controller
         }
 
         // Lấy danh sách thiết bị từ các phiếu xuất kho của dự án
-        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['project', 'warranty'])
             ->where('project_id', $projectId)
             ->get();
 

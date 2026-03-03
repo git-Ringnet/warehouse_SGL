@@ -192,7 +192,7 @@ class RentalController extends Controller
 
         // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
         $contractItems = collect();
-        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['rental', 'warranty'])
             ->whereIn('status', ['approved', 'completed'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
@@ -545,7 +545,7 @@ class RentalController extends Controller
         }
 
         // Lấy danh sách thiết bị từ các phiếu xuất kho của đơn thuê
-        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['rental', 'warranty'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
 
@@ -656,7 +656,7 @@ class RentalController extends Controller
             return 0;
         }
 
-        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['rental', 'warranty'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
 
