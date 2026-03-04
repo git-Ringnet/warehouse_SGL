@@ -377,9 +377,28 @@
                 </a>
             </td>
             <td class="py-2 px-4 border-b">
-                <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
-                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
-                </button>
+                <div class="flex space-x-3 items-center">
+                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
+                    </button>
+                    @if(!$isReturned)
+                    @php
+                        $itemCode = '';
+                        if ($item->item_type == 'material' && $item->material) {
+                            $itemCode = $item->material->code;
+                        } elseif ($item->item_type == 'product' && $item->product) {
+                            $itemCode = $item->product->code;
+                        } elseif ($item->item_type == 'good' && $item->good) {
+                            $itemCode = $item->good->code;
+                        } else {
+                            $itemCode = 'N/A';
+                        }
+                    @endphp
+                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
+                        <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                    </button>
+                    @endif
+                </div>
             </td>
         </tr>
     @empty

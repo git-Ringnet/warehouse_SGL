@@ -96,7 +96,7 @@ class EquipmentServiceController extends Controller
             $serialToReturn = $validatedData['equipment_serial'];
 
             // Kiểm tra thiết bị phải thuộc loại hợp đồng hoặc dự phòng/bảo hành
-            if (!in_array($dispatchItem->category, ['backup', 'contract'])) {
+            if (!in_array($dispatchItem->category, ['backup', 'contract', 'general'])) {
                 return redirect()->back()
                     ->with('error', 'Chỉ có thể thu hồi thiết bị theo hợp đồng hoặc dự phòng/bảo hành.');
             }

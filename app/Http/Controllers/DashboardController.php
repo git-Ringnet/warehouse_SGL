@@ -72,8 +72,7 @@ class DashboardController extends Controller
                 $query->select(DB::raw(1))
                     ->from('materials')
                     ->whereColumn('materials.id', 'inventory_import_materials.material_id')
-                    ->where('materials.status', 'active')
-                    ->where('materials.is_hidden', false);
+                    ->where('materials.status', '!=', 'deleted');
             })
             ->sum('inventory_import_materials.quantity');
 
@@ -89,8 +88,7 @@ class DashboardController extends Controller
                 $query->select(DB::raw(1))
                     ->from('materials')
                     ->whereColumn('materials.id', 'dispatch_items.item_id')
-                    ->where('materials.status', 'active')
-                    ->where('materials.is_hidden', false);
+                    ->where('materials.status', '!=', 'deleted');
             })
             ->sum('dispatch_items.quantity');
 
@@ -109,9 +107,8 @@ class DashboardController extends Controller
      */
     private function getProductStats($startDate, $endDate) 
     {
-        // Tổng nhập kho thành phẩm - lấy từ assembly_products (thành phẩm được tạo từ phiếu lắp ráp đã hoàn thành)
-        // Bao gồm cả thiết bị xuất trực tiếp đến dự án (không qua kho)
-        $totalImport = DB::table('assembly_products')
+        // 1. Nhập từ phiếu lắp ráp (bao gồm cả xuất đi dự án trực tiếp)
+        $importFromAssembly = DB::table('assembly_products')
             ->join('assemblies', 'assemblies.id', '=', 'assembly_products.assembly_id')
             ->join('products', 'products.id', '=', 'assembly_products.product_id')
             ->where('assemblies.status', 'completed')
@@ -119,6 +116,23 @@ class DashboardController extends Controller
             ->whereDate('assemblies.date', '>=', $startDate->format('Y-m-d'))
             ->whereDate('assemblies.date', '<=', $endDate->format('Y-m-d'))
             ->sum('assembly_products.quantity');
+
+        // 2. Nhập từ phiếu nhập kho (thành phẩm nhập trực tiếp)
+        $importFromInventory = DB::table('inventory_import_materials')
+            ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->where('inventory_import_materials.item_type', 'product')
+            ->where('inventory_imports.status', 'approved')
+            ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('products')
+                    ->whereColumn('products.id', 'inventory_import_materials.material_id')
+                    ->where('products.status', '!=', 'deleted');
+            })
+            ->sum('inventory_import_materials.quantity');
+
+        $totalImport = ($importFromAssembly ?: 0) + ($importFromInventory ?: 0);
 
         // Tổng xuất kho thành phẩm - lấy từ lịch sử xuất kho thực tế trong khoảng thời gian được chỉ định
         $totalExport = DB::table('dispatch_items')
@@ -648,8 +662,7 @@ class DashboardController extends Controller
                         $query->select(DB::raw(1))
                             ->from('materials')
                             ->whereColumn('materials.id', 'dispatch_items.item_id')
-                            ->where('materials.status', 'active')
-                            ->where('materials.is_hidden', false);
+                            ->where('materials.status', '!=', 'deleted');
                     })
                     ->sum('dispatch_items.quantity');
 
@@ -696,9 +709,8 @@ class DashboardController extends Controller
                 $endDate = clone $startDate;
                 $endDate = $endDate->endOfMonth();
                 
-                // Tổng nhập kho thành phẩm - lấy từ assembly_products (phiếu lắp ráp đã hoàn thành)
-                // Bao gồm cả thiết bị xuất trực tiếp đến dự án (không qua kho)
-                $importCount = DB::table('assembly_products')
+                // 1. Nhập từ lắp ráp
+                $assemblyCount = DB::table('assembly_products')
                     ->join('assemblies', 'assemblies.id', '=', 'assembly_products.assembly_id')
                     ->join('products', 'products.id', '=', 'assembly_products.product_id')
                     ->where('assemblies.status', 'completed')
@@ -706,6 +718,23 @@ class DashboardController extends Controller
                     ->whereDate('assemblies.date', '>=', $startDate->format('Y-m-d'))
                     ->whereDate('assemblies.date', '<=', $endDate->format('Y-m-d'))
                     ->sum('assembly_products.quantity');
+                
+                // 2. Nhập từ phiếu nhập kho
+                $inventoryCount = DB::table('inventory_import_materials')
+                    ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                    ->where('inventory_import_materials.item_type', 'product')
+                    ->where('inventory_imports.status', 'approved')
+                    ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
+                    ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
+                    ->whereExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('products')
+                            ->whereColumn('products.id', 'inventory_import_materials.material_id')
+                            ->where('products.status', '!=', 'deleted');
+                    })
+                    ->sum('inventory_import_materials.quantity');
+                    
+                $importCount = ($assemblyCount ?: 0) + ($inventoryCount ?: 0);
                 
                 // Tổng xuất kho thành phẩm - lấy từ dispatch_items (phiếu xuất kho đã duyệt)
                 $exportCount = DB::table('dispatch_items')
@@ -766,46 +795,36 @@ class DashboardController extends Controller
                 
                 // Debug thông tin ngày tháng
                 
-                // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
-                if ($i == 0) {
-                    // Tổng nhập kho hàng hóa - lấy giống hàm getGoodStats
-                    $importCount = WarehouseMaterial::where('item_type', 'good')
-                        ->whereHas('warehouse', function($query) {
-                            $query->where('status', 'active');
-                        })
-                        ->whereHas('good', function($query) {
-                            $query->where('status', '!=', 'deleted');
-                        })
-                        ->sum('quantity');
-                    
-                    // Tổng xuất kho
-                    $exportCount = DB::table('dispatch_items')
-                        ->where('item_type', 'good')
-                        ->sum('quantity');
-                    
-                    // Tổng hư hỏng - sử dụng logic mới giống như thống kê bên trên
-                    $damagedCount = $this->calculateDamagedGoods($startDate, $endDate);
-                    
-                } else {
-                    // Số lượng nhập kho hàng hóa - lấy từ inventory_import_materials (phiếu nhập kho đã duyệt)
-                    $importCount = DB::table('inventory_import_materials')
-                        ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
-                        ->where('inventory_import_materials.item_type', 'good')
-                        ->where('inventory_imports.status', 'approved') // Chỉ tính phiếu nhập kho đã duyệt
-                        ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
-                        ->sum('inventory_import_materials.quantity');
-                    
-                    // Số lượng xuất kho
-                    $exportCount = DB::table('dispatch_items')
-                        ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
-                        ->where('dispatch_items.item_type', 'good')
-                        ->whereIn('dispatches.status', ['approved', 'completed']) // Chỉ tính phiếu xuất kho đã duyệt
-                        ->whereBetween('dispatches.dispatch_date', [$startDate, $endDate])
-                        ->sum('dispatch_items.quantity');
-                    
-                    // Số lượng hư hỏng - sử dụng logic mới
-                    $damagedCount = $this->calculateDamagedGoods($startDate, $endDate);
-                }
+                // Số lượng nhập kho hàng hóa - lấy từ inventory_import_materials (phiếu nhập kho đã duyệt)
+                $importCount = DB::table('inventory_import_materials')
+                    ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                    ->where('inventory_import_materials.item_type', 'good')
+                    ->where('inventory_imports.status', 'approved') // Chỉ tính phiếu nhập kho đã duyệt
+                    ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
+                    ->whereExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('goods')
+                            ->whereColumn('goods.id', 'inventory_import_materials.material_id')
+                            ->where('goods.status', '!=', 'deleted');
+                    })
+                    ->sum('inventory_import_materials.quantity');
+                
+                // Số lượng xuất kho 
+                $exportCount = DB::table('dispatch_items')
+                    ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
+                    ->where('dispatch_items.item_type', 'good')
+                    ->whereIn('dispatches.status', ['approved', 'completed']) // Chỉ tính phiếu xuất kho đã duyệt
+                    ->whereBetween('dispatches.dispatch_date', [$startDate, $endDate])
+                    ->whereExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('goods')
+                            ->whereColumn('goods.id', 'dispatch_items.item_id')
+                            ->where('goods.status', '!=', 'deleted');
+                    })
+                    ->sum('dispatch_items.quantity');
+                
+                // Số lượng hư hỏng - sử dụng logic mới
+                $damagedCount = $this->calculateDamagedGoods($startDate, $endDate);
                 
                 $import[] = $importCount;
                 $export[] = $exportCount;
@@ -2087,8 +2106,7 @@ class DashboardController extends Controller
                           $subQuery->select(DB::raw(1))
                               ->from('materials')
                               ->whereColumn('materials.id', 'inventory_import_materials.material_id')
-                              ->where('materials.status', 'active')
-                              ->where('materials.is_hidden', false);
+                              ->where('materials.status', '!=', 'deleted');
                       });
             } elseif ($itemType === 'good') {
                 $query->where('inventory_import_materials.material_id', '>', 0)
@@ -2100,14 +2118,32 @@ class DashboardController extends Controller
                       });
             }
         } else {
-            // Thành phẩm: lấy từ assembly_products (phiếu lắp ráp đã hoàn thành)
-            // Bao gồm cả thiết bị xuất trực tiếp đến dự án (không qua kho)
-            $query = DB::table('assembly_products')
+            // Thành phẩm: lấy từ cả assembly_products và inventory_import_materials
+            
+            // 1. Từ lắp ráp
+            $assemblyImports = DB::table('assembly_products')
                 ->join('assemblies', 'assemblies.id', '=', 'assembly_products.assembly_id')
                 ->join('products', 'products.id', '=', 'assembly_products.product_id')
                 ->where('assemblies.status', 'completed')
                 ->where('products.status', '!=', 'deleted')
-                ->whereDate('assemblies.date', $date);
+                ->whereDate('assemblies.date', $date)
+                ->sum('assembly_products.quantity');
+                
+            // 2. Từ nhập kho trực tiếp
+            $inventoryImports = DB::table('inventory_import_materials')
+                ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                ->where('inventory_import_materials.item_type', 'product')
+                ->where('inventory_imports.status', 'approved')
+                ->whereDate('inventory_imports.import_date', $date)
+                ->whereExists(function ($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('products')
+                        ->whereColumn('products.id', 'inventory_import_materials.material_id')
+                        ->where('products.status', '!=', 'deleted');
+                })
+                ->sum('inventory_import_materials.quantity');
+                
+            return ($assemblyImports ?: 0) + ($inventoryImports ?: 0);
         }
         
         if ($itemType === 'material' || $itemType === 'good') {
@@ -2138,8 +2174,7 @@ class DashboardController extends Controller
                 $subQuery->select(DB::raw(1))
                     ->from('materials')
                     ->whereColumn('materials.id', 'dispatch_items.item_id')
-                    ->where('materials.status', 'active')
-                    ->where('materials.is_hidden', false);
+                    ->where('materials.status', '!=', 'deleted');
             });
         } elseif ($itemType === 'product') {
             $query->whereExists(function ($subQuery) {
@@ -2234,27 +2269,41 @@ class DashboardController extends Controller
 
             if ($itemType === 'material') {
                 $query->join('materials', 'materials.id', '=', 'inventory_import_materials.material_id')
-                      ->where('materials.status', '!=', 'deleted')
-                      ->where('materials.is_hidden', false);
+                      ->where('materials.status', '!=', 'deleted');
             } else {
                 $query->join('goods', 'goods.id', '=', 'inventory_import_materials.material_id')
-                      ->where('goods.status', '!=', 'deleted')
-                      ->where('goods.is_hidden', false);
+                      ->where('goods.status', '!=', 'deleted');
             }
 
             return $query->sum('inventory_import_materials.quantity');
         }
 
-        // Thành phẩm: lấy từ assembly_products (phiếu lắp ráp đã hoàn thành)
-        // Bao gồm cả thiết bị xuất trực tiếp đến dự án (không qua kho)
-        $query = DB::table('assembly_products')
+        // Thành phẩm: lấy từ cả assembly_products và inventory_import_materials
+        
+        // 1. Nhập từ lắp ráp
+        $assemblyImports = DB::table('assembly_products')
             ->join('assemblies', 'assemblies.id', '=', 'assembly_products.assembly_id')
             ->join('products', 'products.id', '=', 'assembly_products.product_id')
             ->where('assemblies.status', 'completed')
             ->where('products.status', '!=', 'deleted')
-            ->whereBetween('assemblies.date', [$startDate, $endDate]);
+            ->whereBetween('assemblies.date', [$startDate, $endDate])
+            ->sum('assembly_products.quantity');
+            
+        // 2. Nhập từ phiếu nhập kho
+        $inventoryImports = DB::table('inventory_import_materials')
+            ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+            ->where('inventory_import_materials.item_type', 'product')
+            ->where('inventory_imports.status', 'approved')
+            ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
+            ->whereExists(function ($subQuery) {
+                $subQuery->select(DB::raw(1))
+                    ->from('products')
+                    ->whereColumn('products.id', 'inventory_import_materials.material_id')
+                    ->where('products.status', '!=', 'deleted');
+            })
+            ->sum('inventory_import_materials.quantity');
         
-        return $query->sum('assembly_products.quantity');
+        return ($assemblyImports ?: 0) + ($inventoryImports ?: 0);
     }
 
     /**
@@ -2278,8 +2327,7 @@ class DashboardController extends Controller
                 $subQuery->select(DB::raw(1))
                     ->from('materials')
                     ->whereColumn('materials.id', 'dispatch_items.item_id')
-                    ->where('materials.status', 'active')
-                    ->where('materials.is_hidden', false);
+                    ->where('materials.status', '!=', 'deleted');
             });
         } elseif ($itemType === 'product') {
             $query->whereExists(function ($subQuery) {
