@@ -117,6 +117,55 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Serial này đã được thu hồi trước đó.');
             }
 
+            // LẤY SERIAL THỰC TỪ device_codes
+            $actualSerialToReturn = $serialToReturn;
+            
+            // Trường hợp 1: Serial là virtual serial (N/A-*) → Tìm serial_main từ old_serial
+            if (SerialHelper::isVirtualSerial($serialToReturn)) {
+                // QUAN TRỌNG: Tìm device_code có old_serial = N/A-*, không phải serial_main = N/A-*
+                $deviceCode = DB::table('device_codes')
+                    ->where('dispatch_id', $dispatchItem->dispatch_id)
+                    ->where('item_id', $dispatchItem->item_id)
+                    ->where('item_type', $dispatchItem->item_type)
+                    ->where('old_serial', $serialToReturn) // Tìm theo old_serial, không phải serial_main
+                    ->first();
+                
+                if ($deviceCode && !empty($deviceCode->serial_main)) {
+                    $actualSerialToReturn = trim($deviceCode->serial_main);
+                    Log::info('Resolved virtual serial to real serial from device_codes', [
+                        'virtual_serial' => $serialToReturn,
+                        'real_serial' => $actualSerialToReturn,
+                        'dispatch_item_id' => $dispatchItem->id
+                    ]);
+                } else {
+                    Log::warning('Virtual serial without device_code mapping, will use virtual serial', [
+                        'virtual_serial' => $serialToReturn,
+                        'dispatch_item_id' => $dispatchItem->id
+                    ]);
+                }
+            }
+            // Trường hợp 2: Serial hiển thị (có thể đã đổi tên) → Tìm serial_main từ device_codes
+            else {
+                // Tìm xem serial này có phải là serial đã được cập nhật mã thiết bị không
+                $deviceCode = DB::table('device_codes')
+                    ->where('dispatch_id', $dispatchItem->dispatch_id)
+                    ->where('item_id', $dispatchItem->item_id)
+                    ->where('item_type', $dispatchItem->item_type)
+                    ->where('serial_main', $serialToReturn) // Tìm theo serial_main
+                    ->first();
+                
+                if ($deviceCode) {
+                    // Serial này đã có device_code, sử dụng serial_main
+                    $actualSerialToReturn = trim($deviceCode->serial_main);
+                    Log::info('Using serial_main from device_codes', [
+                        'display_serial' => $serialToReturn,
+                        'actual_serial' => $actualSerialToReturn,
+                        'dispatch_item_id' => $dispatchItem->id,
+                        'device_code_id' => $deviceCode->id
+                    ]);
+                }
+            }
+
             // Tạo phiếu thu hồi
             $dispatchReturn = DispatchReturn::create([
                 'return_code' => DispatchReturn::generateReturnCode(),
@@ -133,19 +182,20 @@ class EquipmentServiceController extends Controller
             ]);
 
             // Cập nhật số lượng và serial trong kho (chỉ cập nhật 1 serial)
+            // SỬ DỤNG SERIAL THỰC (actualSerialToReturn) thay vì virtual serial
             $item = null;
             switch ($dispatchItem->item_type) {
                 case 'material':
                     $item = Material::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantityWithSerial('material', $item->id, $warehouse->id, 1, $serialToReturn);
+                    $this->updateWarehouseQuantityWithSerial('material', $item->id, $warehouse->id, 1, $actualSerialToReturn);
                     break;
                 case 'product':
                     $item = Product::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantityWithSerial('product', $item->id, $warehouse->id, 1, $serialToReturn);
+                    $this->updateWarehouseQuantityWithSerial('product', $item->id, $warehouse->id, 1, $actualSerialToReturn);
                     break;
                 case 'good':
                     $item = Good::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantityWithSerial('good', $item->id, $warehouse->id, 1, $serialToReturn);
+                    $this->updateWarehouseQuantityWithSerial('good', $item->id, $warehouse->id, 1, $actualSerialToReturn);
                     break;
             }
 
@@ -157,8 +207,11 @@ class EquipmentServiceController extends Controller
             $dispatchItem->quantity = count($updatedSerials);
             
             // Cập nhật ghi chú trong dispatch_item
+            $serialDisplayText = ($actualSerialToReturn !== $serialToReturn) 
+                ? "Serial {$serialToReturn} (gốc: {$actualSerialToReturn})" 
+                : "Serial {$serialToReturn}";
             $dispatchItem->notes = ($dispatchItem->notes ? $dispatchItem->notes . "\n" : "") . 
-                "Serial {$serialToReturn} đã thu hồi ngày " . Carbon::now()->format('d/m/Y H:i') . 
+                "{$serialDisplayText} đã thu hồi ngày " . Carbon::now()->format('d/m/Y H:i') . 
                 ". Lý do: " . $validatedData['reason'] . 
                 ". Kho thu hồi: " . $warehouse->name;
             $dispatchItem->save();
@@ -178,7 +231,8 @@ class EquipmentServiceController extends Controller
                     'reason' => $validatedData['reason'],
                     'return_date' => $dispatchReturn->return_date->toDateTimeString(),
                     'returned_by' => $this->getAuthenticatedActorId(),
-                    'serial_number' => $serialToReturn, // Thêm serial number vào nhật ký
+                    'serial_number' => $serialToReturn, // Serial hiển thị (có thể là virtual)
+                    'actual_serial_number' => $actualSerialToReturn, // Serial thực được lưu vào kho
                 ];
 
                 // Xác định loại item để hiển thị chính xác

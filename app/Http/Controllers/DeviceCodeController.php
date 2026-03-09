@@ -778,6 +778,36 @@ class DeviceCodeController extends Controller
                     continue;
                 }
 
+                // QUAN TRỌNG: Kiểm tra xem serial này đã có device_code cũ chưa
+                // Nếu có (trường hợp thu hồi về kho rồi xuất lại), UPDATE thay vì DELETE
+                $itemType = $deviceCode['item_type'] ?? 'product';
+                $itemId = $deviceCode['item_id'] ?? $deviceCode['product_id'];
+                
+                $existingDeviceCode = DeviceCode::where('item_type', $itemType)
+                    ->where('item_id', $itemId)
+                    ->where('serial_main', $newSerial)
+                    ->first();
+                
+                if ($existingDeviceCode) {
+                    Log::info('Found existing device_code for serial, will update dispatch_id', [
+                        'serial' => $newSerial,
+                        'old_dispatch_id' => $existingDeviceCode->dispatch_id,
+                        'new_dispatch_id' => $dispatch_id,
+                        'item_type' => $itemType,
+                        'item_id' => $itemId,
+                        'keep_old_serial' => $existingDeviceCode->old_serial
+                    ]);
+                    
+                    // UPDATE dispatch_id và type, GIỮ NGUYÊN old_serial để không mất mapping
+                    $existingDeviceCode->dispatch_id = $dispatch_id;
+                    $existingDeviceCode->type = $type;
+                    $existingDeviceCode->updated_at = now();
+                    $existingDeviceCode->save();
+                    
+                    // Skip tạo mới vì đã update
+                    continue;
+                }
+
                 // Xử lý serial_components để lưu đúng format JSON
                 $serialComponents = null; // Default null
                 $serialComponentsArray = [];

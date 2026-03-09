@@ -2160,10 +2160,30 @@ class DispatchController extends Controller
                         $availableSerialCount = is_array($currentSerials) ? count(array_filter($currentSerials)) : 0;
                     }
 
+                    // Đếm số serial thực (không phải N/A-) đã chọn trong dispatch items
+                    $realSerialsSelected = 0;
+                    $virtualSerialsSelected = 0;
+                    foreach ($dispatch->items as $item) {
+                        if ($item->item_type === $groupedItem['item_type'] && 
+                            $item->item_id === $groupedItem['item_id'] && 
+                            $item->warehouse_id === $groupedItem['warehouse_id']) {
+                            $itemSerials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
+                            foreach ($itemSerials as $serial) {
+                                if (!empty(trim($serial))) {
+                                    if (strpos($serial, 'N/A-') === 0) {
+                                        $virtualSerialsSelected++;
+                                    } else {
+                                        $realSerialsSelected++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Không cho phép "mượn" số lượng không-serial vượt quá tồn không-serial thực tế
                     // Ví dụ: tồn = 6 (3 có serial, 3 không serial); yêu cầu 4 nhưng không chọn serial nào => phải báo lỗi thiếu 1 serial
                     $currentNonSerialAvailable = max(0, $currentTotalQuantity - $availableSerialCount);
-                    $noSerialRequestedTotal = (int) $groupedItem['total_quantity'] - (int) $groupedItem['serial_selected'];
+                    $noSerialRequestedTotal = (int) $groupedItem['total_quantity'] - $realSerialsSelected - $virtualSerialsSelected;
                     if ($noSerialRequestedTotal > $currentNonSerialAvailable) {
                         $missingRealSerials = $noSerialRequestedTotal - $currentNonSerialAvailable;
                         // Lấy tên item để hiển thị lỗi rõ ràng hơn
@@ -2194,16 +2214,16 @@ class DispatchController extends Controller
                         );
                     }
 
-                    // CHỈ kiểm tra serial nếu có serial được chọn (bỏ qua kiểm tra cho thiết bị no_serial)
-                    if ((int) $groupedItem['serial_selected'] > 0) {
-                        // Xác thực: số serial đã chọn không vượt quá số serial khả dụng
-                        if ((int) $groupedItem['serial_selected'] > $availableSerialCount) {
+                    // CHỈ kiểm tra serial THỰC nếu có serial thực được chọn (bỏ qua kiểm tra cho thiết bị no_serial và virtual serial)
+                    if ($realSerialsSelected > 0) {
+                        // Xác thực: số serial thực đã chọn không vượt quá số serial khả dụng
+                        if ($realSerialsSelected > $availableSerialCount) {
                             $stockErrors[] = sprintf(
-                                'Mục %s (ID %d) tại kho %d chọn %d serial vượt quá số serial khả dụng (%d).',
+                                'Mục %s (ID %d) tại kho %d chọn %d serial thực vượt quá số serial khả dụng (%d).',
                                 $groupedItem['item_type'],
                                 $groupedItem['item_id'],
                                 $groupedItem['warehouse_id'],
-                                (int) $groupedItem['serial_selected'],
+                                $realSerialsSelected,
                                 $availableSerialCount
                             );
                         }
@@ -2315,6 +2335,8 @@ class DispatchController extends Controller
                     }
 
                     // Loại bỏ serial thật đã xuất khỏi warehouse_materials.serial_number
+                    // CHỈ loại bỏ serial THỰC (không phải N/A-), vì virtual serial không tồn tại trong kho
+                    // QUAN TRỌNG: Cũng cần loại bỏ N/A-* tương ứng với serial thực (nếu có)
                     $realSerials = array_filter($serialNumbers, function ($s) {
                         return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
                     });
@@ -2328,14 +2350,45 @@ class DispatchController extends Controller
                         if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
                             $currentSerials = $this->normalizeSerialArray($warehouseMaterial->serial_number);
                             if (!empty($currentSerials)) {
+                                // Tìm N/A-* tương ứng với serial thực từ device_codes
+                                $virtualSerialsToRemove = [];
+                                foreach ($realSerials as $realSerial) {
+                                    $deviceCode = DB::table('device_codes')
+                                        ->where('item_id', $dispatchItem->item_id)
+                                        ->where('item_type', $dispatchItem->item_type)
+                                        ->where('serial_main', $realSerial)
+                                        ->whereNotNull('old_serial')
+                                        ->where('old_serial', '!=', '')
+                                        ->where('old_serial', '!=', $realSerial) // old_serial khác serial_main
+                                        ->first();
+                                    
+                                    if ($deviceCode && strpos($deviceCode->old_serial, 'N/A-') === 0) {
+                                        $virtualSerialsToRemove[] = $deviceCode->old_serial;
+                                        Log::info('Found virtual serial to remove', [
+                                            'real_serial' => $realSerial,
+                                            'virtual_serial' => $deviceCode->old_serial
+                                        ]);
+                                    }
+                                }
+                                
+                                // Xóa cả serial thực VÀ N/A-* tương ứng
+                                $serialsToRemove = array_merge($realSerials, $virtualSerialsToRemove);
+                                
                                 $remainingSerials = array_values(array_udiff(
                                     $currentSerials,
-                                    $realSerials,
+                                    $serialsToRemove,
                                     function ($a, $b) {
                                         return strcasecmp(trim($a), trim($b)); }
                                 ));
                                 $warehouseMaterial->serial_number = json_encode($remainingSerials);
                                 $warehouseMaterial->save();
+                                
+                                Log::info('Removed real serials and virtual serials from warehouse', [
+                                    'dispatch_item_id' => $dispatchItem->id,
+                                    'removed_real_serials' => array_values($realSerials),
+                                    'removed_virtual_serials' => $virtualSerialsToRemove,
+                                    'remaining_serials_count' => count($remainingSerials)
+                                ]);
                             }
                         }
                     }
@@ -3821,7 +3874,7 @@ class DispatchController extends Controller
 
             if (!empty($approvedDispatchIds)) {
                 $oldSerials = \App\Models\DeviceCode::whereIn('dispatch_id', $approvedDispatchIds)
-                    ->where('product_id', $itemId)
+                    ->where('item_id', $itemId)
                     // Match by item_type if present; otherwise accept null item_type
                     ->where(function ($q) use ($itemType) {
                         $q->whereNull('item_type')->orWhere('item_type', $itemType);
@@ -3830,33 +3883,150 @@ class DispatchController extends Controller
                     ->filter()
                     ->toArray();
 
-                // Merge and de-duplicate
-                $usedSerials = array_values(array_unique(array_merge($usedSerials, array_filter($oldSerials))));
+                // QUAN TRỌNG: Cũng lấy serial_main từ device_codes để loại bỏ serial thực đã xuất
+                // NHƯNG chỉ lấy nếu old_serial (N/A-*) vẫn còn trong dispatch_items
+                // Nếu old_serial đã bị xóa (thu hồi), thì serial_main cũng không còn được dùng
+                $realSerials = [];
+                $deviceCodes = \App\Models\DeviceCode::whereIn('dispatch_id', $approvedDispatchIds)
+                    ->where('item_id', $itemId)
+                    ->where(function ($q) use ($itemType) {
+                        $q->whereNull('item_type')->orWhere('item_type', $itemType);
+                    })
+                    ->get();
+                
+                foreach ($deviceCodes as $dc) {
+                    // Chỉ thêm serial_main nếu old_serial vẫn còn trong usedSerials
+                    // Điều này đảm bảo nếu N/A-* đã được thu hồi (xóa khỏi dispatch_items),
+                    // thì serial thực tương ứng cũng không được coi là "đang dùng"
+                    if (!empty($dc->old_serial) && in_array($dc->old_serial, $usedSerials)) {
+                        if (!empty($dc->serial_main)) {
+                            $realSerials[] = $dc->serial_main;
+                        }
+                    }
+                }
+
+                // Merge and de-duplicate: usedSerials bao gồm cả virtual serial (N/A-*) và real serial (0136592-0136599)
+                $usedSerials = array_values(array_unique(array_merge($usedSerials, array_filter($oldSerials), array_filter($realSerials))));
             }
 
             // Debug: Log used serials
             Log::info('Used serials found:', [
                 'count' => count($usedSerials),
-                'used_serials' => $usedSerials
+                'used_serials' => $usedSerials,
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'warehouse_id' => $warehouseId
             ]);
 
             // Filter out used serials (including old_serial replacements)
             $availableSerials = array_diff($serials, $usedSerials);
+            
+            Log::info('After filtering used serials:', [
+                'available_count' => count($availableSerials),
+                'available_serials' => array_values($availableSerials)
+            ]);
+
+            // MAP VIRTUAL SERIALS (N/A-*) TO REAL SERIALS FROM device_codes
+            // Điều này xử lý trường hợp: nhập kho không có serial → xuất → cập nhật mã thiết bị → serial thực chỉ có trong device_codes
+            $mappedSerials = [];
+            $virtualToRealMap = []; // Track which virtual serials have been mapped
+            
+            // Bước 1: Tạo map từ virtual serial sang real serial
+            foreach ($availableSerials as $serial) {
+                $serial = trim($serial);
+                if (empty($serial)) {
+                    continue;
+                }
+
+                // Nếu là virtual serial (N/A-*), tìm serial thực từ device_codes
+                if (strpos($serial, 'N/A-') === 0 || strtoupper($serial) === 'N/A' || strtoupper($serial) === 'NA') {
+                    // Tìm device_code có old_serial khớp với virtual serial này
+                    $deviceCode = DB::table('device_codes')
+                        ->where('item_id', $itemId)
+                        ->where('item_type', $itemType)
+                        ->where('old_serial', $serial)
+                        ->whereNotNull('serial_main')
+                        ->where('serial_main', '!=', '')
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+                    if ($deviceCode && !empty($deviceCode->serial_main)) {
+                        $realSerial = trim($deviceCode->serial_main);
+                        
+                        // QUAN TRỌNG: Chỉ map nếu serial THỰC không có trong usedSerials
+                        // Nếu serial thực đang được dùng ở phiếu xuất khác, không map
+                        if (in_array($realSerial, $usedSerials)) {
+                            Log::info('Skip mapping - real serial is in use', [
+                                'virtual_serial' => $serial,
+                                'real_serial' => $realSerial,
+                                'item_type' => $itemType,
+                                'item_id' => $itemId
+                            ]);
+                            continue;
+                        }
+                        
+                        $virtualToRealMap[$serial] = $realSerial;
+                        Log::info('Mapped virtual serial to real serial', [
+                            'virtual_serial' => $serial,
+                            'real_serial' => $realSerial,
+                            'item_type' => $itemType,
+                            'item_id' => $itemId
+                        ]);
+                    }
+                }
+            }
+            
+            // Bước 2: Thay thế virtual serial bằng real serial, loại bỏ duplicate và N/A-* không được map
+            foreach ($availableSerials as $serial) {
+                $serial = trim($serial);
+                if (empty($serial)) {
+                    continue;
+                }
+
+                // Nếu serial này đã được map, dùng real serial
+                if (isset($virtualToRealMap[$serial])) {
+                    $realSerial = $virtualToRealMap[$serial];
+                    if (!in_array($realSerial, $mappedSerials)) {
+                        $mappedSerials[] = $realSerial;
+                    }
+                } else {
+                    // QUAN TRỌNG: Nếu là N/A-* mà không được map, BỎ QUA (vì serial thực đang được dùng)
+                    if (strpos($serial, 'N/A-') === 0 || strtoupper($serial) === 'N/A' || strtoupper($serial) === 'NA') {
+                        Log::info('Skip unmapped virtual serial', [
+                            'virtual_serial' => $serial,
+                            'reason' => 'Not mapped (real serial is in use)',
+                            'item_type' => $itemType,
+                            'item_id' => $itemId
+                        ]);
+                        continue;
+                    }
+                    
+                    // Nếu là serial thực, kiểm tra xem nó có phải là kết quả của mapping không
+                    $isResultOfMapping = in_array($serial, $virtualToRealMap);
+                    if (!$isResultOfMapping && !in_array($serial, $mappedSerials)) {
+                        $mappedSerials[] = $serial;
+                    }
+                }
+            }
+
+            // Sử dụng mapped serials thay vì available serials
+            $finalSerials = array_values(array_unique($mappedSerials));
 
             // Debug: Log final result
             Log::info('Final serial calculation:', [
                 'total_serials' => count($serials),
                 'used_serials' => count($usedSerials),
                 'available_serials' => count($availableSerials),
-                'available_serial_list' => array_values($availableSerials)
+                'mapped_serials' => count($finalSerials),
+                'final_serial_list' => $finalSerials
             ]);
 
             return response()->json([
                 'success' => true,
-                'serials' => array_values($availableSerials), // Re-index array
+                'serials' => $finalSerials,
                 'total_serials' => count($serials),
                 'used_serials' => count($usedSerials),
-                'available_serials' => count($availableSerials)
+                'available_serials' => count($finalSerials)
             ]);
         } catch (\Exception $e) {
             Log::error('Error in getItemSerials:', [
