@@ -25,6 +25,9 @@ class DispatchReplacement extends Model
         'replacement_date',
         'reason',
         'status',
+        'quantity',
+        'original_returned_quantity',
+        'replacement_returned_quantity',
     ];
 
     /**
@@ -34,6 +37,7 @@ class DispatchReplacement extends Model
      */
     protected $casts = [
         'replacement_date' => 'datetime',
+        'quantity' => 'float',
     ];
 
     /**

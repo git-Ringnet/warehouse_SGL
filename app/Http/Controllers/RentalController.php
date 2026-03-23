@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\UserLog;
 use App\Models\Notification;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\DateHelper;
 use App\Helpers\SerialDisplayHelper;
 use Illuminate\Http\Request;
@@ -197,11 +198,94 @@ class RentalController extends Controller
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
 
+        // Pre-calculate sum of replacement quantities per dispatch_item_id for measurement items
+        // Lấy tất cả replacements mà có original hoặc replacement là item của rental này
+        $activeDispatchIds = $dispatches->pluck('id')->toArray();
+        
+        $replacements = \App\Models\DispatchReplacement::whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+            $q->where('project_id', $rental->id);
+        })->orWhereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+            $q->where('project_id', $rental->id);
+        })->get();
+
+        $replacementTotals = $replacements->filter(function($r) {
+            return $r->original_dispatch_item_id !== $r->replacement_dispatch_item_id;
+        })->groupBy('original_dispatch_item_id')
+            ->map(function($group) {
+                return $group->sum('quantity');
+            });
+
+        // Lấy danh sách tất cả Item liên quan đến project này để tính toán trả hàng chính xác
+        $allItemIds = array_unique(array_merge(
+            $dispatches->flatMap->items->pluck('id')->toArray(),
+            $replacements->pluck('original_dispatch_item_id')->toArray(),
+            $replacements->pluck('replacement_dispatch_item_id')->toArray()
+        ));
+
+        $returnTotals = \App\Models\DispatchReturn::whereIn('dispatch_item_id', $allItemIds)
+            ->where('serial_number', 'MEASUREMENT')
+            ->get()
+            ->groupBy('dispatch_item_id')
+            ->map(function($group) {
+                return $group->sum('quantity');
+            });
+
+        // Get all replacement dispatch item IDs to skip them in the first loop
+        $replacementDispatchItemIds = $replacements->pluck('replacement_dispatch_item_id')->unique()->toArray();
+
+        // Track already processed dispatch_item_id to avoid duplication
+        $processedDispatchItemIds = [];
+
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'contract')->get();
 
             foreach ($items as $item) {
+                // Skip if this item ID has already been processed in this loop
+                if (in_array($item->id, $processedDispatchItemIds)) {
+                    continue;
+                }
+                
+                // Skip if this item is actually a replacement (added in the second loop)
+                if (in_array($item->id, $replacementDispatchItemIds)) {
+                    continue;
+                }
+                
+                $processedDispatchItemIds[] = $item->id;
+
                 $serialNumbers = $item->serial_numbers ?? [];
+
+                $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
+                $unitLower = strtolower(trim($unit));
+                $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+                $isMeasurementUnit = in_array($unitLower, $measurementUnits);
+
+                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC không có serial và số lượng > 1
+                $isBulkOrMeasure = $isMeasurementUnit || (empty($serialNumbers) && $item->quantity > 1);
+
+                if ($isBulkOrMeasure) {
+                    // Skip if quantity is 0 (removed or fully recalled)
+                    if ($item->quantity <= 0) {
+                        continue;
+                    }
+
+                    $replacementQty = $replacementTotals->get($item->id, 0);
+                    $displayQty = max(0, $item->quantity - $replacementQty);
+
+                    if ($displayQty > 0) {
+                        $contractItems->push([
+                            'dispatch_item' => $item,
+                            'dispatch' => $dispatch,
+                            'serial_index' => 0,
+                            'serial_number' => 'MEASUREMENT',
+                            'has_serial' => false,
+                            'is_measurement_unit' => true,
+                            'unit' => $unit,
+                            'override_quantity' => $displayQty,
+                            'is_partially_replaced' => ($replacementQty > 0)
+                        ]);
+                    }
+                    continue;
+                }
 
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
@@ -228,6 +312,40 @@ class RentalController extends Controller
 
             foreach ($items as $item) {
                 $serialNumbers = $item->serial_numbers ?? [];
+
+                $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
+                $unitLower = strtolower(trim($unit));
+                $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+                $isMeasurementUnit = in_array($unitLower, $measurementUnits);
+
+                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC không có serial và số lượng > 1
+                $isBulkOrMeasure = $isMeasurementUnit || (empty($serialNumbers) && $item->quantity > 1);
+
+                if ($isBulkOrMeasure) {
+                    // Skip if quantity is 0 (removed or fully recalled)
+                    if ($item->quantity <= 0) {
+                        continue;
+                    }
+                    
+                    // Tính số lượng đã sử dụng để thay thế
+                    $usedQty = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
+                        ->sum('quantity');
+                    // item->quantity đã được giảm khi thay thế rồi, không cần trừ thêm
+                    $availableQty = $item->quantity;
+                    
+                    $backupItems->push([
+                        'dispatch_item' => $item,
+                        'dispatch' => $dispatch,
+                        'serial_index' => 0,
+                        'serial_number' => 'MEASUREMENT',
+                        'has_serial' => false,
+                        'is_measurement_unit' => true,
+                        'unit' => $unit,
+                        'used_quantity' => $usedQty,
+                        'available_quantity' => $availableQty
+                    ]);
+                    continue;
+                }
 
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
@@ -257,6 +375,88 @@ class RentalController extends Controller
                 null,
                 $rental->toArray()
             );
+        }
+
+        // Thêm các thiết bị được thay thế (từ dispatch_replacements) cho đơn vị đo lường
+        // Tách riêng các dòng thay thế và xử lý outgoingQty theo FIFO
+        // Loại bỏ các bản ghi tự thay thế (Orig == Rep) để tránh trừ trùng lặp
+        $validReplacementsForDeduction = $replacements->filter(function($r) {
+            return $r->original_dispatch_item_id !== $r->replacement_dispatch_item_id;
+        });
+
+        $remainingOutgoing = $validReplacementsForDeduction->groupBy('original_dispatch_item_id')
+            ->map(function($group) {
+                return $group->sum('quantity');
+            })->toArray();
+
+        foreach ($replacements as $replacement) {
+            $replacementItem = $replacement->replacementDispatchItem;
+            if (!$replacementItem) continue;
+
+            $unit = $replacementItem->item_type === 'material' ? ($replacementItem->material->unit ?? 'Cái') : ($replacementItem->item_type === 'product' ? 'Cái' : ($replacementItem->good->unit ?? 'Cái'));
+            $unitLower = strtolower(trim($unit));
+            $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+            $isMeasurementUnit = in_array($unitLower, $measurementUnits);
+            
+            $itemOutgoingQty = $remainingOutgoing[$replacement->replacement_dispatch_item_id] ?? 0;
+            $deduction = min((float)$replacement->quantity, (float)$itemOutgoingQty);
+            $displayReplacementQty = (float)$replacement->quantity - $deduction;
+            
+            // Update remaining outgoing for this item
+            if (isset($remainingOutgoing[$replacement->replacement_dispatch_item_id])) {
+                $remainingOutgoing[$replacement->replacement_dispatch_item_id] -= $deduction;
+            }
+
+            $isBulkOrMeasure = $isMeasurementUnit || (empty($replacementItem->serial_numbers) && $replacement->quantity > 0);
+
+            // Tính số lượng còn lại tại dự án (quantity - deduction - replacement_returned_quantity)
+            $availableQtyAtSite = (float)$displayReplacementQty - (float)($replacement->replacement_returned_quantity ?? 0);
+
+            if ($isBulkOrMeasure && $availableQtyAtSite > 0) {
+                // Hiển thị từng bản ghi thay thế riêng biệt theo yêu cầu của user
+                $contractItems->push([
+                    'dispatch_item' => $replacementItem,
+                    'dispatch' => $replacementItem->dispatch,
+                    'serial_index' => 0,
+                    'serial_number' => 'REPLACEMENT',
+                    'has_serial' => false,
+                    'is_measurement_unit' => true,
+                    'unit' => $unit,
+                    'override_quantity' => $availableQtyAtSite, 
+                    'is_replacement' => true, 
+                    'is_used' => false,
+                    'replacement_id' => $replacement->id
+                ]);
+            }
+        }
+
+        // Thêm hàng cũ bị thay thế vào danh sách dự phòng (để có thể thu hồi)
+        foreach ($replacements as $replacement) {
+            $originalItem = $replacement->originalDispatchItem;
+            if (!$originalItem) continue;
+
+            $unit = $originalItem->item_type === 'material' ? ($originalItem->material->unit ?? 'Cái') : ($originalItem->item_type === 'product' ? 'Cái' : ($originalItem->good->unit ?? 'Cái'));
+            $unitLower = strtolower(trim($unit));
+            $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+            $isMeasurementUnit = in_array($unitLower, $measurementUnits);
+            
+            // Hiển thị các bản ghi "Đã sử dụng" (hàng cũ bị thay thế)
+            $availableUsedQtyAtSite = (float)$replacement->quantity - (float)($replacement->original_returned_quantity ?? 0);
+            
+            if ($isBulkOrMeasure && $availableUsedQtyAtSite > 0) {
+                $backupItems->push([
+                    'dispatch_item' => $originalItem,
+                    'dispatch' => $originalItem->dispatch,
+                    'serial_index' => 0,
+                    'serial_number' => 'MEASUREMENT',
+                    'has_serial' => false,
+                    'is_measurement_unit' => true,
+                    'unit' => $unit,
+                    'override_quantity' => $availableUsedQtyAtSite,
+                    'is_used' => true, // Đánh dấu là đã sử dụng (hàng cũ bị thay thế)
+                    'replacement_id' => $replacement->id
+                ]);
+            }
         }
 
         return view('rentals.show', compact('rental', 'warehouses', 'backupItems', 'contractItems'));

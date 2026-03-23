@@ -51,8 +51,14 @@
                 <td style="font-weight: bold;">Loại hình:</td>
                 <td>{{ $dispatch->dispatch_type === 'project' ? 'Dự án' : ($dispatch->dispatch_type === 'rental' ? 'Cho thuê' : 'Bảo hành') }}
                 </td>
-                <td style="font-weight: bold;">Dự án:</td>
-                <td colspan="3">{{ $dispatch->project ? $dispatch->project->project_name : 'N/A' }}</td>
+                <td style="font-weight: bold;">{{ $dispatch->dispatch_type === 'rental' ? 'Hợp đồng cho thuê:' : 'Dự án:' }}</td>
+                <td colspan="3">
+                    @if ($dispatch->dispatch_type === 'rental')
+                        {{ $dispatch->rental ? $dispatch->rental->rental_name : 'N/A' }}
+                    @else
+                        {{ $dispatch->project ? $dispatch->project->project_name : 'N/A' }}
+                    @endif
+                </td>
             </tr>
             @if ($dispatch->companyRepresentative)
                 <tr>

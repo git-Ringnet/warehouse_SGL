@@ -456,6 +456,27 @@
             let availableItems = []; // Lưu danh sách sản phẩm từ kho đã chọn
             let isLoadingSerials = false; // Flag để tránh gọi loadAvailableSerials nhiều lần
 
+            // Hàm kiểm tra đơn vị đo lường (không cần serial riêng lẻ)
+            function isMeasurementUnit(unit) {
+                if (!unit) return false;
+                const u = unit.toLowerCase().trim();
+                const measurementUnits = [
+                    // Độ dài
+                    'cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft',
+                    // Cân nặng
+                    'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang',
+                    // Thể tích
+                    'ml', 'lít', 'lit', 'l',
+                    // Diện tích
+                    'm2', 'm²', 'cm2',
+                    // Cuộn/bó/sợi
+                    'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam',
+                    // Khác
+                    'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai'
+                ];
+                return measurementUnits.includes(u);
+            }
+
             // Hàm tạo serial selects theo quantity
             function generateSerialInputs(quantity, category, productId, index) {
                 let inputs = '';
@@ -1160,6 +1181,7 @@
                         });
                     }
 
+                    const isMeasurement = isMeasurementUnit(product.unit);
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">${product.code}</td>
@@ -1173,14 +1195,21 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" max="${product.current_stock || 0}" 
-                                class="w-20 border border-blue-300 rounded px-2 py-1 text-sm contract-quantity-input" 
+                            <input type="number" value="${product.quantity}" min="1" ${isMeasurement ? '' : `max="${product.current_stock || 0}"`} 
+                                class="w-24 border border-blue-300 rounded px-2 py-1 text-sm contract-quantity-input" 
                                 data-index="${index}" id="contract-quantity-${index}">
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex flex-col space-y-1" id="contract-serials-${index}">
-                                ${generateSerialInputs(product.quantity, 'contract', product.id, index)}
-                            </div>
+                            ${isMeasurement 
+                                ? `<div class="flex flex-col space-y-1" id="contract-serials-${index}">
+                                       <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block">
+                                           <i class="fas fa-cubes mr-1"></i>Số lượng: ${product.quantity} ${product.unit}
+                                       </span>
+                                   </div>` 
+                                : `<div class="flex flex-col space-y-1" id="contract-serials-${index}">
+                                       ${generateSerialInputs(product.quantity, 'contract', product.id, index)}
+                                   </div>`
+                            }
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
@@ -1216,7 +1245,8 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(
                             `contract-quantity-${index}`);
-                        if (quantityInput) {
+                        // Chỉ áp dụng max cho item không phải đơn vị đo lường
+                        if (quantityInput && !isMeasurementUnit(selectedContractProducts[index]?.unit)) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
@@ -1229,8 +1259,10 @@
                             }
                         }
 
-                        // Cập nhật warehouse_id cho tất cả serial selects của product này
-                        updateSerialWarehouseIds('contract', index, newWarehouseId);
+                        // Cập nhật warehouse_id cho tất cả serial selects của product này (chỉ cho item không phải đo lường)
+                        if (!isMeasurementUnit(selectedContractProducts[index]?.unit)) {
+                            updateSerialWarehouseIds('contract', index, newWarehouseId);
+                        }
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
@@ -1246,13 +1278,25 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedContractProducts[index]) {
                             selectedContractProducts[index].quantity = newQuantity;
-                            // Cập nhật serial inputs
-                            updateSerialInputsCreate(newQuantity, 'contract',
-                                selectedContractProducts[index].id, index);
-                            // Load serials for new inputs
-                            setTimeout(() => {
-                                loadAvailableSerials();
-                            }, 100);
+                            
+                            if (isMeasurementUnit(selectedContractProducts[index].unit)) {
+                                // Cập nhật hiển thị số lượng cho đơn vị đo lường
+                                const serialContainer = document.getElementById(`contract-serials-${index}`);
+                                if (serialContainer) {
+                                    serialContainer.innerHTML = `
+                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block">
+                                            <i class="fas fa-cubes mr-1"></i>Số lượng: ${newQuantity} ${selectedContractProducts[index].unit}
+                                        </span>`;
+                                }
+                            } else {
+                                // Cập nhật serial inputs cho item bình thường
+                                updateSerialInputsCreate(newQuantity, 'contract',
+                                    selectedContractProducts[index].id, index);
+                                // Load serials for new inputs
+                                setTimeout(() => {
+                                    loadAvailableSerials();
+                                }, 100);
+                            }
                         }
                         // Kiểm tra tồn kho ngay khi thay đổi
                         showStockWarnings();
@@ -1310,6 +1354,7 @@
                         });
                     }
 
+                    const isMeasurement = isMeasurementUnit(product.unit);
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">${product.code}</td>
@@ -1323,14 +1368,21 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" max="${product.current_stock || 0}" 
-                                class="w-20 border border-orange-300 rounded px-2 py-1 text-sm backup-quantity-input" 
+                            <input type="number" value="${product.quantity}" min="1" ${isMeasurement ? '' : `max="${product.current_stock || 0}"`} 
+                                class="w-24 border border-orange-300 rounded px-2 py-1 text-sm backup-quantity-input" 
                                 data-index="${index}" id="backup-quantity-${index}">
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex flex-col space-y-1" id="backup-serials-${index}">
-                                ${generateSerialInputs(product.quantity, 'backup', product.id, index)}
-                            </div>
+                            ${isMeasurement 
+                                ? `<div class="flex flex-col space-y-1" id="backup-serials-${index}">
+                                       <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block">
+                                           <i class="fas fa-cubes mr-1"></i>Số lượng: ${product.quantity} ${product.unit}
+                                       </span>
+                                   </div>` 
+                                : `<div class="flex flex-col space-y-1" id="backup-serials-${index}">
+                                       ${generateSerialInputs(product.quantity, 'backup', product.id, index)}
+                                   </div>`
+                            }
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
@@ -1365,7 +1417,8 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(
                             `backup-quantity-${index}`);
-                        if (quantityInput) {
+                        // Chỉ áp dụng max cho item không phải đơn vị đo lường
+                        if (quantityInput && !isMeasurementUnit(selectedBackupProducts[index]?.unit)) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
@@ -1378,8 +1431,10 @@
                             }
                         }
 
-                        // Cập nhật warehouse_id cho tất cả serial selects của product này
-                        updateSerialWarehouseIds('backup', index, newWarehouseId);
+                        // Cập nhật warehouse_id cho tất cả serial selects của product này (chỉ cho item không phải đo lường)
+                        if (!isMeasurementUnit(selectedBackupProducts[index]?.unit)) {
+                            updateSerialWarehouseIds('backup', index, newWarehouseId);
+                        }
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
@@ -1394,14 +1449,26 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedBackupProducts[index]) {
                             selectedBackupProducts[index].quantity = newQuantity;
-                            // Cập nhật serial inputs
-                            updateSerialInputsCreate(newQuantity, 'backup',
-                                selectedBackupProducts[
-                                    index].id, index);
-                            // Load serials for new inputs
-                            setTimeout(() => {
-                                loadAvailableSerials();
-                            }, 100);
+                            
+                            if (isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                                // Cập nhật hiển thị số lượng cho đơn vị đo lường
+                                const serialContainer = document.getElementById(`backup-serials-${index}`);
+                                if (serialContainer) {
+                                    serialContainer.innerHTML = `
+                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block">
+                                            <i class="fas fa-cubes mr-1"></i>Số lượng: ${newQuantity} ${selectedBackupProducts[index].unit}
+                                        </span>`;
+                                }
+                            } else {
+                                // Cập nhật serial inputs cho item bình thường
+                                updateSerialInputsCreate(newQuantity, 'backup',
+                                    selectedBackupProducts[
+                                        index].id, index);
+                                // Load serials for new inputs
+                                setTimeout(() => {
+                                    loadAvailableSerials();
+                                }, 100);
+                            }
                         }
                         // Kiểm tra tồn kho ngay khi thay đổi
                         showStockWarnings();
@@ -1479,6 +1546,36 @@
                 } else {
                     productsToShow = selectedProducts;
                     prefixName = 'main';
+                }
+
+                // Hàm kiểm tra đơn vị đo lường
+                function isMeasurementUnit(unit) {
+                    if (!unit) return false;
+                    const measureUnits = ['cm', 'mét', 'm', 'gram', 'kg'];
+                    return measureUnits.includes(unit.trim().toLowerCase());
+                }
+
+                // Lọc bỏ hàng hoá có đơn vị đo lường (không dùng serial)
+                productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit));
+
+                if (productsToShow.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    let message = '';
+                    if (type === 'contract') {
+                        message = 'Chưa có thành phẩm hợp đồng nào được chọn (hoặc tất cả là hàng hóa đo lường).';
+                    } else if (type === 'backup') {
+                        message = 'Chưa có thiết bị dự phòng nào được chọn (hoặc tất cả là hàng hóa đo lường).';
+                    } else {
+                        message = 'Chưa có thành phẩm nào được chọn (hoặc tất cả là hàng hóa đo lường).';
+                    }
+
+                    emptyRow.innerHTML = `
+                        <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
+                            ${message}
+                        </td>
+                    `;
+                    tbody.appendChild(emptyRow);
+                    return;
                 }
 
                 productsToShow.forEach((product, index) => {
@@ -2229,43 +2326,47 @@
                         categoryInput.value = 'contract';
                         this.appendChild(categoryInput);
 
-                        // Thêm serial numbers cho sản phẩm hợp đồng nếu có
-                        // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
-                        console.log(
-                            `Searching for serials for contract product: id=${product.id}, index=${selectedContractProducts.indexOf(product)}`
-                            );
-
-                        // Tìm container chứa các serial selects cho sản phẩm này
-                        const serialContainer = document.getElementById(
-                            `contract-serials-${selectedContractProducts.indexOf(product)}`);
-
-                        if (serialContainer) {
-                            // Lấy chỉ các serial selects trong container này
-                            const contractSerialSelects = serialContainer.querySelectorAll(
-                            'select');
+                        // Thêm serial numbers cho sản phẩm hợp đồng nếu có (đơn vị đo lường không cần serial)
+                        if (!isMeasurementUnit(product.unit)) {
+                            // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
                             console.log(
-                                `Found ${contractSerialSelects.length} serial selects for contract product ${product.id}`
+                                `Searching for serials for contract product: id=${product.id}, index=${selectedContractProducts.indexOf(product)}`
                                 );
 
-                            if (contractSerialSelects.length > 0) {
-                                const serialsArray = Array.from(contractSerialSelects)
-                                    .map(select => select.value.trim())
-                                    .filter(value => value.length > 0);
+                            // Tìm container chứa các serial selects cho sản phẩm này
+                            const serialContainer = document.getElementById(
+                                `contract-serials-${selectedContractProducts.indexOf(product)}`);
 
-                                console.log(`Contract product ${product.id} serials:`,
-                                serialsArray);
+                            if (serialContainer) {
+                                // Lấy chỉ các serial selects trong container này
+                                const contractSerialSelects = serialContainer.querySelectorAll(
+                                'select');
+                                console.log(
+                                    `Found ${contractSerialSelects.length} serial selects for contract product ${product.id}`
+                                    );
 
-                                if (serialsArray.length > 0) {
-                                    const serialNumbersInput = document.createElement('input');
-                                    serialNumbersInput.type = 'hidden';
-                                    serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
-                                    serialNumbersInput.value = JSON.stringify(serialsArray);
-                                    this.appendChild(serialNumbersInput);
+                                if (contractSerialSelects.length > 0) {
+                                    const serialsArray = Array.from(contractSerialSelects)
+                                        .map(select => select.value.trim())
+                                        .filter(value => value.length > 0);
+
+                                    console.log(`Contract product ${product.id} serials:`,
+                                    serialsArray);
+
+                                    if (serialsArray.length > 0) {
+                                        const serialNumbersInput = document.createElement('input');
+                                        serialNumbersInput.type = 'hidden';
+                                        serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                                        serialNumbersInput.value = JSON.stringify(serialsArray);
+                                        this.appendChild(serialNumbersInput);
+                                    }
                                 }
+                            } else {
+                                console.error(
+                                    `Serial container not found for contract product ${product.id}`);
                             }
                         } else {
-                            console.error(
-                                `Serial container not found for contract product ${product.id}`);
+                            console.log(`Skipping serial for measurement unit contract product: id=${product.id}, unit=${product.unit}`);
                         }
 
                         itemIndex++;
@@ -2307,41 +2408,45 @@
                         categoryInput.value = 'backup';
                         this.appendChild(categoryInput);
 
-                        // Thêm serial numbers cho thiết bị dự phòng nếu có
-                        // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
-                        console.log(
-                            `Searching for serials for backup product: id=${product.id}, index=${selectedBackupProducts.indexOf(product)}`
-                            );
-
-                        // Tìm container chứa các serial selects cho sản phẩm này
-                        const serialContainer = document.getElementById(
-                            `backup-serials-${selectedBackupProducts.indexOf(product)}`);
-
-                        if (serialContainer) {
-                            // Lấy chỉ các serial selects trong container này
-                            const backupSerialSelects = serialContainer.querySelectorAll('select');
+                        // Thêm serial numbers cho thiết bị dự phòng nếu có (đơn vị đo lường không cần serial)
+                        if (!isMeasurementUnit(product.unit)) {
+                            // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
                             console.log(
-                                `Found ${backupSerialSelects.length} serial selects for backup product ${product.id}`
+                                `Searching for serials for backup product: id=${product.id}, index=${selectedBackupProducts.indexOf(product)}`
                                 );
 
-                            if (backupSerialSelects.length > 0) {
-                                const serialsArray = Array.from(backupSerialSelects)
-                                    .map(select => select.value.trim())
-                                    .filter(value => value.length > 0);
+                            // Tìm container chứa các serial selects cho sản phẩm này
+                            const serialContainer = document.getElementById(
+                                `backup-serials-${selectedBackupProducts.indexOf(product)}`);
 
-                                console.log(`Backup product ${product.id} serials:`, serialsArray);
+                            if (serialContainer) {
+                                // Lấy chỉ các serial selects trong container này
+                                const backupSerialSelects = serialContainer.querySelectorAll('select');
+                                console.log(
+                                    `Found ${backupSerialSelects.length} serial selects for backup product ${product.id}`
+                                    );
 
-                                if (serialsArray.length > 0) {
-                                    const serialNumbersInput = document.createElement('input');
-                                    serialNumbersInput.type = 'hidden';
-                                    serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
-                                    serialNumbersInput.value = JSON.stringify(serialsArray);
-                                    this.appendChild(serialNumbersInput);
+                                if (backupSerialSelects.length > 0) {
+                                    const serialsArray = Array.from(backupSerialSelects)
+                                        .map(select => select.value.trim())
+                                        .filter(value => value.length > 0);
+
+                                    console.log(`Backup product ${product.id} serials:`, serialsArray);
+
+                                    if (serialsArray.length > 0) {
+                                        const serialNumbersInput = document.createElement('input');
+                                        serialNumbersInput.type = 'hidden';
+                                        serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                                        serialNumbersInput.value = JSON.stringify(serialsArray);
+                                        this.appendChild(serialNumbersInput);
+                                    }
                                 }
+                            } else {
+                                console.error(
+                                    `Serial container not found for backup product ${product.id}`);
                             }
                         } else {
-                            console.error(
-                                `Serial container not found for backup product ${product.id}`);
+                            console.log(`Skipping serial for measurement unit backup product: id=${product.id}, unit=${product.unit}`);
                         }
 
                         itemIndex++;

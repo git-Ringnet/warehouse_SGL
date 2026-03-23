@@ -965,7 +965,19 @@ class DispatchController extends Controller
                 $quantity = (int) $item['quantity'];
                 $serialCount = count($serialNumbers);
 
-                if ($quantity > $serialCount) {
+                $unit = '';
+                if ($item['item_type'] === 'material') {
+                    $materialModel = \App\Models\Material::find($item['item_id']);
+                    $unit = $materialModel ? $materialModel->unit : 'Cái';
+                } elseif ($item['item_type'] === 'product') {
+                    $unit = 'Cái'; // Products usually don't have measurement units like cm/kg
+                } elseif ($item['item_type'] === 'good') {
+                    $goodModel = \App\Models\Good::find($item['item_id']);
+                    $unit = $goodModel ? $goodModel->unit : 'Cái';
+                }
+                $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']);
+
+                if (!$isMeasurementUnit && $quantity > $serialCount) {
                     // Cần tạo virtual serial với random suffix (duy nhất toàn cục)
                     $needCount = $quantity - $serialCount;
 
@@ -1040,7 +1052,7 @@ class DispatchController extends Controller
      */
     public function show(Dispatch $dispatch)
     {
-        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
+        $dispatch->load(['project', 'rental', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
 
         // Ghi nhật ký xem chi tiết phiếu xuất - chỉ lưu thông tin cơ bản để tránh lỗi max_allowed_packet
         if (Auth::check()) {
@@ -2310,10 +2322,22 @@ class DispatchController extends Controller
                     $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
                     $quantity = (int) $dispatchItem->quantity;
 
+                    $unit = '';
+                    if ($dispatchItem->item_type === 'material') {
+                        $materialModel = clone $dispatchItem->material ?? \App\Models\Material::find($dispatchItem->item_id);
+                        $unit = $materialModel ? $materialModel->unit : 'Cái';
+                    } elseif ($dispatchItem->item_type === 'product') {
+                        $unit = 'Cái';
+                    } elseif ($dispatchItem->item_type === 'good') {
+                        $goodModel = clone $dispatchItem->good ?? \App\Models\Good::find($dispatchItem->item_id);
+                        $unit = $goodModel ? $goodModel->unit : 'Cái';
+                    }
+                    $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']);
+
                     // Nếu quantity > số serial thực tế → tạo virtual serial
                     $currentSerialCount = count(array_filter($serialNumbers, function ($s) {
                         return !empty(trim($s)); }));
-                    if ($quantity > $currentSerialCount) {
+                    if (!$isMeasurementUnit && $quantity > $currentSerialCount) {
                         $needNewVirtuals = $quantity - $currentSerialCount;
 
                         // Sử dụng SerialHelper để tạo virtual serial duy nhất toàn cục
@@ -4639,7 +4663,7 @@ class DispatchController extends Controller
      */
     public function exportExcel(Dispatch $dispatch)
     {
-        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
+        $dispatch->load(['project', 'rental', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
 
         return Excel::download(new DispatchExport($dispatch), 'phieu-xuat-' . $dispatch->dispatch_code . '.xlsx');
     }
@@ -4649,7 +4673,7 @@ class DispatchController extends Controller
      */
     public function exportPdf(Dispatch $dispatch)
     {
-        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
+        $dispatch->load(['project', 'rental', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
         $pdf = PDF::loadView('exports.dispatch_pdf', ['dispatch' => $dispatch]);
         return $pdf->download('phieu-xuat-' . $dispatch->dispatch_code . '.pdf');
     }

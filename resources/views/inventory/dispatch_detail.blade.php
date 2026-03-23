@@ -82,6 +82,21 @@
         <main class="p-6">
             @php
                 $isAutoAssembly = str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp');
+                
+                // Hàm kiểm tra đơn vị đo lường
+                $isMeasurementUnit = function($unit) {
+                    if (!$unit) return false;
+                    $u = mb_strtolower(trim($unit));
+                    $measurementUnits = [
+                        'cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft',
+                        'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang',
+                        'ml', 'lít', 'lit', 'l',
+                        'm2', 'm²', 'cm2',
+                        'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam',
+                        'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai',
+                    ];
+                    return in_array($u, $measurementUnits);
+                };
             @endphp
             <!-- Header Info -->
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
@@ -99,7 +114,11 @@
                         @unless($isAutoAssembly)
                             <div class="flex items-center mb-2">
                                 <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                                @if ($dispatch->project_id)
+                                @if ($dispatch->dispatch_type === 'rental' && $dispatch->project_id)
+                                    <a href="{{ route('rentals.show', $dispatch->project_id) }}">
+                                        <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
+                                    </a>
+                                @elseif ($dispatch->project_id)
                                     <a href="{{ route('projects.show', $dispatch->project_id) }}">
                                         <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
                                     </a>
@@ -303,27 +322,35 @@
                                                 {{ $item->quantity }}</td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @php
-                                                    $serialCount = 0;
-                                                    if ($item->serial_numbers) {
-                                                        $arr = [];
-                                                        if (is_array($item->serial_numbers)) {
-                                                            $arr = $item->serial_numbers;
-                                                        } elseif (is_string($item->serial_numbers)) {
-                                                            $decoded = json_decode($item->serial_numbers, true);
-                                                            $arr = is_array($decoded) ? $decoded : [];
-                                                        }
-                                                        // Đếm chỉ serial thật, bỏ qua virtual N/A-*
-                                                        $serialCount = count(array_values(array_filter($arr, function($s){
-                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
-                                                        })));
-                                                    }
+                                                    $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($serialCount > 0)
-                                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                        {{ $serialCount }} serial
+                                                @if ($isMeasurementUnit($itemUnit))
+                                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                        <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
                                                 @else
-                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @php
+                                                        $serialCount = 0;
+                                                        if ($item->serial_numbers) {
+                                                            $arr = [];
+                                                            if (is_array($item->serial_numbers)) {
+                                                                $arr = $item->serial_numbers;
+                                                            } elseif (is_string($item->serial_numbers)) {
+                                                                $decoded = json_decode($item->serial_numbers, true);
+                                                                $arr = is_array($decoded) ? $decoded : [];
+                                                            }
+                                                            $serialCount = count(array_values(array_filter($arr, function($s){
+                                                                return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                            })));
+                                                        }
+                                                    @endphp
+                                                    @if ($serialCount > 0)
+                                                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                            {{ $serialCount }} serial
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @endif
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
@@ -441,27 +468,36 @@
                                                 {{ $item->quantity }}</td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @php
-                                                    $serialCount = 0;
-                                                    if ($item->serial_numbers) {
-                                                        $arr = [];
-                                                        if (is_array($item->serial_numbers)) {
-                                                            $arr = $item->serial_numbers;
-                                                        } elseif (is_string($item->serial_numbers)) {
-                                                            $decoded = json_decode($item->serial_numbers, true);
-                                                            $arr = is_array($decoded) ? $decoded : [];
-                                                        }
-                                                        $serialCount = count(array_values(array_filter($arr, function($s){
-                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
-                                                        })));
-                                                    }
+                                                    $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($serialCount > 0)
-                                                    <span
-                                                        class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                                        {{ $serialCount }} serial
+                                                @if ($isMeasurementUnit($itemUnit))
+                                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                        <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
                                                 @else
-                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @php
+                                                        $serialCount = 0;
+                                                        if ($item->serial_numbers) {
+                                                            $arr = [];
+                                                            if (is_array($item->serial_numbers)) {
+                                                                $arr = $item->serial_numbers;
+                                                            } elseif (is_string($item->serial_numbers)) {
+                                                                $decoded = json_decode($item->serial_numbers, true);
+                                                                $arr = is_array($decoded) ? $decoded : [];
+                                                            }
+                                                            $serialCount = count(array_values(array_filter($arr, function($s){
+                                                                return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                            })));
+                                                        }
+                                                    @endphp
+                                                    @if ($serialCount > 0)
+                                                        <span
+                                                            class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                                            {{ $serialCount }} serial
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @endif
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
@@ -577,26 +613,35 @@
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @php
-                                                    $serialCount = 0;
-                                                    if ($item->serial_numbers) {
-                                                        $arr = [];
-                                                        if (is_array($item->serial_numbers)) {
-                                                            $arr = $item->serial_numbers;
-                                                        } elseif (is_string($item->serial_numbers)) {
-                                                            $decoded = json_decode($item->serial_numbers, true);
-                                                            $arr = is_array($decoded) ? $decoded : [];
-                                                        }
-                                                        $serialCount = count(array_values(array_filter($arr, function($s){
-                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
-                                                        })));
-                                                    }
+                                                    $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($serialCount > 0)
-                                                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                                                        {{ $serialCount }} serial
+                                                @if ($isMeasurementUnit($itemUnit))
+                                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                        <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
                                                 @else
-                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @php
+                                                        $serialCount = 0;
+                                                        if ($item->serial_numbers) {
+                                                            $arr = [];
+                                                            if (is_array($item->serial_numbers)) {
+                                                                $arr = $item->serial_numbers;
+                                                            } elseif (is_string($item->serial_numbers)) {
+                                                                $decoded = json_decode($item->serial_numbers, true);
+                                                                $arr = is_array($decoded) ? $decoded : [];
+                                                            }
+                                                            $serialCount = count(array_values(array_filter($arr, function($s){
+                                                                return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                            })));
+                                                        }
+                                                    @endphp
+                                                    @if ($serialCount > 0)
+                                                        <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                                                            {{ $serialCount }} serial
+                                                        </span>
+                                                    @else
+                                                        <span class="text-xs text-gray-500">Chưa có</span>
+                                                    @endif
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -729,27 +774,36 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @php
-                                                $serialCount = 0;
-                                                if ($item->serial_numbers) {
-                                                    $arr = [];
-                                                    if (is_array($item->serial_numbers)) {
-                                                        $arr = $item->serial_numbers;
-                                                    } elseif (is_string($item->serial_numbers)) {
-                                                        $decoded = json_decode($item->serial_numbers, true);
-                                                        $arr = is_array($decoded) ? $decoded : [];
-                                                    }
-                                                    $serialCount = count(array_values(array_filter($arr, function($s){
-                                                        return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
-                                                    })));
-                                                }
+                                                $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                             @endphp
-                                            @if ($serialCount > 0)
-                                                <span
-                                                    class="text-xs bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-100 text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800 px-2 py-1 rounded">
-                                                    {{ $serialCount }} serial
+                                            @if ($isMeasurementUnit($itemUnit))
+                                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                    <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                 </span>
                                             @else
-                                                <span class="text-xs text-gray-500">Chưa có</span>
+                                                @php
+                                                    $serialCount = 0;
+                                                    if ($item->serial_numbers) {
+                                                        $arr = [];
+                                                        if (is_array($item->serial_numbers)) {
+                                                            $arr = $item->serial_numbers;
+                                                        } elseif (is_string($item->serial_numbers)) {
+                                                            $decoded = json_decode($item->serial_numbers, true);
+                                                            $arr = is_array($decoded) ? $decoded : [];
+                                                        }
+                                                        $serialCount = count(array_values(array_filter($arr, function($s){
+                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                        })));
+                                                    }
+                                                @endphp
+                                                @if ($serialCount > 0)
+                                                    <span
+                                                        class="text-xs bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-100 text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800 px-2 py-1 rounded">
+                                                        {{ $serialCount }} serial
+                                                    </span>
+                                                @else
+                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                @endif
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">

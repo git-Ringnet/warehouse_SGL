@@ -911,6 +911,13 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Helper function to check if a unit is a length/weight measurement unit
+            function isMeasurementUnit(unit) {
+                if (!unit) return false;
+                const measurementUnits = ['cm', 'mét', 'm', 'gram', 'g', 'kg', 'ml', 'l', 'lít', 'm2', 'm3', 'cuộn', 'bầu', 'bó'];
+                return measurementUnits.includes(unit.toLowerCase().trim());
+            }
+
             function activateProjectReceiver(source) {
                 const projectHidden = document.getElementById('project_receiver');
                 const rentalHidden = document.getElementById('rental_project_receiver');
@@ -2996,13 +3003,17 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" max="${product.current_stock || 0}" 
+                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit) ? `max="${product.current_stock || 0}"` : ''} 
                                 class="w-20 border border-blue-300 rounded px-2 py-1 text-sm contract-quantity-input" 
                                 data-index="${index}" id="contract-quantity-${index}" ${isReadonly ? 'readonly' : ''}>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex flex-col space-y-1" id="contract-serials-${index}">
-                                ${generateSerialInputsWithValues(product.quantity, 'contract', product.id, index, product.serial_numbers || [])}
+                                ${isMeasurementUnit(product.unit) ? 
+                                    `<span class="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded inline-block">
+                                        Số lượng: <span class="contract-quantity-display" data-index="${index}">${product.quantity}</span> ${product.unit}
+                                    </span>` 
+                                    : generateSerialInputsWithValues(product.quantity, 'contract', product.id, index, product.serial_numbers || [])}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -3059,13 +3070,17 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(`contract-quantity-${index}`);
                         if (quantityInput) {
-                            quantityInput.max = newQuantity;
-                            // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
-                            if (parseInt(quantityInput.value) > newQuantity) {
-                                quantityInput.value = Math.min(parseInt(quantityInput.value),
-                                    newQuantity);
-                                selectedContractProducts[index].quantity = parseInt(quantityInput
-                                    .value);
+                            if (!isMeasurementUnit(selectedContractProducts[index].unit)) {
+                                quantityInput.max = newQuantity;
+                                // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
+                                if (parseInt(quantityInput.value) > newQuantity) {
+                                    quantityInput.value = Math.min(parseInt(quantityInput.value),
+                                        newQuantity);
+                                    selectedContractProducts[index].quantity = parseInt(quantityInput
+                                        .value);
+                                }
+                            } else {
+                                quantityInput.removeAttribute('max');
                             }
                         }
 
@@ -3086,20 +3101,22 @@
                         }
 
                         // Reset serial khi thay đổi kho
-                        const serialContainer = document.getElementById(`contract-serials-${index}`);
-                        if (serialContainer) {
-                            // Xóa tất cả serial đã chọn trước đó
-                            const serialSelects = serialContainer.querySelectorAll('select');
-                            serialSelects.forEach(serialSelect => {
-                                serialSelect.value = '';
-                                serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
-                                serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
-                                serialSelect.setAttribute('data-skip-preserve', 'true'); // Không preserve khi vừa đổi kho
-                            });
-                        }
+                        if (!isMeasurementUnit(selectedContractProducts[index].unit)) {
+                            const serialContainer = document.getElementById(`contract-serials-${index}`);
+                            if (serialContainer) {
+                                // Xóa tất cả serial đã chọn trước đó
+                                const serialSelects = serialContainer.querySelectorAll('select');
+                                serialSelects.forEach(serialSelect => {
+                                    serialSelect.value = '';
+                                    serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
+                                    serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
+                                    serialSelect.setAttribute('data-skip-preserve', 'true'); // Không preserve khi vừa đổi kho
+                                });
+                            }
 
-                        // Load lại available serials cho warehouse mới
-                        loadAvailableSerials();
+                            // Load lại available serials cho warehouse mới
+                            loadAvailableSerials();
+                        }
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
@@ -3114,9 +3131,17 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedContractProducts[index]) {
                             selectedContractProducts[index].quantity = newQuantity;
-                            // Cập nhật serial inputs
-                            updateSerialInputsCreate(newQuantity, 'contract',
-                                selectedContractProducts[index].id, index);
+                            if (isMeasurementUnit(selectedContractProducts[index].unit)) {
+                                // Cập nhật text hiển thị số lượng thay vì dropdowns
+                                const displaySpan = document.querySelector(`.contract-quantity-display[data-index="${index}"]`);
+                                if (displaySpan) {
+                                    displaySpan.textContent = newQuantity;
+                                }
+                            } else {
+                                // Cập nhật serial inputs
+                                updateSerialInputsCreate(newQuantity, 'contract',
+                                    selectedContractProducts[index].id, index);
+                            }
                         }
 
                         // Cập nhật hidden quantity input
@@ -3227,13 +3252,17 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" max="${product.current_stock || 0}" 
+                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit) ? `max="${product.current_stock || 0}"` : ''} 
                                 class="w-20 border border-orange-300 rounded px-2 py-1 text-sm backup-quantity-input" 
                                 data-index="${index}" id="backup-quantity-${index}" ${isReadonly ? 'readonly' : ''}>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex flex-col space-y-1" id="backup-serials-${index}">
-                                ${generateSerialInputsWithValues(product.quantity, 'backup', product.id, index, product.serial_numbers || [])}
+                                ${isMeasurementUnit(product.unit) ? 
+                                    `<span class="text-sm font-medium text-orange-700 bg-orange-50 px-2 py-1 rounded inline-block">
+                                        Số lượng: <span class="backup-quantity-display" data-index="${index}">${product.quantity}</span> ${product.unit}
+                                    </span>` 
+                                    : generateSerialInputsWithValues(product.quantity, 'backup', product.id, index, product.serial_numbers || [])}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -3290,13 +3319,17 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(`backup-quantity-${index}`);
                         if (quantityInput) {
-                            quantityInput.max = newQuantity;
-                            // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
-                            if (parseInt(quantityInput.value) > newQuantity) {
-                                quantityInput.value = Math.min(parseInt(quantityInput.value),
-                                    newQuantity);
-                                selectedBackupProducts[index].quantity = parseInt(quantityInput
-                                    .value);
+                            if (!isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                                quantityInput.max = newQuantity;
+                                // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
+                                if (parseInt(quantityInput.value) > newQuantity) {
+                                    quantityInput.value = Math.min(parseInt(quantityInput.value),
+                                        newQuantity);
+                                    selectedBackupProducts[index].quantity = parseInt(quantityInput
+                                        .value);
+                                }
+                            } else {
+                                quantityInput.removeAttribute('max');
                             }
                         }
 
@@ -3317,20 +3350,22 @@
                         }
 
                         // Reset serial khi thay đổi kho
-                        const serialContainer = document.getElementById(`backup-serials-${index}`);
-                        if (serialContainer) {
-                            // Xóa tất cả serial đã chọn trước đó
-                            const serialSelects = serialContainer.querySelectorAll('select');
-                            serialSelects.forEach(serialSelect => {
-                                serialSelect.value = '';
-                                serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
-                                serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
-                                serialSelect.setAttribute('data-skip-preserve', 'true'); // Không preserve khi vừa đổi kho
-                            });
-                        }
+                        if (!isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                            const serialContainer = document.getElementById(`backup-serials-${index}`);
+                            if (serialContainer) {
+                                // Xóa tất cả serial đã chọn trước đó
+                                const serialSelects = serialContainer.querySelectorAll('select');
+                                serialSelects.forEach(serialSelect => {
+                                    serialSelect.value = '';
+                                    serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
+                                    serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
+                                    serialSelect.setAttribute('data-skip-preserve', 'true'); // Không preserve khi vừa đổi kho
+                                });
+                            }
 
-                        // Load lại available serials cho warehouse mới
-                        loadAvailableSerials();
+                            // Load lại available serials cho warehouse mới
+                            loadAvailableSerials();
+                        }
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
@@ -3353,9 +3388,17 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedBackupProducts[index]) {
                             selectedBackupProducts[index].quantity = newQuantity;
-                            // Cập nhật serial inputs
-                            updateSerialInputsCreate(newQuantity, 'backup', selectedBackupProducts[
-                                index].id, index);
+                            if (isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                                // Cập nhật text hiển thị số lượng thay vì dropdowns
+                                const displaySpan = document.querySelector(`.backup-quantity-display[data-index="${index}"]`);
+                                if (displaySpan) {
+                                    displaySpan.textContent = newQuantity;
+                                }
+                            } else {
+                                // Cập nhật serial inputs
+                                updateSerialInputsCreate(newQuantity, 'backup', selectedBackupProducts[
+                                    index].id, index);
+                            }
                         }
 
                         // Cập nhật hidden quantity input
@@ -4748,9 +4791,12 @@
                     productsToShow = selectedBackupProducts;
                 }
 
+                // Lọc bỏ hàng hoá có đơn vị đo lường (không dùng serial)
+                productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit));
+
                 if (productsToShow.length === 0) {
                     tbody.innerHTML =
-                        `<tr><td colspan="8" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn</td></tr>`;
+                        `<tr><td colspan="8" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn (hoặc tất cả là hàng hóa đo lường)</td></tr>`;
                     return;
                 }
 

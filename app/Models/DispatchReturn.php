@@ -26,6 +26,7 @@ class DispatchReturn extends Model
         'reason',
         'condition',
         'status',
+        'quantity',
     ];
 
     /**
@@ -35,6 +36,7 @@ class DispatchReturn extends Model
      */
     protected $casts = [
         'return_date' => 'datetime',
+        'quantity' => 'float',
     ];
 
     /**

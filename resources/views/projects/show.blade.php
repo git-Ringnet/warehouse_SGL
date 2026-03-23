@@ -316,7 +316,10 @@
                     })->exists();
                 
                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                    ->whereNull('serial_number')
+                    ->where(function($q) {
+                        $q->whereNull('serial_number')
+                          ->orWhere('serial_number', 'MEASUREMENT');
+                    })
                     ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                         $q->where('project_id', $project->id);
                     })->exists();
@@ -347,7 +350,9 @@
                 @endif
             </td>
             <td class="py-2 px-4 border-b">
-                @if(!empty($displaySerial))
+                @if(!empty($itemData['is_measurement_unit']))
+                    <span class="font-medium text-gray-800">Số lượng: {{ $itemData['override_quantity'] ?? $item->quantity }} {{ $itemData['unit'] ?? '' }}</span>
+                @elseif(!empty($displaySerial))
                     {{ $displaySerial }}
                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
                     <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
@@ -358,7 +363,20 @@
                 @endif
             </td>
             <td class="py-2 px-4 border-b">
-                @if($isReturned)
+                @if(!empty($itemData['is_measurement_unit']))
+                    @if(!empty($itemData['is_replacement']))
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Hàng thay thế</span>
+                    @else
+                        @php
+                            $hasReplacements = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
+                        @endphp
+                        @if($hasReplacements)
+                            <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Thay thế một phần</span>
+                        @else
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Chưa thay thế</span>
+                        @endif
+                    @endif
+                @elseif($isReturned)
                     <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
                 @else
                     @if($isReplaced || $isReplacementSerial)
@@ -378,10 +396,17 @@
             </td>
             <td class="py-2 px-4 border-b">
                 <div class="flex space-x-3 items-center">
-                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                    <button type="button" 
+                        data-id="{{ $item->id }}" 
+                        data-serial="{{ $originalSerial }}" 
+                        data-is-measurement="{{ !empty($itemData['is_measurement_unit']) ? '1' : '0' }}"
+                        data-max-qty="{{ $itemData['override_quantity'] ?? $item->quantity }}"
+                        data-unit="{{ $itemData['unit'] ?? '' }}"
+                        data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" 
+                        class="warranty-btn text-blue-500 hover:text-blue-700">
                         <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                     </button>
-                    @if(!$isReturned)
+                    @if(!$isReturned || !empty($itemData['is_measurement_unit']))
                     @php
                         $itemCode = '';
                         if ($item->item_type == 'material' && $item->material) {
@@ -394,7 +419,16 @@
                             $itemCode = 'N/A';
                         }
                     @endphp
-                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
+                    <button type="button" 
+                        data-id="{{ $item->id }}" 
+                        data-serial="{{ $originalSerial }}" 
+                        data-is-measurement="{{ !empty($itemData['is_measurement_unit']) ? '1' : '0' }}"
+                        data-max-qty="{{ $itemData['override_quantity'] ?? $item->quantity }}"
+                        data-unit="{{ $itemData['unit'] ?? '' }}"
+                        data-code="{{ $itemCode }}" 
+                        data-replacement-id="{{ $itemData['replacement_id'] ?? '' }}"
+                        data-is-used="{{ !empty($itemData['is_used']) ? '1' : '0' }}"
+                        class="return-btn text-red-500 hover:text-red-700">
                         <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                     </button>
                     @endif
@@ -446,12 +480,19 @@
                                     $serialNumber = $itemData['serial_number'];
                                     
                                     // Kiểm tra serial cụ thể chưa được thu hồi - chỉ xem xét records từ cùng project
+                                    // Đối với hàng đo lường, không ẩn hàng dự phòng chỉ vì có bản ghi thu hồi 
+                                    // vì có thể thu hồi một phần. Quantity sẽ tự xử lý việc ẩn nếu về 0.
+                                    if (!empty($itemData['is_measurement_unit'])) {
+                                        return true;
+                                    }
+
+                                    // Kiểm tra serial cụ thể chưa được thu hồi - chỉ xem xét records từ cùng project
                                     $isSerialReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
                                         ->where('serial_number', $serialNumber)
                                         ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                                             $q->where('project_id', $project->id);
                                         })->exists();
-                                    
+
                                     return !$isSerialReturned;
                                 });
                             @endphp
@@ -484,10 +525,9 @@
                                             ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
                                                 $q->where('project_id', $project->id);
                                             })->exists();
-                                        $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
-                                            ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
-                                                $q->where('project_id', $project->id);
-                                            })->exists();
+                                        $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)
+                                            ->where('original_serial', $originalSerial)
+                                            ->exists();
                                         $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
                                             ->where('serial_number', $originalSerial)
                                             ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
@@ -520,7 +560,9 @@
                                         @endif
                                     </td>
                                     <td class="py-2 px-4 border-b">
-                                        @if(!empty($displaySerial))
+                                        @if(!empty($itemData['is_measurement_unit']))
+                                            <span class="font-medium text-gray-800">Số lượng: {{ $itemData['override_quantity'] ?? $item->quantity }} {{ $itemData['unit'] ?? '' }}</span>
+                                        @elseif(!empty($displaySerial))
                                             {{ $displaySerial }}
                                         @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
                                             <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
@@ -531,15 +573,29 @@
                                         @endif
                                     </td>
                                     <td class="py-2 px-4 border-b">
-                                        @if($isReturned)
-                                            <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
-                                        @else
-                                            @if($isUsed || $isOriginalReplaced)
+                                        @if(!empty($itemData['is_used']))
+                                            <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
+                                            <div class="mt-1 text-xs text-gray-500 italic">Lưu ý: Thiết bị đã sử dụng là thiết bị cũ được thay thế; không thể dùng để thay thế nữa. Có thể thu hồi tùy trường hợp.</div>
+                                        @elseif(!empty($itemData['is_measurement_unit']))
+                                            @php
+                                                $usedQty = floatval($itemData['used_quantity'] ?? 0);
+                                                $availQty = floatval($itemData['available_quantity'] ?? $item->quantity);
+                                            @endphp
+                                            @if($usedQty > 0 && $availQty > 0)
+                                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">Sử dụng một phần</span>
+                                                <div class="mt-1 text-xs text-gray-500">Đã dùng: {{ $usedQty }} {{ $itemData['unit'] ?? '' }} | Còn lại: {{ $availQty }} {{ $itemData['unit'] ?? '' }}</div>
+                                            @elseif($availQty <= 0)
                                                 <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
-                                                <div class="mt-1 text-xs text-gray-500 italic">Lưu ý: Thiết bị đã sử dụng là thiết bị cũ được thay thế; không thể dùng để thay thế nữa. Có thể thu hồi tùy trường hợp.</div>
                                             @else
                                                 <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Chưa sử dụng</span>
                                             @endif
+                                        @elseif($isUsed || $isOriginalReplaced)
+                                            <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
+                                            <div class="mt-1 text-xs text-gray-500 italic">Lưu ý: Thiết bị đã sử dụng là thiết bị cũ được thay thế; không thể dùng để thay thế nữa. Có thể thu hồi tùy trường hợp.</div>
+                                        @elseif($isReturned)
+                                            <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
+                                        @else
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Chưa sử dụng</span>
                                         @endif
                                     </td>
                                     <td class="py-2 px-4 border-b">
@@ -548,7 +604,7 @@
                                         </a>
                                     </td>
                                     <td class="py-2 px-4 border-b">
-                                        @if(!$isReturned)
+                                        @if(!$isReturned || !empty($itemData['is_measurement_unit']))
                                         @php
                                             $itemCode = '';
                                             if ($item->item_type == 'material' && $item->material) {
@@ -561,7 +617,16 @@
                                                 $itemCode = 'N/A';
                                             }
                                         @endphp
-                                        <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
+                                        <button type="button" 
+                                            data-id="{{ $item->id }}" 
+                                            data-serial="{{ $originalSerial }}" 
+                                            data-is-measurement="{{ !empty($itemData['is_measurement_unit']) ? '1' : '0' }}"
+                                            data-max-qty="{{ $itemData['override_quantity'] ?? $item->quantity }}"
+                                            data-unit="{{ $itemData['unit'] ?? '' }}"
+                                            data-code="{{ $itemCode }}" 
+                                            data-replacement-id="{{ $itemData['replacement_id'] ?? '' }}"
+                                            data-is-used="{{ !empty($itemData['is_used']) ? '1' : '0' }}"
+                                            class="return-btn text-red-500 hover:text-red-700">
                                             <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                         </button>
                                         @endif
@@ -601,6 +666,12 @@
                         <select id="replacement_device_id" name="replacement_device_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value="">-- Chọn thiết bị --</option>
                         </select>
+                    </div>
+
+                    <div id="warranty-quantity-container" class="mb-4 hidden">
+                        <label for="warranty-quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng <span id="warranty-unit-label"></span></label>
+                        <input type="number" id="warranty-quantity" name="quantity" step="0.001" min="0.001" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Tối đa: <span id="warranty-max-qty-label"></span></p>
                     </div>
 
                     <div class="mb-4">
@@ -659,6 +730,8 @@
                     @csrf
                     <input type="hidden" id="return-equipment-id" name="equipment_id">
                     <input type="hidden" id="return-equipment-serial" name="equipment_serial">
+                    <input type="hidden" id="return-replacement-id" name="replacement_id">
+                    <input type="hidden" id="return-is-used" name="is_used">
                     <input type="hidden" name="project_id" value="{{ $project->id }}">
                     
                     <p class="mb-4">Bạn đang thực hiện thu hồi thiết bị <span id="return-equipment-code" class="font-semibold"></span></p>
@@ -671,6 +744,12 @@
                                 <option value="{{ $warehouse->id }}">{{ $warehouse->code }} - {{ $warehouse->name }}</option>
                             @endforeach
                         </select>
+                    </div>
+
+                    <div id="return-quantity-container" class="mb-4 hidden">
+                        <label for="return-quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng <span id="return-unit-label"></span></label>
+                        <input type="number" id="return-quantity" name="quantity" step="0.001" min="0.001" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Tối đa: <span id="return-max-qty-label"></span></p>
                     </div>
                     
                     <div class="mb-4">
@@ -711,10 +790,36 @@
                     const equipmentId = button.getAttribute('data-id');
                     const equipmentCode = button.getAttribute('data-code');
                     const equipmentSerial = button.getAttribute('data-serial');
+                    const isMeasurement = button.getAttribute('data-is-measurement') === '1';
+                    const maxQty = button.getAttribute('data-max-qty');
+                    const unit = button.getAttribute('data-unit');
+                    const replacementId = button.getAttribute('data-replacement-id');
+                    const isUsed = button.getAttribute('data-is-used');
+                    
                     openModal('return-modal');
                     document.getElementById('return-equipment-id').value = equipmentId;
                     document.getElementById('return-equipment-serial').value = equipmentSerial;
+                    document.getElementById('return-replacement-id').value = replacementId || '';
+                    document.getElementById('return-is-used').value = isUsed || '0';
                     document.getElementById('return-equipment-code').textContent = equipmentCode;
+
+                    const qtyContainer = document.getElementById('return-quantity-container');
+                    const qtyInput = document.getElementById('return-quantity');
+                    const unitLabel = document.getElementById('return-unit-label');
+                    const maxQtyLabel = document.getElementById('return-max-qty-label');
+
+                    if (isMeasurement) {
+                        qtyContainer.classList.remove('hidden');
+                        qtyInput.required = true;
+                        qtyInput.max = maxQty;
+                        qtyInput.value = maxQty;
+                        unitLabel.textContent = `(${unit})`;
+                        maxQtyLabel.textContent = `${maxQty} ${unit}`;
+                    } else {
+                        qtyContainer.classList.add('hidden');
+                        qtyInput.required = false;
+                        qtyInput.value = 1;
+                    }
                 }
             });
 
@@ -732,30 +837,74 @@
                     const equipmentId = this.getAttribute('data-id');
                     const equipmentCode = this.getAttribute('data-code');
                     const equipmentSerial = this.getAttribute('data-serial');
+                    const isMeasurement = this.getAttribute('data-is-measurement') === '1';
+                    const maxQty = this.getAttribute('data-max-qty');
+                    const unit = this.getAttribute('data-unit');
+
                     openModal('warranty-modal');
                     document.getElementById('warranty-equipment-id').value = equipmentId;
                     document.getElementById('warranty-equipment-code').textContent = equipmentCode;
                     document.getElementById('warranty-equipment-serial').value = equipmentSerial;
-                    fetchBackupItems();
+
+                    const qtyContainer = document.getElementById('warranty-quantity-container');
+                    const qtyInput = document.getElementById('warranty-quantity');
+                    const unitLabel = document.getElementById('warranty-unit-label');
+                    const maxQtyLabel = document.getElementById('warranty-max-qty-label');
+
+                    if (isMeasurement) {
+                        qtyContainer.classList.remove('hidden');
+                        qtyInput.required = true;
+                        qtyInput.max = maxQty;
+                        qtyInput.value = maxQty;
+                        unitLabel.textContent = `(${unit})`;
+                        maxQtyLabel.textContent = `${maxQty} ${unit}`;
+                    } else {
+                        qtyContainer.classList.add('hidden');
+                        qtyInput.required = false;
+                        qtyInput.value = 1;
+                    }
+
+                    fetchBackupItems(isMeasurement, unit);
                 });
             });
 
             document.getElementById('replacement_device_id').addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
                 const selectedValue = this.value;
+                const isMeasurement = selectedOption.getAttribute('data-is-measurement') === '1';
+                
                 if (selectedValue && selectedValue.includes(':')) {
                     const [itemId, serialNumber] = selectedValue.split(':');
-                    // Tự động điền serial vào hidden input
+                    
+                    // Xử lý replacement_serial
+                    let replacementSerial = serialNumber;
+                    if (isMeasurement) {
+                        replacementSerial = 'MEASUREMENT';
+                    }
+                    
                     const replacementSerialInput = document.createElement('input');
                     replacementSerialInput.type = 'hidden';
                     replacementSerialInput.name = 'replacement_serial';
-                    replacementSerialInput.value = serialNumber;
+                    replacementSerialInput.value = replacementSerial;
                     
-                    // Xóa input cũ nếu có
                     const oldInput = document.querySelector('input[name="replacement_serial"]');
                     if (oldInput) oldInput.remove();
-                    
-                    // Thêm input mới vào form
                     document.getElementById('warranty-form').appendChild(replacementSerialInput);
+                    
+                    // Nếu là measurement, giới hạn số lượng thay thế không vượt quá số lượng của thiết bị dự phòng
+                    if (isMeasurement) {
+                        const maxBackupQty = parseFloat(selectedOption.getAttribute('data-max-qty'));
+                        const qtyInput = document.getElementById('warranty-quantity');
+                        const currentMax = parseFloat(qtyInput.getAttribute('max'));
+                        
+                        // Max thực tế là min giữa (số lượng gốc) và (số lượng dự phòng)
+                        const realMax = Math.min(currentMax, maxBackupQty);
+                        qtyInput.max = realMax;
+                        if (parseFloat(qtyInput.value) > realMax) {
+                            qtyInput.value = realMax;
+                        }
+                        document.getElementById('warranty-max-qty-label').textContent = `${realMax} ${document.getElementById('warranty-unit-label').textContent.replace(/[()]/g, '')}`;
+                    }
                 }
             });
         });
@@ -825,33 +974,24 @@
         }
 
         // Lấy danh sách thiết bị dự phòng
-        function fetchBackupItems() {
+        function fetchBackupItems(isMeasurement = false, unit = '') {
             const replacementDeviceSelect = document.getElementById('replacement_device_id');
             const currentEquipmentId = document.getElementById('warranty-equipment-id').value;
             const currentEquipmentCode = document.getElementById('warranty-equipment-code').textContent;
-            const currentEquipmentSerial = document.getElementById('warranty-equipment-serial').value;
-            
-            // Kiểm tra thiết bị hiện tại có serial không
-            const currentHasSerial = currentEquipmentSerial && currentEquipmentSerial !== 'null' && currentEquipmentSerial.trim() !== '';
             
             replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
             
             fetch(`/equipment-service/backup-items/project/{{ $project->id }}`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('API Response:', data);
                     if (data.success) {
                         const backupItems = data.backupItems;
                         const usedGlobalFromApi = Array.isArray(data.usedSerialsGlobal) ? data.usedSerialsGlobal.map(s => String(s).trim()) : [];
                         
-                        console.log('Backup Items:', backupItems);
-                        console.log('Current Equipment Code:', currentEquipmentCode);
-                        console.log('Current Has Serial:', currentHasSerial);
-                        
                         // Xóa tất cả options hiện tại
                         replacementDeviceSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
                         
-                        // Lọc thiết bị dự phòng theo cùng mã và trạng thái "Chưa sử dụng"
+                        // Lọc thiết bị dự phòng theo cùng mã
                         const filteredItems = backupItems.filter(item => {
                             let itemCode = '';
                             if (item.item_type === 'material' && item.material) {
@@ -861,104 +1001,95 @@
                             } else if (item.item_type === 'good' && item.good) {
                                 itemCode = item.good.code;
                             }
-                            
-                            // Loại bỏ khoảng trắng và so sánh
-                            const cleanItemCode = itemCode ? itemCode.trim() : '';
-                            const cleanCurrentCode = currentEquipmentCode ? currentEquipmentCode.trim() : '';
-                            
-                            // Kiểm tra cùng mã thiết bị
-                            return cleanItemCode === cleanCurrentCode;
+                            return (itemCode ? itemCode.trim() : '') === (currentEquipmentCode ? currentEquipmentCode.trim() : '');
                         });
                         
-                        // Tạo danh sách serial riêng biệt thay vì gộp theo item
-                        const serialOptions = [];
-                        
-                        filteredItems.forEach(item => {
-                            let itemName = 'Không xác định';
-                            let itemCode = 'N/A';
-                            let serialNumbers = [];
-                            
-                            if (item.item_type === 'material' && item.material) {
-                                itemName = item.material.name;
-                                itemCode = item.material.code;
-                            } else if (item.item_type === 'product' && item.product) {
-                                itemName = item.product.name;
-                                itemCode = item.product.code;
-                            } else if (item.item_type === 'good' && item.good) {
-                                itemName = item.good.name;
-                                itemCode = item.good.code;
-                            }
-                            
-                            console.log('Processing item:', {
-                                id: item.id,
-                                code: itemCode,
-                                serial_numbers: item.serial_numbers,
-                                available_quantity: item.available_quantity,
-                                quantity: item.quantity
+                        if (isMeasurement) {
+                            // Xử lý đơn vị đo lường: Hiển thị theo Item và số lượng khả dụng
+                            filteredItems.forEach(item => {
+                                let itemName = 'Không xác định';
+                                let itemCode = 'N/A';
+                                if (item.item_type === 'material' && item.material) {
+                                    itemName = item.material.name;
+                                    itemCode = item.material.code;
+                                } else if (item.item_type === 'product' && item.product) {
+                                    itemName = item.product.name;
+                                    itemCode = item.product.code;
+                                } else if (item.item_type === 'good' && item.good) {
+                                    itemName = item.good.name;
+                                    itemCode = item.good.code;
+                                }
+
+                                const qty = parseFloat(item.available_quantity || item.quantity || 0);
+                                if (qty > 0) {
+                                    const option = document.createElement('option');
+                                    option.value = `${item.id}:MEASUREMENT`;
+                                    option.textContent = `${itemCode} - ${itemName} (Sẵn có: ${qty} ${unit})`;
+                                    option.setAttribute('data-item-id', item.id);
+                                    option.setAttribute('data-is-measurement', '1');
+                                    option.setAttribute('data-max-qty', qty);
+                                    replacementDeviceSelect.appendChild(option);
+                                }
                             });
-                            
-                            // Xử lý TẤT CẢ serial (bao gồm cả virtual serial từ DB)
-                            serialNumbers = item.serial_numbers || [];
-                            
-                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn
-                            const usedSerialSet = new Set([
-                                ...((item.replacement_serials || []).map(s => String(s).trim())),
-                                ...((item.used_serials_global || []).map(s => String(s).trim())),
-                                ...usedGlobalFromApi
-                            ]);
-                            
-                            // Tạo option riêng cho từng serial (bao gồm cả virtual serial)
-                            serialNumbers.forEach((serialNumber, index) => {
-                                const serialStr = String(serialNumber).trim();
-                                if (!serialStr) return; // Bỏ qua serial rỗng
+                        } else {
+                            // Xử lý thiết bị có serial (Logic cũ)
+                            const serialOptions = [];
+                            filteredItems.forEach(item => {
+                                let itemName = 'Không xác định';
+                                let itemCode = 'N/A';
+                                if (item.item_type === 'material' && item.material) {
+                                    itemName = item.material.name;
+                                    itemCode = item.material.code;
+                                } else if (item.item_type === 'product' && item.product) {
+                                    itemName = item.product.name;
+                                    itemCode = item.product.code;
+                                } else if (item.item_type === 'good' && item.good) {
+                                    itemName = item.good.name;
+                                    itemCode = item.good.code;
+                                }
                                 
-                                // Chỉ hiển thị serial chưa được sử dụng
-                                if (!usedSerialSet.has(serialStr)) {
+                                const serialNumbers = item.serial_numbers || [];
+                                const usedSerialSet = new Set([
+                                    ...((item.replacement_serials || []).map(s => String(s).trim())),
+                                    ...((item.used_serials_global || []).map(s => String(s).trim())),
+                                    ...usedGlobalFromApi
+                                ]);
+                                
+                                serialNumbers.forEach(serialNumber => {
+                                    const serialStr = String(serialNumber).trim();
+                                    if (!serialStr || usedSerialSet.has(serialStr)) return;
+                                    
                                     const isVirtual = serialStr.startsWith('N/A-');
                                     let displayText;
-                                    
                                     if (isVirtual) {
-                                        // Virtual serial: hiển thị "Không có Serial (SUFFIX)"
-                                        // Hỗ trợ cả format cũ (N/A-0) và format mới (N/A-A1B2C3)
                                         const suffix = serialStr.replace('N/A-', '');
-                                        const isLegacyFormat = /^\d+$/.test(suffix);
-                                        displayText = isLegacyFormat 
-                                            ? `${itemCode} - ${itemName} - Không có Serial #${suffix}`
-                                            : `${itemCode} - ${itemName} - Không có Serial (${suffix})`;
+                                        displayText = `${itemCode} - ${itemName} - Không có Serial (#${suffix})`;
                                     } else {
-                                        // Serial thật
                                         displayText = `${itemCode} - ${itemName} - Serial ${serialStr}`;
                                     }
                                     
                                     serialOptions.push({
                                         itemId: item.id,
                                         serialNumber: serialStr,
-                                        itemCode: itemCode,
-                                        itemName: itemName,
-                                        hasSerial: !isVirtual,
                                         displayText: displayText
                                     });
-                                }
+                                });
                             });
-                        });
+                            
+                            serialOptions.forEach(option => {
+                                const opt = document.createElement('option');
+                                opt.value = `${option.itemId}:${option.serialNumber}`;
+                                opt.textContent = option.displayText;
+                                opt.setAttribute('data-item-id', option.itemId);
+                                opt.setAttribute('data-serial', option.serialNumber);
+                                replacementDeviceSelect.appendChild(opt);
+                            });
+                        }
                         
-                        console.log('Final serial options:', serialOptions);
-                        
-                        // Thêm các options mới với format "Mã - Tên - Serial X"
-                        serialOptions.forEach(option => {
-                            const optionElement = document.createElement('option');
-                            optionElement.value = `${option.itemId}:${option.serialNumber}`;
-                            optionElement.textContent = option.displayText;
-                            optionElement.setAttribute('data-item-id', option.itemId);
-                            optionElement.setAttribute('data-serial', option.serialNumber);
-                            replacementDeviceSelect.appendChild(optionElement);
-                        });
-                        
-                        // Thêm option "Không có thiết bị dự phòng nào" nếu không có thiết bị phù hợp
-                        if (serialOptions.length === 0) {
+                        if (replacementDeviceSelect.options.length <= 1) {
                             const option = document.createElement('option');
                             option.value = "";
-                            option.textContent = "Không có thiết bị dự phòng nào";
+                            option.textContent = "Không có thiết bị dự phòng nào phù hợp";
                             replacementDeviceSelect.appendChild(option);
                         }
                     } else {

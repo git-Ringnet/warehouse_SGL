@@ -139,8 +139,14 @@
                 </div>
             @endunless
             <div class="info-item">
-                <span class="info-label">Dự án:</span>
-                <span>{{ $dispatch->project ? $dispatch->project->project_name : 'N/A' }}</span>
+                <span class="info-label">{{ $dispatch->dispatch_type === 'rental' ? 'Hợp đồng cho thuê:' : 'Dự án:' }}</span>
+                <span>
+                    @if ($dispatch->dispatch_type === 'rental')
+                        {{ $dispatch->rental ? $dispatch->rental->rental_name : 'N/A' }}
+                    @else
+                        {{ $dispatch->project ? $dispatch->project->project_name : 'N/A' }}
+                    @endif
+                </span>
             </div>
             @if(!$isAutoAssembly && $dispatch->companyRepresentative)
             <div class="info-item">
@@ -174,9 +180,19 @@
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->name ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->name ?? 'N/A') : ($item->good->name ?? 'N/A')) }}</td>
-                    <td style="text-align: center;">{{ $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')) }}</td>
+                    <td style="text-align: center;">
+                        @php $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')); @endphp
+                        {{ $unit }}
+                    </td>
                     <td>{{ $item->quantity }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}</td>
+                    <td>
+                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @if($isMeasurementUnit)
+                            Số lượng: {{ $item->quantity }} {{ $unit }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -203,9 +219,19 @@
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->name ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->name ?? 'N/A') : ($item->good->name ?? 'N/A')) }}</td>
-                    <td style="text-align: center;">{{ $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')) }}</td>
+                    <td style="text-align: center;">
+                        @php $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')); @endphp
+                        {{ $unit }}
+                    </td>
                     <td>{{ $item->quantity }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}</td>
+                    <td>
+                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @if($isMeasurementUnit)
+                            Số lượng: {{ $item->quantity }} {{ $unit }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -233,10 +259,20 @@
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->name ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->name ?? 'N/A') : ($item->good->name ?? 'N/A')) }}</td>
-                    <td style="text-align: center;">{{ $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')) }}</td>
+                    <td style="text-align: center;">
+                        @php $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')); @endphp
+                        {{ $unit }}
+                    </td>
                     <td>{{ $item->quantity }}</td>
                     <td>{{ $item->warehouse->name ?? '-' }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}</td>
+                    <td>
+                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @if($isMeasurementUnit)
+                            Số lượng: {{ $item->quantity }} {{ $unit }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
