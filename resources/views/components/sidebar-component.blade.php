@@ -1,5 +1,12 @@
 <!-- Sidebar -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "w125y7hkfl");
+</script>
 <div id="appSidebar" class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50 transform transition-transform duration-300 md:translate-x-0 -translate-x-full"
     style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
