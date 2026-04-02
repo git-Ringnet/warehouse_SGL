@@ -2787,6 +2787,7 @@ class DispatchController extends Controller
                         'code' => $material->code,
                         'name' => $material->name,
                         'unit' => $material->unit,
+                        'category' => $material->category,
                         'available_quantity' => $quantity,
                         'display_name' => "{$material->code} - {$material->name} (Tồn: {$quantity})"
                     ]);
@@ -2816,6 +2817,7 @@ class DispatchController extends Controller
                         'code' => $product->code,
                         'name' => $product->name,
                         'unit' => 'Cái', // Products typically use "Cái" as unit
+                        'category' => $product->category,
                         'available_quantity' => $quantity,
                         'display_name' => "{$product->code} - {$product->name} (Tồn: {$quantity})"
                     ]);
@@ -2845,6 +2847,7 @@ class DispatchController extends Controller
                         'code' => $good->code,
                         'name' => $good->name,
                         'unit' => $good->unit ?? 'Cái',
+                        'category' => $good->category,
                         'available_quantity' => $quantity,
                         'display_name' => "{$good->code} - {$good->name} (Tồn: {$quantity})"
                     ]);
@@ -2911,6 +2914,7 @@ class DispatchController extends Controller
                 'code' => $product->code,
                 'name' => $product->name,
                 'unit' => 'Cái', // Default unit for products
+                'category' => $product->category,
                 'warehouses' => $warehouses,
                 'display_name' => "{$product->code} - {$product->name}"
             ]);
@@ -2953,7 +2957,8 @@ class DispatchController extends Controller
                 'name' => $good->name,
                 'unit' => $good->unit ?? 'Cái', // Use good's unit or default to 'Cái'
                 'warehouses' => $warehouses,
-                'display_name' => "{$good->code} - {$good->name}"
+                'display_name' => "{$good->code} - {$good->name}",
+                'category' => $good->category,
             ]);
         }
 

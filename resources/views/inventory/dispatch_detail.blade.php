@@ -84,18 +84,12 @@
                 $isAutoAssembly = str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp');
                 
                 // Hàm kiểm tra đơn vị đo lường
-                $isMeasurementUnit = function($unit) {
-                    if (!$unit) return false;
-                    $u = mb_strtolower(trim($unit));
-                    $measurementUnits = [
-                        'cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft',
-                        'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang',
-                        'ml', 'lít', 'lit', 'l',
-                        'm2', 'm²', 'cm2',
-                        'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam',
-                        'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai',
-                    ];
-                    return in_array($u, $measurementUnits);
+                $isMeasurementUnit = function ($unit, $category = null) {
+                    if ($category === 'Vật tư triển khai') {
+                        return true;
+                    }
+                    $units = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
+                    return in_array(strtolower(trim($unit)), $units);
                 };
             @endphp
             <!-- Header Info -->
@@ -324,7 +318,7 @@
                                                 @php
                                                     $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($isMeasurementUnit($itemUnit))
+                                                @if ($isMeasurementUnit($item->item_unit, $item->item?->category))
                                                     <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                                                         <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
@@ -470,7 +464,7 @@
                                                 @php
                                                     $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($isMeasurementUnit($itemUnit))
+                                                @if ($isMeasurementUnit($item->item_unit, $item->item?->category))
                                                     <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                                                         <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
@@ -615,7 +609,7 @@
                                                 @php
                                                     $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                                 @endphp
-                                                @if ($isMeasurementUnit($itemUnit))
+                                                @if ($isMeasurementUnit($item->item_unit, $item->item?->category))
                                                     <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                                                         <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                     </span>
@@ -776,7 +770,7 @@
                                             @php
                                                 $itemUnit = $item->item && isset($item->item->unit) ? $item->item->unit : null;
                                             @endphp
-                                            @if ($isMeasurementUnit($itemUnit))
+                                            @if ($isMeasurementUnit($itemUnit, $item->item->category ?? null))
                                                 <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                                                     <i class="fas fa-cubes mr-1"></i>Số lượng: {{ $item->quantity }} {{ $itemUnit }}
                                                 </span>

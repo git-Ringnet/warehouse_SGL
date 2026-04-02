@@ -94,16 +94,41 @@
             </tr>
             @php $stt = 1; @endphp
             @foreach ($contractItems as $item)
+                @php
+                    $isBulk = false;
+                    $itemCategory = null;
+                    $itemUnit = null;
+
+                    if ($item->item_type === 'material' && $item->material) {
+                        $itemUnit = $item->material->unit;
+                        $itemCategory = $item->material->category;
+                    } elseif ($item->item_type === 'product' && $item->product) {
+                        $itemUnit = 'Cái'; // Default for products
+                        $itemCategory = $item->product->category;
+                    } elseif ($item->item_type === 'good' && $item->good) {
+                        $itemUnit = $item->good->unit;
+                        $itemCategory = $item->good->category;
+                    }
+
+                    $measureUnits = ['cm', 'm', 'mét', 'kg', 'g', 'gram', 'mm', 'km', 'chiều', 'lít', 'l', 'ml', 'dm', 'cuộn', 'hộp', 'thùng', 'bộ', 'túi', 'gói'];
+                    if (in_array(strtolower(trim($itemUnit)), $measureUnits) || $itemCategory === 'Vật tư triển khai') {
+                        $isBulk = true;
+                    }
+                @endphp
                 <tr>
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? $item->material->code ?? 'N/A' : ($item->item_type === 'product' ? $item->product->code ?? 'N/A' : $item->good->code ?? 'N/A') }}
                     </td>
                     <td>{{ $item->item_type === 'material' ? $item->material->name ?? 'N/A' : ($item->item_type === 'product' ? $item->product->name ?? 'N/A' : $item->good->name ?? 'N/A') }}
                     </td>
-                    <td>{{ $item->item_type === 'material' ? $item->material->unit ?? 'Cái' : ($item->item_type === 'product' ? 'Cái' : $item->good->unit ?? 'Cái') }}
-                    </td>
+                    <td>{{ $itemUnit ?? 'Cái' }}</td>
                     <td>{{ $item->quantity }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                    <td>
+                        @if ($isBulk)
+                            Số lượng: {{ $item->quantity }} {{ $itemUnit ?? 'đơn vị' }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                        @endif
                     </td>
                 </tr>
             @endforeach
@@ -126,16 +151,41 @@
             </tr>
             @php $stt = 1; @endphp
             @foreach ($backupItems as $item)
+                @php
+                    $isBulk = false;
+                    $itemCategory = null;
+                    $itemUnit = null;
+
+                    if ($item->item_type === 'material' && $item->material) {
+                        $itemUnit = $item->material->unit;
+                        $itemCategory = $item->material->category;
+                    } elseif ($item->item_type === 'product' && $item->product) {
+                        $itemUnit = 'Cái'; // Default for products
+                        $itemCategory = $item->product->category;
+                    } elseif ($item->item_type === 'good' && $item->good) {
+                        $itemUnit = $item->good->unit;
+                        $itemCategory = $item->good->category;
+                    }
+
+                    $measureUnits = ['cm', 'm', 'mét', 'kg', 'g', 'gram', 'mm', 'km', 'chiều', 'lít', 'l', 'ml', 'dm', 'cuộn', 'hộp', 'thùng', 'bộ', 'túi', 'gói'];
+                    if (in_array(strtolower(trim($itemUnit)), $measureUnits) || $itemCategory === 'Vật tư triển khai') {
+                        $isBulk = true;
+                    }
+                @endphp
                 <tr>
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? $item->material->code ?? 'N/A' : ($item->item_type === 'product' ? $item->product->code ?? 'N/A' : $item->good->code ?? 'N/A') }}
                     </td>
                     <td>{{ $item->item_type === 'material' ? $item->material->name ?? 'N/A' : ($item->item_type === 'product' ? $item->product->name ?? 'N/A' : $item->good->name ?? 'N/A') }}
                     </td>
-                    <td>{{ $item->item_type === 'material' ? $item->material->unit ?? 'Cái' : ($item->item_type === 'product' ? 'Cái' : $item->good->unit ?? 'Cái') }}
-                    </td>
+                    <td>{{ $itemUnit ?? 'Cái' }}</td>
                     <td>{{ $item->quantity }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                    <td>
+                        @if ($isBulk)
+                            Số lượng: {{ $item->quantity }} {{ $itemUnit ?? 'đơn vị' }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                        @endif
                     </td>
                 </tr>
             @endforeach
@@ -156,17 +206,42 @@
             </tr>
             @php $stt = 1; @endphp
             @foreach ($generalItems as $item)
+                @php
+                    $isBulk = false;
+                    $itemCategory = null;
+                    $itemUnit = null;
+
+                    if ($item->item_type === 'material' && $item->material) {
+                        $itemUnit = $item->material->unit;
+                        $itemCategory = $item->material->category;
+                    } elseif ($item->item_type === 'product' && $item->product) {
+                        $itemUnit = 'Cái'; // Default for products
+                        $itemCategory = $item->product->category;
+                    } elseif ($item->item_type === 'good' && $item->good) {
+                        $itemUnit = $item->good->unit;
+                        $itemCategory = $item->good->category;
+                    }
+
+                    $measureUnits = ['cm', 'm', 'mét', 'kg', 'g', 'gram', 'mm', 'km', 'chiều', 'lít', 'l', 'ml', 'dm', 'cuộn', 'hộp', 'thùng', 'bộ', 'túi', 'gói'];
+                    if (in_array(strtolower(trim($itemUnit)), $measureUnits) || $itemCategory === 'Vật tư triển khai') {
+                        $isBulk = true;
+                    }
+                @endphp
                 <tr>
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? $item->material->code ?? 'N/A' : ($item->item_type === 'product' ? $item->product->code ?? 'N/A' : $item->good->code ?? 'N/A') }}
                     </td>
                     <td>{{ $item->item_type === 'material' ? $item->material->name ?? 'N/A' : ($item->item_type === 'product' ? $item->product->name ?? 'N/A' : $item->good->name ?? 'N/A') }}
                     </td>
-                    <td>{{ $item->item_type === 'material' ? $item->material->unit ?? 'Cái' : ($item->item_type === 'product' ? 'Cái' : $item->good->unit ?? 'Cái') }}
-                    </td>
+                    <td>{{ $itemUnit ?? 'Cái' }}</td>
                     <td>{{ $item->quantity }}</td>
                     <td>{{ $item->warehouse->name ?? '-' }}</td>
-                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                    <td>
+                        @if ($isBulk)
+                            Số lượng: {{ $item->quantity }} {{ $itemUnit ?? 'đơn vị' }}
+                        @else
+                            {{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : $item->serial_numbers ?? 'Chưa có' }}
+                        @endif
                     </td>
                 </tr>
             @endforeach

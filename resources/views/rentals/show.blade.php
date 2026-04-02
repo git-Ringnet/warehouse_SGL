@@ -263,7 +263,7 @@
                                             }
                                         @endphp
                                         <tr class="hover:bg-gray-50">
-                                            <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
+                                            <td class="py-2 px-4 border-b">{{ $loop->iteration }}</td>
                                             <td class="py-2 px-4 border-b">
                                                 @if($item->item_type == 'material' && $item->material)
                                                     {{ $item->material->code }}
@@ -288,7 +288,7 @@
                                             </td>
                                             <td class="py-2 px-4 border-b">
                                                 @if(!empty($itemData['is_measurement_unit']))
-                                                    <span class="font-medium text-gray-800">Số lượng: {{ $itemData['override_quantity'] ?? $item->quantity }} {{ $itemData['unit'] ?? '' }}</span>
+                                                    <span class="font-medium text-gray-800">Số lượng: {{ (float)($itemData['override_quantity'] ?? 0) }} {{ $itemData['unit'] ?? '' }}</span>
                                                 @elseif(!empty($displaySerial))
                                                     {{ $displaySerial }}
                                                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
@@ -303,13 +303,18 @@
                                             <td class="py-2 px-4 border-b">
                                                 @if(!empty($itemData['is_measurement_unit']))
                                                     @if(!empty($itemData['is_replacement']))
-                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Hàng thay thế</span>
+                                                        @if(!empty($itemData['is_fully_replaced_label']))
+                                                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">Đã thay thế</span>
+                                                        @else
+                                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Hàng thay thế</span>
+                                                        @endif
                                                     @else
                                                         @php
-                                                            $hasReplacements = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
+                                                            $replacementQty = floatval($itemData['replaced_quantity'] ?? 0);
                                                         @endphp
-                                                        @if($hasReplacements)
-                                                            <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Thay thế một phần</span>
+
+                                                        @if($replacementQty > 0)
+                                                            <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Đã thay thế</span>
                                                         @else
                                                             <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Chưa thay thế</span>
                                                         @endif
@@ -339,6 +344,7 @@
                                                         data-serial="{{ $originalSerial }}" 
                                                         data-is-measurement="{{ !empty($itemData['is_measurement_unit']) ? '1' : '0' }}"
                                                         data-max-qty="{{ $itemData['override_quantity'] ?? $item->quantity }}"
+                                                        data-contract-max="{{ $itemData['override_quantity'] ?? $item->quantity }}"
                                                         data-unit="{{ $itemData['unit'] ?? '' }}"
                                                         data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" 
                                                         class="warranty-btn text-blue-500 hover:text-blue-700">
@@ -417,7 +423,12 @@
                                             // Đối với hàng đo lường, không ẩn hàng dự phòng chỉ vì có bản ghi thu hồi 
                                             // vì có thể thu hồi một phần. Quantity sẽ tự xử lý việc ẩn nếu về 0.
                                             if (!empty($itemData['is_measurement_unit'])) {
-                                                return true;
+                                                if (!empty($itemData['is_used'])) {
+                                                    return (float)($itemData['override_quantity'] ?? 0) > 0;
+                                                }
+                                                $idle = (float)($itemData['override_quantity'] ?? 0);
+                                                $used = (float)($itemData['used_quantity'] ?? 0);
+                                                return ($idle + $used) > 0.0001;
                                             }
 
                                             // Kiểm tra serial cụ thể chưa được thu hồi - chỉ xem xét records từ cùng rental
@@ -465,16 +476,32 @@
                                             $isReturned = false;
                                             
                                             if (!empty($originalSerial)) {
-                                                $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                                                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
+                                                    ->where(function($q) use ($originalSerial, $displaySerial) {
+                                                        $q->where('replacement_serial', $originalSerial)
+                                                          ->orWhere('replacement_serial', $displaySerial);
+                                                    })->exists();
+                                                
+                                                // Cũng kiểm tra nếu serial này là serial gốc bị swap sang backup (replaceEquipment swap serial)
+                                                if (!$isUsed) {
+                                                    $isUsed = \App\Models\DispatchReplacement::where(function($q) use ($originalSerial, $displaySerial) {
+                                                        $q->where('original_serial', $originalSerial)
+                                                          ->orWhere('original_serial', $displaySerial);
+                                                    })->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
                                                         $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
                                                           ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
                                                     })->exists();
+                                                }
                                                 $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)
-                                                    ->where('original_serial', $originalSerial)
-                                                    ->exists();
+                                                    ->where(function($q) use ($originalSerial, $displaySerial) {
+                                                        $q->where('original_serial', $originalSerial)
+                                                          ->orWhere('original_serial', $displaySerial);
+                                                    })->exists();
                                                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                                    ->where('serial_number', $originalSerial)
+                                                    ->where(function($q) use ($originalSerial, $displaySerial) {
+                                                        $q->where('serial_number', $originalSerial)
+                                                          ->orWhere('serial_number', $displaySerial);
+                                                    })
                                                     ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
                                                         $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
                                                           ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
@@ -482,7 +509,7 @@
                                             }
                                         @endphp
                                         <tr class="hover:bg-gray-50">
-                                            <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
+                                            <td class="py-2 px-4 border-b">{{ $loop->iteration }}</td>
                                             <td class="py-2 px-4 border-b">
                                                 @if($item->item_type == 'material' && $item->material)
                                                     {{ $item->material->code }}
@@ -507,7 +534,7 @@
                                             </td>
                                             <td class="py-2 px-4 border-b">
                                                 @if(!empty($itemData['is_measurement_unit']))
-                                                    <span class="font-medium text-gray-800">Số lượng: {{ $itemData['override_quantity'] ?? $item->quantity }} {{ $itemData['unit'] ?? '' }}</span>
+                                                    <span class="font-medium text-gray-800">Số lượng: {{ (float)($itemData['override_quantity'] ?? 0) }} {{ $itemData['unit'] ?? '' }}</span>
                                                 @elseif(!empty($displaySerial))
                                                     {{ $displaySerial }}
                                                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
@@ -527,11 +554,15 @@
                                                     @endphp
                                                     @if($usedQty > 0 && $availQty > 0)
                                                         <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">Sử dụng một phần</span>
-                                                        <div class="mt-1 text-xs text-gray-500">Đã dùng: {{ $usedQty }} {{ $itemData['unit'] ?? '' }} | Còn lại: {{ $availQty }} {{ $itemData['unit'] ?? '' }}</div>
-                                                    @elseif($availQty <= 0)
-                                                        <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
+                                                        <div class="mt-1 text-xs text-gray-500">Đã dùng: {{ (float)$usedQty }} {{ $itemData['unit'] ?? '' }} | Còn lại: {{ (float)$availQty }} {{ $itemData['unit'] ?? '' }}</div>
+                                                    @elseif($usedQty > 0 && $availQty <= 0)
+                                                        <span class="px-2 py-1 bg-amber-100 text-amber-900 rounded-full text-xs font-semibold">Đang xuất thay thế</span>
+                                                        <div class="mt-1 text-xs text-gray-500">Toàn bộ tồn trên phiếu dự phòng đã xuất để thay thế (không còn idle trên dòng này).</div>
+                                                    @elseif($usedQty <= 0 && $availQty > 0)
+                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Còn tồn dự phòng</span>
+                                                        <div class="mt-1 text-xs text-gray-500">Chưa xuất thay thế hoặc phần đã thay đã thu hồi về kho — không phải hàng mới chưa dùng.</div>
                                                     @else
-                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Chưa sử dụng</span>
+                                                        <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Hết tồn trên phiếu</span>
                                                     @endif
                                                 @elseif($isUsed || $isOriginalReplaced)
                                                     <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
@@ -560,16 +591,36 @@
                                                         $itemCode = 'N/A';
                                                     }
                                                 @endphp
-                                                @if(!$isReturned || !empty($itemData['is_measurement_unit']))
+                                                @php
+                                                    // Tính max qty cho thu hồi
+                                                    $returnMaxQty = 0;
+                                                    $showReturnBtn = false;
+                                                    if (!empty($itemData['is_measurement_unit'])) {
+                                                        if (!empty($itemData['is_used'])) {
+                                                            // Hàng cũ bị thay thế: cho thu hồi theo override_quantity
+                                                            $returnMaxQty = (float)($itemData['override_quantity'] ?? $itemData['available_quantity'] ?? $item->quantity);
+                                                            $showReturnBtn = $returnMaxQty > 0;
+                                                        } else {
+                                                            // Hàng dự phòng idle: chỉ cho thu hồi phần available (override_quantity)
+                                                            $returnMaxQty = (float)($itemData['override_quantity'] ?? 0);
+                                                            $showReturnBtn = $returnMaxQty > 0.0001;
+                                                        }
+                                                    } else {
+                                                        $returnMaxQty = (float)($itemData['override_quantity'] ?? $itemData['available_quantity'] ?? $item->quantity);
+                                                        $showReturnBtn = !$isReturned;
+                                                    }
+                                                @endphp
+                                                @if($showReturnBtn)
                                                 <button type="button" 
                                                     data-id="{{ $item->id }}" 
                                                     data-serial="{{ $originalSerial }}" 
                                                     data-is-measurement="{{ !empty($itemData['is_measurement_unit']) ? '1' : '0' }}"
-                                                    data-max-qty="{{ $itemData['override_quantity'] ?? $item->quantity }}"
+                                                    data-max-qty="{{ $returnMaxQty }}"
                                                     data-unit="{{ $itemData['unit'] ?? '' }}"
                                                     data-code="{{ $itemCode }}" 
                                                     data-replacement-id="{{ $itemData['replacement_id'] ?? '' }}"
                                                     data-is-used="{{ !empty($itemData['is_used']) ? '1' : '0' }}"
+                                                    data-merged-backup-ids="{{ !empty($itemData['merged_dispatch_item_ids']) ? implode(',', $itemData['merged_dispatch_item_ids']) : '' }}"
                                                     class="return-btn text-red-500 hover:text-red-700">
                                                     <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                                 </button>
@@ -749,6 +800,7 @@
                     @csrf
                     <input type="hidden" id="warranty-equipment-id" name="equipment_id">
                     <input type="hidden" id="warranty-equipment-serial" name="equipment_serial">
+                    <input type="hidden" name="rental_id" value="{{ $rental->id }}">
                     <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
                     <div class="mb-4">
                         <label for="replacement_device_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị dự phòng thay thế</label>
@@ -821,6 +873,7 @@
                     <input type="hidden" id="return-equipment-serial" name="equipment_serial">
                     <input type="hidden" id="return-replacement-id" name="replacement_id">
                     <input type="hidden" id="return-is-used" name="is_used">
+                    <input type="hidden" id="return-merged-backup-ids" name="merged_backup_dispatch_item_ids" value="">
                     <input type="hidden" name="rental_id" value="{{ $rental->id }}">
                     
                     <p class="mb-4">Bạn đang thực hiện thu hồi thiết bị <span id="return-equipment-code" class="font-semibold"></span></p>
@@ -884,12 +937,15 @@
                     const unit = button.getAttribute('data-unit');
                     const replacementId = button.getAttribute('data-replacement-id');
                     const isUsed = button.getAttribute('data-is-used');
+                    const mergedBackupIds = button.getAttribute('data-merged-backup-ids');
                     
                     openModal('return-modal');
                     document.getElementById('return-equipment-id').value = equipmentId;
                     document.getElementById('return-equipment-serial').value = equipmentSerial;
                     document.getElementById('return-replacement-id').value = replacementId || '';
                     document.getElementById('return-is-used').value = isUsed || '0';
+                    const mergedEl = document.getElementById('return-merged-backup-ids');
+                    if (mergedEl) mergedEl.value = mergedBackupIds || '';
                     document.getElementById('return-equipment-code').textContent = equipmentCode;
 
                     const qtyContainer = document.getElementById('return-quantity-container');
@@ -928,6 +984,7 @@
                     const equipmentSerial = this.getAttribute('data-serial');
                     const isMeasurement = this.getAttribute('data-is-measurement') === '1';
                     const maxQty = this.getAttribute('data-max-qty');
+                    const contractMax = this.getAttribute('data-contract-max');
                     const unit = this.getAttribute('data-unit');
 
                     openModal('warranty-modal');
@@ -943,14 +1000,17 @@
                     if (isMeasurement) {
                         qtyContainer.classList.remove('hidden');
                         qtyInput.required = true;
-                        qtyInput.max = maxQty;
-                        qtyInput.value = maxQty;
+                        const cMax = parseFloat(contractMax || maxQty || '0');
+                        qtyInput.dataset.contractMax = String(cMax);
+                        qtyInput.max = cMax;
+                        qtyInput.value = cMax;
                         unitLabel.textContent = `(${unit})`;
-                        maxQtyLabel.textContent = `${maxQty} ${unit}`;
+                        maxQtyLabel.textContent = `${cMax} ${unit}`;
                     } else {
                         qtyContainer.classList.add('hidden');
                         qtyInput.required = false;
                         qtyInput.value = 1;
+                        delete qtyInput.dataset.contractMax;
                     }
 
                     fetchBackupItems(isMeasurement, unit);
@@ -980,19 +1040,8 @@
                     if (oldInput) oldInput.remove();
                     document.getElementById('warranty-form').appendChild(replacementSerialInput);
                     
-                    // Nếu là measurement, giới hạn số lượng thay thế không vượt quá số lượng của thiết bị dự phòng
                     if (isMeasurement) {
-                        const maxBackupQty = parseFloat(selectedOption.getAttribute('data-max-qty'));
-                        const qtyInput = document.getElementById('warranty-quantity');
-                        const currentMax = parseFloat(qtyInput.getAttribute('max'));
-                        
-                        // Max thực tế là min giữa (số lượng gốc) và (số lượng dự phòng)
-                        const realMax = Math.min(currentMax, maxBackupQty);
-                        qtyInput.max = realMax;
-                        if (parseFloat(qtyInput.value) > realMax) {
-                            qtyInput.value = realMax;
-                        }
-                        document.getElementById('warranty-max-qty-label').textContent = `${realMax} ${document.getElementById('warranty-unit-label').textContent.replace(/[()]/g, '')}`;
+                        updateWarrantyMeasurementMax();
                     }
                 }
             });
@@ -1066,6 +1115,38 @@
             document.getElementById(modalId).classList.remove('show');
         }
 
+        function updateWarrantyMeasurementMax() {
+            const qtyInput = document.getElementById('warranty-quantity');
+            const replacementSelect = document.getElementById('replacement_device_id');
+            const maxQtyLabel = document.getElementById('warranty-max-qty-label');
+            const unitLabel = document.getElementById('warranty-unit-label');
+            if (!qtyInput || !replacementSelect || qtyInput.dataset.contractMax === undefined) return;
+
+            const contractMax = parseFloat(qtyInput.dataset.contractMax || '0');
+            const unitPlain = (unitLabel && unitLabel.textContent) ? unitLabel.textContent.replace(/[()]/g, '').trim() : '';
+
+            const selectedOption = replacementSelect.options[replacementSelect.selectedIndex];
+            if (!selectedOption) return;
+
+            const isMeasurement = selectedOption.getAttribute('data-is-measurement') === '1';
+            if (!isMeasurement) return;
+
+            if (!selectedOption.value) {
+                qtyInput.max = contractMax;
+                qtyInput.value = contractMax;
+                if (maxQtyLabel) maxQtyLabel.textContent = `${contractMax} ${unitPlain}`;
+                return;
+            }
+
+            const maxBackupQty = parseFloat(selectedOption.getAttribute('data-max-qty'));
+            if (isNaN(maxBackupQty)) return;
+
+            const realMax = Math.min(contractMax, maxBackupQty);
+            qtyInput.max = realMax;
+            if (parseFloat(qtyInput.value) > realMax) qtyInput.value = realMax;
+            if (maxQtyLabel) maxQtyLabel.textContent = `${realMax} ${unitPlain}`;
+        }
+
         // Lấy danh sách thiết bị dự phòng
         function fetchBackupItems(isMeasurement = false, unit = '') {
             const replacementDeviceSelect = document.getElementById('replacement_device_id');
@@ -1098,33 +1179,54 @@
                         });
                         
                         if (isMeasurement) {
-                            // Xử lý đơn vị đo lường: Hiển thị theo Item và số lượng khả dụng
+                            // Xử lý đơn vị đo lường: Gom nhóm theo loại và ID sản phẩm
+                            const groupedItems = {};
                             filteredItems.forEach(item => {
-                                let itemName = 'Không xác định';
-                                let itemCode = 'N/A';
-                                if (item.item_type === 'material' && item.material) {
-                                    itemName = item.material.name;
-                                    itemCode = item.material.code;
-                                } else if (item.item_type === 'product' && item.product) {
-                                    itemName = item.product.name;
-                                    itemCode = item.product.code;
-                                } else if (item.item_type === 'good' && item.good) {
-                                    itemName = item.good.name;
-                                    itemCode = item.good.code;
+                                const itemType = item.item_type;
+                                const itemId = item.item_id;
+                                const key = `${itemType}_${itemId}`;
+                                if (!groupedItems[key]) {
+                                    groupedItems[key] = {
+                                        item: item,
+                                        totalQty: 0
+                                    };
                                 }
+                                groupedItems[key].totalQty += parseFloat(item.available_quantity || item.quantity || 0);
+                            });
 
-                                const qty = parseFloat(item.available_quantity || item.quantity || 0);
+                            Object.values(groupedItems).forEach(group => {
+                                const item = group.item;
+                                const qty = group.totalQty;
                                 if (qty > 0) {
+                                    let itemName = 'Không xác định';
+                                    let itemCode = 'N/A';
+                                    if (item.item_type === 'material' && item.material) {
+                                        itemName = item.material.name;
+                                        itemCode = item.material.code;
+                                    } else if (item.item_type === 'product' && item.product) {
+                                        itemName = item.product.name;
+                                        itemCode = item.product.code;
+                                    } else if (item.item_type === 'good' && item.good) {
+                                        itemName = item.good.name;
+                                        itemCode = item.good.code;
+                                    }
+
                                     const option = document.createElement('option');
-                                    option.value = `${item.id}:MEASUREMENT`;
-                                    option.textContent = `${itemCode} - ${itemName} (Sẵn có: ${qty} ${unit})`;
+                                    // Gửi format GROUPED để backend nhận biết
+                                    option.value = `GROUPED:${item.item_type}:${item.item_id}:MEASUREMENT`;
+                                    option.textContent = `${itemCode} - ${itemName} (Tổng sẵn có: ${qty} ${unit})`;
                                     option.setAttribute('data-item-id', item.id);
                                     option.setAttribute('data-is-measurement', '1');
                                     option.setAttribute('data-max-qty', qty);
                                     replacementDeviceSelect.appendChild(option);
                                 }
                             });
+                            if (replacementDeviceSelect.options.length > 1) {
+                                replacementDeviceSelect.selectedIndex = 1;
+                                replacementDeviceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
                         } else {
+                        
                             // Xử lý thiết bị có serial (Logic cũ)
                             const serialOptions = [];
                             filteredItems.forEach(item => {
