@@ -457,7 +457,8 @@
             let isLoadingSerials = false; // Flag để tránh gọi loadAvailableSerials nhiều lần
 
             // Hàm kiểm tra đơn vị đo lường (không cần serial riêng lẻ)
-            function isMeasurementUnit(unit) {
+            function isMeasurementUnit(unit, category) {
+                if (category === 'Vật tư triển khai') return true;
                 if (!unit) return false;
                 const u = unit.toLowerCase().trim();
                 const measurementUnits = [
@@ -472,7 +473,7 @@
                     // Cuộn/bó/sợi
                     'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam',
                     // Khác
-                    'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai'
+                    'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai', 'bộ', 'bo', 'túi'
                 ];
                 return measurementUnits.includes(u);
             }
@@ -798,6 +799,7 @@
                             code: item.code,
                             name: item.name,
                             unit: item.unit,
+                            category: item.category,
                             warehouses: item.warehouses || [],
                             display_name: item.display_name
                         }));
@@ -1181,7 +1183,7 @@
                         });
                     }
 
-                    const isMeasurement = isMeasurementUnit(product.unit);
+                    const isMeasurement = isMeasurementUnit(product.unit, product.category);
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">${product.code}</td>
@@ -1246,7 +1248,7 @@
                         const quantityInput = document.getElementById(
                             `contract-quantity-${index}`);
                         // Chỉ áp dụng max cho item không phải đơn vị đo lường
-                        if (quantityInput && !isMeasurementUnit(selectedContractProducts[index]?.unit)) {
+                        if (quantityInput && !isMeasurementUnit(selectedContractProducts[index]?.unit, selectedContractProducts[index]?.category)) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
@@ -1260,7 +1262,7 @@
                         }
 
                         // Cập nhật warehouse_id cho tất cả serial selects của product này (chỉ cho item không phải đo lường)
-                        if (!isMeasurementUnit(selectedContractProducts[index]?.unit)) {
+                        if (!isMeasurementUnit(selectedContractProducts[index]?.unit, selectedContractProducts[index]?.category)) {
                             updateSerialWarehouseIds('contract', index, newWarehouseId);
                         }
 
@@ -1279,7 +1281,7 @@
                         if (selectedContractProducts[index]) {
                             selectedContractProducts[index].quantity = newQuantity;
                             
-                            if (isMeasurementUnit(selectedContractProducts[index].unit)) {
+                            if (isMeasurementUnit(selectedContractProducts[index].unit, selectedContractProducts[index].category)) {
                                 // Cập nhật hiển thị số lượng cho đơn vị đo lường
                                 const serialContainer = document.getElementById(`contract-serials-${index}`);
                                 if (serialContainer) {
@@ -1354,7 +1356,7 @@
                         });
                     }
 
-                    const isMeasurement = isMeasurementUnit(product.unit);
+                    const isMeasurement = isMeasurementUnit(product.unit, product.category);
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">${product.code}</td>
@@ -1418,7 +1420,7 @@
                         const quantityInput = document.getElementById(
                             `backup-quantity-${index}`);
                         // Chỉ áp dụng max cho item không phải đơn vị đo lường
-                        if (quantityInput && !isMeasurementUnit(selectedBackupProducts[index]?.unit)) {
+                        if (quantityInput && !isMeasurementUnit(selectedBackupProducts[index]?.unit, selectedBackupProducts[index]?.category)) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
@@ -1432,7 +1434,7 @@
                         }
 
                         // Cập nhật warehouse_id cho tất cả serial selects của product này (chỉ cho item không phải đo lường)
-                        if (!isMeasurementUnit(selectedBackupProducts[index]?.unit)) {
+                        if (!isMeasurementUnit(selectedBackupProducts[index]?.unit, selectedBackupProducts[index]?.category)) {
                             updateSerialWarehouseIds('backup', index, newWarehouseId);
                         }
 
@@ -1450,7 +1452,7 @@
                         if (selectedBackupProducts[index]) {
                             selectedBackupProducts[index].quantity = newQuantity;
                             
-                            if (isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                            if (isMeasurementUnit(selectedBackupProducts[index].unit, selectedBackupProducts[index].category)) {
                                 // Cập nhật hiển thị số lượng cho đơn vị đo lường
                                 const serialContainer = document.getElementById(`backup-serials-${index}`);
                                 if (serialContainer) {
@@ -1548,15 +1550,9 @@
                     prefixName = 'main';
                 }
 
-                // Hàm kiểm tra đơn vị đo lường
-                function isMeasurementUnit(unit) {
-                    if (!unit) return false;
-                    const measureUnits = ['cm', 'mét', 'm', 'gram', 'kg'];
-                    return measureUnits.includes(unit.trim().toLowerCase());
-                }
 
                 // Lọc bỏ hàng hoá có đơn vị đo lường (không dùng serial)
-                productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit));
+                productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit, p.category));
 
                 if (productsToShow.length === 0) {
                     const emptyRow = document.createElement('tr');
@@ -2327,7 +2323,7 @@
                         this.appendChild(categoryInput);
 
                         // Thêm serial numbers cho sản phẩm hợp đồng nếu có (đơn vị đo lường không cần serial)
-                        if (!isMeasurementUnit(product.unit)) {
+                        if (!isMeasurementUnit(product.unit, product.category)) {
                             // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
                             console.log(
                                 `Searching for serials for contract product: id=${product.id}, index=${selectedContractProducts.indexOf(product)}`
@@ -2409,7 +2405,7 @@
                         this.appendChild(categoryInput);
 
                         // Thêm serial numbers cho thiết bị dự phòng nếu có (đơn vị đo lường không cần serial)
-                        if (!isMeasurementUnit(product.unit)) {
+                        if (!isMeasurementUnit(product.unit, product.category)) {
                             // Sử dụng selector CHÍNH XÁC với index và product index để lấy CHÍNH XÁC serial của sản phẩm này
                             console.log(
                                 `Searching for serials for backup product: id=${product.id}, index=${selectedBackupProducts.indexOf(product)}`

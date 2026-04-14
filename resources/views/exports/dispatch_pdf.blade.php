@@ -186,7 +186,11 @@
                     </td>
                     <td>{{ $item->quantity }}</td>
                     <td>
-                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @php 
+                            $itemCategory = $item->item_type === 'material' ? ($item->material->category ?? null) : ($item->item_type === 'product' ? ($item->product->category ?? null) : ($item->good->category ?? null));
+                            $measureUnits = ['cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft', 'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang', 'ml', 'lít', 'lit', 'l', 'm2', 'm²', 'cm2', 'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam', 'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai', 'bộ', 'bo', 'túi'];
+                            $isMeasurementUnit = in_array(strtolower(trim($unit)), $measureUnits) || $itemCategory === 'Vật tư triển khai'; 
+                        @endphp
                         @if($isMeasurementUnit)
                             Số lượng: {{ $item->quantity }} {{ $unit }}
                         @else
@@ -225,7 +229,11 @@
                     </td>
                     <td>{{ $item->quantity }}</td>
                     <td>
-                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @php 
+                            $itemCategory = $item->item_type === 'material' ? ($item->material->category ?? null) : ($item->item_type === 'product' ? ($item->product->category ?? null) : ($item->good->category ?? null));
+                            $measureUnits = ['cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft', 'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang', 'ml', 'lít', 'lit', 'l', 'm2', 'm²', 'cm2', 'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam', 'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai', 'bộ', 'bo', 'túi'];
+                            $isMeasurementUnit = in_array(strtolower(trim($unit)), $measureUnits) || $itemCategory === 'Vật tư triển khai'; 
+                        @endphp
                         @if($isMeasurementUnit)
                             Số lượng: {{ $item->quantity }} {{ $unit }}
                         @else
@@ -266,7 +274,11 @@
                     <td>{{ $item->quantity }}</td>
                     <td>{{ $item->warehouse->name ?? '-' }}</td>
                     <td>
-                        @php $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']); @endphp
+                        @php 
+                            $itemCategory = $item->item_type === 'material' ? ($item->material->category ?? null) : ($item->item_type === 'product' ? ($item->product->category ?? null) : ($item->good->category ?? null));
+                            $measureUnits = ['cm', 'm', 'mét', 'met', 'mm', 'km', 'inch', 'feet', 'ft', 'g', 'gram', 'kg', 'kilogram', 'tấn', 'tan', 'lạng', 'lang', 'ml', 'lít', 'lit', 'l', 'm2', 'm²', 'cm2', 'cuộn', 'cuon', 'bó', 'bo', 'sợi', 'soi', 'thanh', 'tấm', 'tam', 'hộp', 'hop', 'gói', 'goi', 'bịch', 'bich', 'thùng', 'thung', 'can', 'chai', 'bộ', 'bo', 'túi'];
+                            $isMeasurementUnit = in_array(strtolower(trim($unit)), $measureUnits) || $itemCategory === 'Vật tư triển khai'; 
+                        @endphp
                         @if($isMeasurementUnit)
                             Số lượng: {{ $item->quantity }} {{ $unit }}
                         @else

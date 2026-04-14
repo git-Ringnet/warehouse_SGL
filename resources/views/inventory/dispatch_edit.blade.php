@@ -910,13 +910,16 @@
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Helper function to check if a unit is a length/weight measurement unit
-            function isMeasurementUnit(unit) {
-                if (!unit) return false;
-                const measurementUnits = ['cm', 'mét', 'm', 'gram', 'g', 'kg', 'ml', 'l', 'lít', 'm2', 'm3', 'cuộn', 'bầu', 'bó'];
-                return measurementUnits.includes(unit.toLowerCase().trim());
+        // Helper function to check if a unit is a length/weight measurement unit
+        function isMeasurementUnit(unit, itemCategory) {
+            if (itemCategory === 'Vật tư triển khai') {
+                return true;
             }
+            const units = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
+            return units.includes(unit ? unit.toLowerCase().trim() : '');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
 
             function activateProjectReceiver(source) {
                 const projectHidden = document.getElementById('project_receiver');
@@ -1211,7 +1214,15 @@
             function buildProductOptionsHTML(filterCategory) {
                 const items = Array.isArray(availableItems) ? availableItems : [];
                 const arr = items
-                    .filter(it => !filterCategory || it.category === filterCategory || !it.category)
+                    .filter(it => {
+                        // Nếu không có filterCategory hoặc filterCategory là 'contract' hoặc 'backup'
+                        // thì hiển thị tất cả items (vì contract/backup là loại xuất, không phải loại hàng hóa)
+                        if (!filterCategory || filterCategory === 'contract' || filterCategory === 'backup') {
+                            return true;
+                        }
+                        // Ngược lại, lọc theo category hàng hóa
+                        return it.category === filterCategory || !it.category;
+                    })
                     .map(it => ({
                         id: it.id,
                         text: `${it.code || ''} - ${it.name || ''}`.trim(),
@@ -1387,7 +1398,10 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        availableItems = data.items;
+                        availableItems = data.items.map(item => ({
+                            ...item,
+                            item_category: item.category
+                        }));
                         // Load existing items into selected arrays
                         loadExistingItems();
                         // Populate product dropdowns
@@ -1486,6 +1500,7 @@
                             selected_warehouse_id: @json($item->warehouse_id),
                             current_stock: 0, // Will be updated from API call
                             category: '{{ $item->category }}',
+                            item_category: @json($item->item?->category),
                             serial_numbers: @json($item->serial_numbers ?? []),
                             assembly_id: @json($item->assembly_id),
                             product_unit: @json($item->product_unit),
@@ -1526,7 +1541,10 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        const availableItems = data.items;
+                        const availableItems = data.items.map(item => ({
+                            ...item,
+                            item_category: item.category
+                        }));
 
                         // Update stock information for existing items
                         selectedContractProducts.forEach(item => {
@@ -1589,8 +1607,9 @@
                             unit: '{{ $item->item_unit }}',
                             quantity: {{ $item->quantity }},
                             selected_warehouse_id: @json($item->warehouse_id),
-                            current_stock: 0, // Will be updated from API
-                            category: '{{ $item->category }}',
+                            current_stock: 0,
+                            category: '{{ $item->category }}', // Dispatch category (contract/backup)
+                            item_category: @json($item->item?->category), // Actual item category
                             serial_numbers: @json($item->serial_numbers ?? []),
                             serial_components: [], // Will be populated from assembly
                             warehouses: [], // Will be populated from availableItems
@@ -2587,6 +2606,7 @@
                             code: item.code,
                             name: item.name,
                             unit: item.unit,
+                            item_category: item.category, // Actual item category from API
                             warehouses: item.warehouses || [],
                             display_name: `${item.code} - ${item.name} (${item.type === 'product' ? 'Thành phẩm' : 'Hàng hóa'})`
                         }));
@@ -3003,13 +3023,13 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit) ? `max="${product.current_stock || 0}"` : ''} 
+                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit, product.item_category) ? `max="${product.current_stock || 0}"` : ''} 
                                 class="w-20 border border-blue-300 rounded px-2 py-1 text-sm contract-quantity-input" 
                                 data-index="${index}" id="contract-quantity-${index}" ${isReadonly ? 'readonly' : ''}>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex flex-col space-y-1" id="contract-serials-${index}">
-                                ${isMeasurementUnit(product.unit) ? 
+                                ${isMeasurementUnit(product.unit, product.item_category) ? 
                                     `<span class="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded inline-block">
                                         Số lượng: <span class="contract-quantity-display" data-index="${index}">${product.quantity}</span> ${product.unit}
                                     </span>` 
@@ -3070,7 +3090,7 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(`contract-quantity-${index}`);
                         if (quantityInput) {
-                            if (!isMeasurementUnit(selectedContractProducts[index].unit)) {
+                            if (!isMeasurementUnit(selectedContractProducts[index].unit, selectedContractProducts[index].item_category)) {
                                 quantityInput.max = newQuantity;
                                 // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                                 if (parseInt(quantityInput.value) > newQuantity) {
@@ -3101,7 +3121,7 @@
                         }
 
                         // Reset serial khi thay đổi kho
-                        if (!isMeasurementUnit(selectedContractProducts[index].unit)) {
+                        if (!isMeasurementUnit(selectedContractProducts[index].unit, selectedContractProducts[index].item_category)) {
                             const serialContainer = document.getElementById(`contract-serials-${index}`);
                             if (serialContainer) {
                                 // Xóa tất cả serial đã chọn trước đó
@@ -3131,7 +3151,7 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedContractProducts[index]) {
                             selectedContractProducts[index].quantity = newQuantity;
-                            if (isMeasurementUnit(selectedContractProducts[index].unit)) {
+                            if (isMeasurementUnit(selectedContractProducts[index].unit, selectedContractProducts[index].item_category)) {
                                 // Cập nhật text hiển thị số lượng thay vì dropdowns
                                 const displaySpan = document.querySelector(`.contract-quantity-display[data-index="${index}"]`);
                                 if (displaySpan) {
@@ -3252,13 +3272,13 @@
                             </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit) ? `max="${product.current_stock || 0}"` : ''} 
+                            <input type="number" value="${product.quantity}" min="1" ${!isMeasurementUnit(product.unit, product.item_category) ? `max="${product.current_stock || 0}"` : ''} 
                                 class="w-20 border border-orange-300 rounded px-2 py-1 text-sm backup-quantity-input" 
                                 data-index="${index}" id="backup-quantity-${index}" ${isReadonly ? 'readonly' : ''}>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex flex-col space-y-1" id="backup-serials-${index}">
-                                ${isMeasurementUnit(product.unit) ? 
+                                ${isMeasurementUnit(product.unit, product.item_category) ? 
                                     `<span class="text-sm font-medium text-orange-700 bg-orange-50 px-2 py-1 rounded inline-block">
                                         Số lượng: <span class="backup-quantity-display" data-index="${index}">${product.quantity}</span> ${product.unit}
                                     </span>` 
@@ -3319,7 +3339,7 @@
                         // Cập nhật max cho input số lượng
                         const quantityInput = document.getElementById(`backup-quantity-${index}`);
                         if (quantityInput) {
-                            if (!isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                            if (!isMeasurementUnit(selectedBackupProducts[index].unit, selectedBackupProducts[index].item_category)) {
                                 quantityInput.max = newQuantity;
                                 // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                                 if (parseInt(quantityInput.value) > newQuantity) {
@@ -3350,7 +3370,7 @@
                         }
 
                         // Reset serial khi thay đổi kho
-                        if (!isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                        if (!isMeasurementUnit(selectedBackupProducts[index].unit, selectedBackupProducts[index].item_category)) {
                             const serialContainer = document.getElementById(`backup-serials-${index}`);
                             if (serialContainer) {
                                 // Xóa tất cả serial đã chọn trước đó
@@ -3388,7 +3408,7 @@
                         const newQuantity = parseInt(this.value);
                         if (selectedBackupProducts[index]) {
                             selectedBackupProducts[index].quantity = newQuantity;
-                            if (isMeasurementUnit(selectedBackupProducts[index].unit)) {
+                            if (isMeasurementUnit(selectedBackupProducts[index].unit, selectedBackupProducts[index].item_category)) {
                                 // Cập nhật text hiển thị số lượng thay vì dropdowns
                                 const displaySpan = document.querySelector(`.backup-quantity-display[data-index="${index}"]`);
                                 if (displaySpan) {
@@ -4791,12 +4811,12 @@
                     productsToShow = selectedBackupProducts;
                 }
 
-                // Lọc bỏ hàng hoá có đơn vị đo lường (không dùng serial)
-                productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit));
+                // Giữ lại tất cả sản phẩm, nhưng sẽ xử lý hiển thị khác nhau cho đơn vị đo lường bên dưới
+                // productsToShow = productsToShow.filter(p => !isMeasurementUnit(p.unit, p.item_category || p.category));
 
                 if (productsToShow.length === 0) {
                     tbody.innerHTML =
-                        `<tr><td colspan="8" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn (hoặc tất cả là hàng hóa đo lường)</td></tr>`;
+                        `<tr><td colspan="8" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn</td></tr>`;
                     return;
                 }
 
@@ -4858,7 +4878,7 @@
 
                     // Create main cell content
                     const mainCellContent = `
-                        <td class="px-2 py-2 border border-gray-200" rowspan="${productQuantity || 1}">
+                        <td class="px-2 py-2 border border-gray-200" rowspan="${isMeasurementUnit(product.unit, product.item_category || product.category) ? 1 : (productQuantity || 1)}">
                             <input type="text" 
                                 name="${type}_product_info[${productId}]" 
                                 value="${productInfo.code} - ${productInfo.name}"
@@ -4868,7 +4888,10 @@
 
                     // Create serial fields based on quantity
                     let serialFieldsHtml = '';
-                    for (let i = 0; i < productQuantity; i++) {
+                    const isMeasUnit = isMeasurementUnit(product.unit, product.item_category || product.category);
+                    const loopCount = isMeasUnit ? 1 : productQuantity;
+
+                    for (let i = 0; i < loopCount; i++) {
                         // Tìm device code chính xác cho sản phẩm này và index này
                         // Sử dụng index để lấy đúng device code cho từng serial
                         const deviceCode = productDeviceCodes[i] || {};
@@ -5177,15 +5200,25 @@
                         const rowHtml = `
                             <tr data-product-id="${productId}" data-row-index="${i}" data-device-code-id="${deviceCode.id || ''}" data-item-type="${deviceCode.item_type || productInfo.type || ''}">
                                 ${firstRowExtra}
-                                <td class="px-2 py-2 border border-gray-200">
-                                    <input type="text" 
-                                        name="${type}_serial_main[${productId}][${i}]" 
-                                        placeholder="Seri chính ${i + 1}"
-                                        value="${mainSerialValue}"
-                                        data-sync-index="${i}"
-                                        data-original-serial="${originalSerialValue}"
-                                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                <td class="px-2 py-2 border border-gray-200" ${isMeasUnit ? 'colspan="6"' : ''}>
+                                    ${isMeasUnit ? 
+                                        `<div class="flex items-center justify-center">
+                                            <span class="text-sm font-medium text-blue-700 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm">
+                                                <i class="fas fa-info-circle mr-2"></i>
+                                                Hàng hóa này cấp theo đơn vị đo lường (${product.unit}), không hỗ trợ cập nhật seri. 
+                                                Tổng số lượng: <strong>${product.quantity}</strong> ${product.unit}
+                                            </span>
+                                        </div>` : 
+                                        `<input type="text" 
+                                            name="${type}_serial_main[${productId}][${i}]" 
+                                            placeholder="Seri chính ${i + 1}"
+                                            value="${mainSerialValue}"
+                                            data-sync-index="${i}"
+                                            data-original-serial="${originalSerialValue}"
+                                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm">`
+                                    }
                                 </td>
+                                ${!isMeasUnit ? `
                                 <td class="px-2 py-2 border border-gray-200">
                                     <div class="flex flex-col space-y-1">
                                         ${componentSerialsHtml}
@@ -5214,12 +5247,13 @@
                                         name="${type}_mac_4g[${productId}][${i}]" 
                                         value="${deviceCode.id ? (deviceCode.mac_4g || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
-                                </td>
+                                </td>` : ''}
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_note[${productId}][${i}]" 
                                         value="${deviceCode.id ? (deviceCode.note || '') : ''}"
-                                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                        ${isMeasUnit ? 'placeholder="Ghi chú cho cả lô hàng"' : ''}>
                                 </td>
                             </tr>
                         `;

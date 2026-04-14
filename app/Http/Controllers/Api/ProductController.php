@@ -607,153 +607,121 @@ class ProductController extends Controller
                         // Map theo index để fallback
                         $byIndex[$serialIndex] = $details;
                     } else {
-                        // assembly_id không hợp lệ hoặc thiếu: tìm assembly thông qua Testing với success_warehouse_id
+                        // assembly_id không hợp lệ hoặc thiếu: ưu tiên dùng product_materials (BOM hiện tại)
+                        // vì assembly cũ có thể chứa BOM lỗi thời (ví dụ CB-C6 thay cho CB-C16)
                         $fallbackDetails = [];
-                        $warehouseId = $item->warehouse_id;
                         
-                        // Tìm các Testing đã hoàn thành cho product này với kho lưu thành phẩm đạt = warehouse_id của dispatch_item
-                        $testings = DB::table('testings')
-                            ->where('status', 'completed')
-                            ->where('success_warehouse_id', $warehouseId)
-                            ->whereNotNull('assembly_id')
-                            ->orderBy('id', 'asc')
+                        // ƯU TIÊN 1: Dùng product_materials (BOM hiện tại - luôn phản ánh đúng cấu hình sản phẩm)
+                        $productMaterialsFallback = DB::table('product_materials')
+                            ->join('materials', 'product_materials.material_id', '=', 'materials.id')
+                            ->where('product_materials.product_id', $productId)
+                            ->select(
+                                'product_materials.material_id',
+                                'product_materials.quantity',
+                                'materials.code as material_code',
+                                'materials.name as material_name',
+                                'materials.unit as material_unit'
+                            )
                             ->get();
-                        
-                        // Lấy assembly_products từ các Testing tìm được
-                        $assemblyProducts = collect();
-                        foreach ($testings as $testing) {
-                            $ap = DB::table('assembly_products')
-                                ->where('assembly_id', $testing->assembly_id)
-                                ->where('product_id', $productId)
-                                ->first();
-                            if ($ap) {
-                                $assemblyProducts->push($ap);
-                            }
-                        }
-                        
-                        \Illuminate\Support\Facades\Log::info('Looking for assembly for product without assembly_id via Testing', [
-                            'dispatch_item_id' => $item->id,
-                            'product_id' => $productId,
-                            'warehouse_id' => $warehouseId,
-                            'serial_index' => $serialIndex,
-                            'testings_count' => $testings->count(),
-                            'assembly_products_count' => $assemblyProducts->count(),
-                        ]);
                         
                         $foundAssemblyMaterials = false;
                         
-                        // Tạo danh sách tất cả các cặp (assembly_id, product_unit) có sẵn
-                        $availableUnits = [];
-                        foreach ($assemblyProducts as $ap) {
-                            // Parse product_unit từ assembly_products
-                            $productUnitValue = $ap->product_unit;
-                            $productUnits = [];
-                            
-                            if (is_string($productUnitValue)) {
-                                $decoded = json_decode($productUnitValue, true);
-                                if (is_array($decoded)) {
-                                    $productUnits = array_map('intval', $decoded);
-                                } else {
-                                    $productUnits = array_map('intval', array_map('trim', explode(',', $productUnitValue)));
+                        if ($productMaterialsFallback->isNotEmpty()) {
+                            foreach ($productMaterialsFallback as $material) {
+                                for ($i = 0; $i < $material->quantity; $i++) {
+                                    $fallbackDetails[] = [
+                                        'material_id' => $material->material_id,
+                                        'material_code' => $material->material_code,
+                                        'material_name' => $material->material_name,
+                                        'material_unit' => $material->material_unit ?? '',
+                                        'serial' => '',
+                                        'index' => $i + 1
+                                    ];
                                 }
-                            } elseif (is_array($productUnitValue)) {
-                                $productUnits = array_map('intval', $productUnitValue);
-                            } elseif ($productUnitValue !== null) {
-                                $productUnits = [intval($productUnitValue)];
                             }
                             
-                            foreach ($productUnits as $pu) {
-                                $availableUnits[] = [
-                                    'assembly_id' => $ap->assembly_id,
-                                    'product_unit' => $pu
-                                ];
-                            }
+                            $foundAssemblyMaterials = true;
+                            
+                            \Illuminate\Support\Facades\Log::info('Using product_materials (current BOM) as primary fallback for missing assembly_id', [
+                                'dispatch_item_id' => $item->id,
+                                'product_id' => $productId,
+                                'serial_index' => $serialIndex,
+                                'materials_count' => count($fallbackDetails),
+                            ]);
                         }
                         
-                        // Lấy cặp (assembly_id, product_unit) tương ứng với serialIndex
-                        if (isset($availableUnits[$serialIndex])) {
-                            $targetAssemblyId = $availableUnits[$serialIndex]['assembly_id'];
-                            $targetProductUnit = $availableUnits[$serialIndex]['product_unit'];
+                        // ƯU TIÊN 2: Nếu product_materials rỗng, thử tìm assembly qua Testing (ưu tiên mới nhất)
+                        if (!$foundAssemblyMaterials) {
+                            $warehouseId = $item->warehouse_id;
                             
-                            // Lấy vật tư từ assembly_materials cho cặp này
-                            $assemblyMaterials = DB::table('assembly_materials')
-                                ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
-                                ->where('assembly_materials.assembly_id', $targetAssemblyId)
-                                ->where('assembly_materials.target_product_id', $productId)
-                                ->where('assembly_materials.product_unit', $targetProductUnit)
-                                ->select(
-                                    'assembly_materials.id',
-                                    'assembly_materials.material_id',
-                                    'assembly_materials.quantity',
-                                    'assembly_materials.serial',
-                                    'assembly_materials.product_unit as am_product_unit',
-                                    'materials.code as material_code',
-                                    'materials.name as material_name',
-                                    'materials.unit as material_unit'
-                                )
+                            // Tìm các Testing đã hoàn thành, ưu tiên MỚI NHẤT (DESC) để tránh lấy assembly cũ có BOM lỗi thời
+                            $testings = DB::table('testings')
+                                ->where('status', 'completed')
+                                ->where('success_warehouse_id', $warehouseId)
+                                ->whereNotNull('assembly_id')
+                                ->orderBy('id', 'desc')
                                 ->get();
                             
-                            if ($assemblyMaterials->isNotEmpty()) {
-                                // Gộp các dòng cùng material_id
-                                $groupedMaterials = [];
-                                foreach ($assemblyMaterials as $material) {
-                                    $key = $material->material_id;
-                                    if (!isset($groupedMaterials[$key])) {
-                                        $groupedMaterials[$key] = [
-                                            'material_id' => $material->material_id,
-                                            'material_code' => $material->material_code,
-                                            'material_name' => $material->material_name,
-                                            'material_unit' => $material->material_unit ?? '',
-                                            'quantity' => 0,
-                                            'serials' => []
-                                        ];
-                                    }
-                                    $groupedMaterials[$key]['quantity'] += $material->quantity;
-                                    
-                                    if ($material->serial && $material->serial !== 'null') {
-                                        $serialParts = array_map('trim', explode(',', $material->serial));
-                                        $serialParts = array_filter($serialParts, function($s) { return !empty($s) && $s !== 'null'; });
-                                        $groupedMaterials[$key]['serials'] = array_merge($groupedMaterials[$key]['serials'], $serialParts);
-                                    }
+                            // Lấy assembly_products từ các Testing tìm được
+                            $assemblyProducts = collect();
+                            foreach ($testings as $testing) {
+                                $ap = DB::table('assembly_products')
+                                    ->where('assembly_id', $testing->assembly_id)
+                                    ->where('product_id', $productId)
+                                    ->first();
+                                if ($ap) {
+                                    $assemblyProducts->push($ap);
                                 }
-                                
-                                foreach ($groupedMaterials as $material) {
-                                    $serialParts = isset($material['serials']) ? array_values($material['serials']) : [];
-                                    
-                                    for ($i = 0; $i < $material['quantity']; $i++) {
-                                        $serialValue = isset($serialParts[$i]) ? $serialParts[$i] : '';
-                                        
-                                        $fallbackDetails[] = [
-                                            'material_id' => $material['material_id'],
-                                            'material_code' => $material['material_code'],
-                                            'material_name' => $material['material_name'],
-                                            'material_unit' => $material['material_unit'],
-                                            'serial' => $serialValue,
-                                            'index' => $i + 1
-                                        ];
-                                    }
-                                }
-                                
-                                $foundAssemblyMaterials = true;
-                                
-                                \Illuminate\Support\Facades\Log::info('Found assembly materials for product by product_unit', [
-                                    'dispatch_item_id' => $item->id,
-                                    'product_id' => $productId,
-                                    'serial_index' => $serialIndex,
-                                    'assembly_id' => $targetAssemblyId,
-                                    'product_unit' => $targetProductUnit,
-                                    'materials_count' => count($fallbackDetails),
-                                ]);
                             }
-                        }
-                        
-                        // Nếu không tìm được theo product_unit, thử tìm assembly đầu tiên có vật tư
-                        if (!$foundAssemblyMaterials) {
+                            
+                            \Illuminate\Support\Facades\Log::info('Looking for assembly for product without assembly_id via Testing (DESC order)', [
+                                'dispatch_item_id' => $item->id,
+                                'product_id' => $productId,
+                                'warehouse_id' => $warehouseId,
+                                'serial_index' => $serialIndex,
+                                'testings_count' => $testings->count(),
+                                'assembly_products_count' => $assemblyProducts->count(),
+                            ]);
+                            
+                            // Tạo danh sách tất cả các cặp (assembly_id, product_unit) có sẵn
+                            $availableUnits = [];
                             foreach ($assemblyProducts as $ap) {
+                                // Parse product_unit từ assembly_products
+                                $productUnitValue = $ap->product_unit;
+                                $productUnits = [];
+                                
+                                if (is_string($productUnitValue)) {
+                                    $decoded = json_decode($productUnitValue, true);
+                                    if (is_array($decoded)) {
+                                        $productUnits = array_map('intval', $decoded);
+                                    } else {
+                                        $productUnits = array_map('intval', array_map('trim', explode(',', $productUnitValue)));
+                                    }
+                                } elseif (is_array($productUnitValue)) {
+                                    $productUnits = array_map('intval', $productUnitValue);
+                                } elseif ($productUnitValue !== null) {
+                                    $productUnits = [intval($productUnitValue)];
+                                }
+                                
+                                foreach ($productUnits as $pu) {
+                                    $availableUnits[] = [
+                                        'assembly_id' => $ap->assembly_id,
+                                        'product_unit' => $pu
+                                    ];
+                                }
+                            }
+                            
+                            // Lấy cặp (assembly_id, product_unit) tương ứng với serialIndex
+                            if (isset($availableUnits[$serialIndex])) {
+                                $targetAssemblyId = $availableUnits[$serialIndex]['assembly_id'];
+                                $targetProductUnit = $availableUnits[$serialIndex]['product_unit'];
+                                
+                                // Lấy vật tư từ assembly_materials cho cặp này
                                 $assemblyMaterials = DB::table('assembly_materials')
                                     ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
-                                    ->where('assembly_materials.assembly_id', $ap->assembly_id)
+                                    ->where('assembly_materials.assembly_id', $targetAssemblyId)
                                     ->where('assembly_materials.target_product_id', $productId)
+                                    ->where('assembly_materials.product_unit', $targetProductUnit)
                                     ->select(
                                         'assembly_materials.id',
                                         'assembly_materials.material_id',
@@ -767,6 +735,7 @@ class ProductController extends Controller
                                     ->get();
                                 
                                 if ($assemblyMaterials->isNotEmpty()) {
+                                    // Gộp các dòng cùng material_id
                                     $groupedMaterials = [];
                                     foreach ($assemblyMaterials as $material) {
                                         $key = $material->material_id;
@@ -808,19 +777,92 @@ class ProductController extends Controller
                                     
                                     $foundAssemblyMaterials = true;
                                     
-                                    \Illuminate\Support\Facades\Log::info('Found assembly materials for product (fallback to first assembly)', [
+                                    \Illuminate\Support\Facades\Log::info('Found assembly materials for product by product_unit (DESC order)', [
                                         'dispatch_item_id' => $item->id,
                                         'product_id' => $productId,
-                                        'assembly_id' => $ap->assembly_id,
+                                        'serial_index' => $serialIndex,
+                                        'assembly_id' => $targetAssemblyId,
+                                        'product_unit' => $targetProductUnit,
                                         'materials_count' => count($fallbackDetails),
                                     ]);
+                                }
+                            }
+                            
+                            // Nếu không tìm được theo product_unit, thử tìm assembly mới nhất có vật tư
+                            if (!$foundAssemblyMaterials) {
+                                foreach ($assemblyProducts as $ap) {
+                                    $assemblyMaterials = DB::table('assembly_materials')
+                                        ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
+                                        ->where('assembly_materials.assembly_id', $ap->assembly_id)
+                                        ->where('assembly_materials.target_product_id', $productId)
+                                        ->select(
+                                            'assembly_materials.id',
+                                            'assembly_materials.material_id',
+                                            'assembly_materials.quantity',
+                                            'assembly_materials.serial',
+                                            'assembly_materials.product_unit as am_product_unit',
+                                            'materials.code as material_code',
+                                            'materials.name as material_name',
+                                            'materials.unit as material_unit'
+                                        )
+                                        ->get();
                                     
-                                    break;
+                                    if ($assemblyMaterials->isNotEmpty()) {
+                                        $groupedMaterials = [];
+                                        foreach ($assemblyMaterials as $material) {
+                                            $key = $material->material_id;
+                                            if (!isset($groupedMaterials[$key])) {
+                                                $groupedMaterials[$key] = [
+                                                    'material_id' => $material->material_id,
+                                                    'material_code' => $material->material_code,
+                                                    'material_name' => $material->material_name,
+                                                    'material_unit' => $material->material_unit ?? '',
+                                                    'quantity' => 0,
+                                                    'serials' => []
+                                                ];
+                                            }
+                                            $groupedMaterials[$key]['quantity'] += $material->quantity;
+                                            
+                                            if ($material->serial && $material->serial !== 'null') {
+                                                $serialParts = array_map('trim', explode(',', $material->serial));
+                                                $serialParts = array_filter($serialParts, function($s) { return !empty($s) && $s !== 'null'; });
+                                                $groupedMaterials[$key]['serials'] = array_merge($groupedMaterials[$key]['serials'], $serialParts);
+                                            }
+                                        }
+                                        
+                                        foreach ($groupedMaterials as $material) {
+                                            $serialParts = isset($material['serials']) ? array_values($material['serials']) : [];
+                                            
+                                            for ($i = 0; $i < $material['quantity']; $i++) {
+                                                $serialValue = isset($serialParts[$i]) ? $serialParts[$i] : '';
+                                                
+                                                $fallbackDetails[] = [
+                                                    'material_id' => $material['material_id'],
+                                                    'material_code' => $material['material_code'],
+                                                    'material_name' => $material['material_name'],
+                                                    'material_unit' => $material['material_unit'],
+                                                    'serial' => $serialValue,
+                                                    'index' => $i + 1
+                                                ];
+                                            }
+                                        }
+                                        
+                                        $foundAssemblyMaterials = true;
+                                        
+                                        \Illuminate\Support\Facades\Log::info('Found assembly materials for product (fallback to newest assembly)', [
+                                            'dispatch_item_id' => $item->id,
+                                            'product_id' => $productId,
+                                            'assembly_id' => $ap->assembly_id,
+                                            'materials_count' => count($fallbackDetails),
+                                        ]);
+                                        
+                                        break;
+                                    }
                                 }
                             }
                         }
                         
-                        // Nếu không tìm được assembly materials, fallback về product_materials
+                        // Nếu không tìm được từ cả product_materials lẫn assembly, log warning
                         if (!$foundAssemblyMaterials) {
                             $productMaterialsFallback = DB::table('product_materials')
                                 ->join('materials', 'product_materials.material_id', '=', 'materials.id')

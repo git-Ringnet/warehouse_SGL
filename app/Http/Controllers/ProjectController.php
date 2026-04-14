@@ -222,40 +222,58 @@ class ProjectController extends Controller
         // Chỉ lấy:
         // - Phiếu xuất thành phẩm từ kiểm thử (Sinh từ phiếu kiểm thử)
         // - Phiếu xuất trực tiếp đi dự án (không qua lắp ráp)
-        $dispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['project', 'warranty'])
+        // Lấy TẤT CẢ các phiếu xuất liên quan đến dự án (để dùng cho phần dự phòng & thu hồi)
+        $allDispatches = \App\Models\Dispatch::whereIn('dispatch_type', ['project', 'warranty'])
             ->where('project_id', $project->id)
             ->whereIn('status', ['approved', 'completed'])
-            ->where(function ($query) {
-                // Phiếu xuất từ kiểm thử (ưu tiên - đây là phiếu chứa thành phẩm đã qua QA)
-                $query->where('dispatch_note', 'like', '%Sinh từ phiếu kiểm thử%')
-                    // Hoặc phiếu xuất trực tiếp (không qua lắp ráp/kiểm thử)
-                    ->orWhere(function ($q) {
-                    $q->where('dispatch_note', 'not like', '%Sinh từ phiếu lắp ráp%')
-                        ->where('dispatch_note', 'not like', '%Sinh từ phiếu kiểm thử%');
-                })
-                    // Hoặc dispatch_note là null (phiếu xuất thủ công)
-                    ->orWhereNull('dispatch_note');
-            })
             ->get();
 
-        // Pre-calculate sum of replacement quantities per dispatch_item_id for measurement items
-        // Lấy tất cả replacements mà có original hoặc replacement là item của project này
-        $activeDispatchIds = $dispatches->pluck('id')->toArray();
-        
-        $replacements = \App\Models\DispatchReplacement::whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
-            $q->where('project_id', $project->id);
-        })->orWhereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
-            $q->where('project_id', $project->id);
-        })->get();
+        // Lọc riêng các phiếu xuất dùng cho danh sách 'Hợp đồng' (tránh hiện các phiếu lắp ráp/kiểm thử trùng lặp)
+        $contractDispatches = $allDispatches->filter(function($d) {
+            // Phiếu xuất từ kiểm thử (ưu tiên)
+            if (strpos($d->dispatch_note ?? '', 'Sinh từ phiếu kiểm thử') !== false) {
+                return true;
+            }
+            // Phiếu xuất trực tiếp (không qua lắp ráp/kiểm thử)
+            if (strpos($d->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp') === false && 
+                strpos($d->dispatch_note ?? '', 'Sinh từ phiếu kiểm thử') === false) {
+                return true;
+            }
+            // Phiếu xuất thủ công
+            if (is_null($d->dispatch_note)) {
+                return true;
+            }
+            return false;
+        });
 
-        $replacementTotals = $replacements->groupBy('original_dispatch_item_id')
+        // Lấy tất cả Item IDs liên quan trực tiếp đến các phiếu xuất của dự án (dùng bản gốc ALL)
+        $allItemIdsRaw = $allDispatches->map(function($d) {
+            return $d->items->pluck('id');
+        })->flatten()->unique()->toArray();
+
+
+        // Tìm tất cả các record thay đổi (replacements) liên quan đến các item này
+        // (Bao gồm cả việc item này đi thay cho máy khác hoặc bị máy khác thay)
+        $replacements = \App\Models\DispatchReplacement::whereIn('original_dispatch_item_id', $allItemIdsRaw)
+            ->orWhereIn('replacement_dispatch_item_id', $allItemIdsRaw)
+            ->get();
+
+        // Tổng hợp số lượng thay thế cho hàng đo lường (Trừ đi phần đã thu hồi của hàng cũ)
+        $replacementTotals = $replacements->where('original_serial', 'MEASUREMENT')
+            ->groupBy('original_dispatch_item_id')
             ->map(function($group) {
-                return $group->sum('quantity');
+                return $group->sum(function($r) {
+                    return (float)$r->quantity - (float)($r->original_returned_quantity ?? 0);
+                });
             });
 
-        // Lấy danh sách tất cả Item liên quan đến project này để tính toán trả hàng chính xác
+        // Danh sách các Item ID đang đóng vai trò là "Thiết bị thay thế" 
+        // Chúng ta sẽ ẨN các dòng này vì số lượng của chúng đã được tính vào dòng Hợp đồng gốc (Phương án B)
+        $replacementDispatchItemIds = $replacements->pluck('replacement_dispatch_item_id')->unique()->toArray();
+
+        // Lấy danh sách tất cả Item IDs (bao gồm cả hàng gốc và hàng thay thế) để tính toán thu hồi
         $allItemIds = array_unique(array_merge(
-            $dispatches->flatMap->items->pluck('id')->toArray(),
+            $allItemIdsRaw,
             $replacements->pluck('original_dispatch_item_id')->toArray(),
             $replacements->pluck('replacement_dispatch_item_id')->toArray()
         ));
@@ -268,13 +286,13 @@ class ProjectController extends Controller
                 return $group->sum('quantity');
             });
 
-        // Get all replacement dispatch item IDs to skip them in the first loop
-        $replacementDispatchItemIds = $replacements->pluck('replacement_dispatch_item_id')->unique()->toArray();
         $processedDispatchItemIds = [];
 
-        foreach ($dispatches as $dispatch) {
+
+        foreach ($contractDispatches as $dispatch) {
             // Lấy cả items có category 'contract' và 'general' (loại trừ 'backup')
             $items = $dispatch->items()->where('category', '!=', 'backup')->get();
+
 
             foreach ($items as $item) {
                 // Kiểm tra xem dispatch_item_id đã được xử lý chưa
@@ -294,11 +312,16 @@ class ProjectController extends Controller
 
                 $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
                 $unitLower = strtolower(trim($unit));
-                $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+                $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
                 $isMeasurementUnit = in_array($unitLower, $measurementUnits);
 
-                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC không có serial và số lượng > 1
-                $isBulkOrMeasure = $isMeasurementUnit || (empty($serialNumbers) && $quantity > 1);
+                $isImplementationMaterial = false;
+                if ($item->item_type === 'good' && $item->good) {
+                    $isImplementationMaterial = (trim($item->good->category) === 'Vật tư triển khai');
+                }
+
+                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC là Vật tư triển khai HOẶC không có serial và số lượng > 1
+                $isBulkOrMeasure = $isMeasurementUnit || $isImplementationMaterial || (empty($serialNumbers) && $quantity > 1);
 
                 if ($isBulkOrMeasure) {
                     // Skip if quantity is 0 (removed or fully recalled)
@@ -307,21 +330,35 @@ class ProjectController extends Controller
                     }
 
                     $replacementQty = $replacementTotals->get($item->id, 0);
-                    $displayQty = max(0, $item->quantity - $replacementQty);
+                    $returnQty = $returnTotals->get($item->id, 0);
+                    
+                    // Hiển thị theo hợp đồng: tổng còn gắn với phiếu (trừ thu hồi), KHÔNG trừ phần đã thay thế — trạng thái thay thế hiển thị riêng.
+                    $displayQty = max(0.0, (float)$item->quantity - (float)$returnQty);
+                    // Phần còn có thể thao tác (thay thế tiếp / thu hồi phần chưa thay) — dùng cho data-max-qty
+                    $remainingAtSiteQty = max(0.0, (float)$item->quantity - (float)$returnQty - (float)$replacementQty);
 
-                    if ($displayQty > 0) {
-                        $contractItems->push([
-                            'dispatch_item' => $item,
-                            'dispatch' => $dispatch,
-                            'serial_index' => 0,
-                            'serial_number' => 'MEASUREMENT',
-                            'has_serial' => false,
-                            'is_measurement_unit' => true,
-                            'unit' => $unit,
-                            'override_quantity' => $displayQty,
-                            'is_partially_replaced' => ($replacementQty > 0)
-                        ]);
+                    if ($displayQty <= 0.0001) {
+                        continue;
                     }
+
+
+
+                    $contractItems->push([
+                        'dispatch_item' => $item,
+                        'dispatch' => $dispatch,
+                        'serial_index' => 0,
+                        'serial_number' => 'MEASUREMENT',
+                        'has_serial' => false,
+                        'is_measurement_unit' => true,
+                        'unit' => $unit,
+                        'override_quantity' => $displayQty,
+                        'replaced_quantity' => $replacementQty,
+                        'returned_quantity' => $returnQty,
+                        'original_quantity' => $item->quantity,
+                        'is_partially_replaced' => ($replacementQty > 0),
+                        'used_quantity' => $replacementQty,
+                        'available_quantity' => $remainingAtSiteQty
+                    ]);
                     continue;
                 }
 
@@ -330,6 +367,12 @@ class ProjectController extends Controller
                     foreach ($serialNumbers as $i => $serial) {
                         $serial = trim($serial);
                         if (!empty($serial)) {
+                            // Bỏ qua nếu serial này đã bị thu hồi (để hỗ trợ Lựa chọn B: mất dòng khi thu hồi hết)
+                            $isAlreadyReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                ->where('serial_number', $serial)
+                                ->exists();
+                            if ($isAlreadyReturned) continue;
+
                             $isVirtual = strpos($serial, 'N/A-') === 0;
 
                             $contractItems->push([
@@ -341,6 +384,7 @@ class ProjectController extends Controller
                             ]);
                         }
                     }
+
 
                     // Nếu quantity > số serial, thêm các bản ghi N/A cho phần còn lại
                     $serialCount = count(array_filter($serialNumbers, fn($s) => !empty(trim($s))));
@@ -374,8 +418,9 @@ class ProjectController extends Controller
         $backupItems = collect();
         $processedBackupItemIds = [];
 
-        foreach ($dispatches as $dispatch) {
+        foreach ($allDispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
+
 
             foreach ($items as $item) {
                 // Kiểm tra xem dispatch_item_id đã được xử lý chưa
@@ -388,23 +433,33 @@ class ProjectController extends Controller
                 $quantity = (int) ($item->quantity ?? 1);
 
                 $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
-                $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']);
+                $unitLower = strtolower(trim($unit));
+                $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
+                $isMeasurementUnit = in_array($unitLower, $measurementUnits);
 
-                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC không có serial và số lượng > 1
-                $isBulkOrMeasure = $isMeasurementUnit || (empty($serialNumbers) && $quantity > 1);
+                $isImplementationMaterial = false;
+                if ($item->item_type === 'good' && $item->good) {
+                    $isImplementationMaterial = (trim($item->good->category) === 'Vật tư triển khai');
+                }
+
+                // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC là Vật tư triển khai HOẶC không có serial và số lượng > 1
+                $isBulkOrMeasure = $isMeasurementUnit || $isImplementationMaterial || (empty($serialNumbers) && $quantity > 1);
 
                 if ($isBulkOrMeasure) {
-                    // Skip if quantity is 0 (removed or fully recalled)
-                    if ($item->quantity <= 0) {
-                        continue;
-                    }
+                    // Tính số lượng đã sử dụng để thay thế (incoming), trừ phần đã thu hồi của hàng thay thế
+                    $usedQtyIn = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
+                        ->get()
+                        ->sum(function ($r) {
+                            return (float) $r->quantity - (float) ($r->replacement_returned_quantity ?? 0);
+                        });
                     
-                    // Tính số lượng đã sử dụng để thay thế
-                    $usedQty = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
-                        ->sum('quantity');
-                    // item->quantity đã được giảm khi thay thế rồi, không cần trừ thêm
-                    $availableQty = $item->quantity;
+                    $returnQty = $returnTotals->get($item->id, 0);
                     
+                    // Số lượng khả dụng (Idle) = Tổng - Đã dùng thay thế - Đã thu hồi
+                    $availableQty = max(0.0, (float)$item->quantity - (float)$usedQtyIn - (float)$returnQty);
+                    // Cột "Số lượng" = phần còn idle trên dòng dự phòng (khớp "Còn lại"); phần đã xuất thay hiển thị ở "Đã dùng" và hàng lỗi có dòng "Đã sử dụng" riêng — không nhân đôi 500 khi đã tách 100
+
+                    // Không skip nữa, để hiện cả hàng đã dùng hết để thu hồi hàng cũ
                     $backupItems->push([
                         'dispatch_item' => $item,
                         'dispatch' => $dispatch,
@@ -413,11 +468,15 @@ class ProjectController extends Controller
                         'has_serial' => false,
                         'is_measurement_unit' => true,
                         'unit' => $unit,
-                        'used_quantity' => $usedQty,
-                        'available_quantity' => $availableQty
+                        'used_quantity' => $usedQtyIn,
+                        'available_quantity' => $availableQty,
+                        'override_quantity' => $availableQty,
+                        'returnable_max_quantity' => (float) $availableQty,
                     ]);
                     continue;
+
                 }
+
 
                 // Nếu có serial numbers, tạo bản ghi cho từng serial
                 if (!empty($serialNumbers) && is_array($serialNumbers)) {
@@ -477,24 +536,29 @@ class ProjectController extends Controller
         }
 
         // Tách riêng các dòng thay thế và xử lý outgoingQty theo FIFO
-        // Loại bỏ các bản ghi tự thay thế (Orig == Rep) để tránh trừ trùng lặp
-        $validReplacementsForDeduction = $replacements->filter(function($r) {
-            return $r->original_dispatch_item_id !== $r->replacement_dispatch_item_id;
-        });
-
-        $remainingOutgoing = $validReplacementsForDeduction->groupBy('original_dispatch_item_id')
+        // Đã gỡ bỏ block check Orig == Rep để khấu trừ đúng cho nested replacements (Hàng thay thế bị thay thế tiếp)
+        $remainingOutgoing = $replacements->groupBy('original_dispatch_item_id')
             ->map(function($group) {
                 return $group->sum('quantity');
             })->toArray();
 
         foreach ($replacements as $replacement) {
+            // Chỉ hiển thị hàng đo lường ở phần "Hàng thay thế" thêm vào. 
+            // Hàng Serial đã được tráo đổi trực tiếp vào danh sách hàng chính (Loop 1), không đẩy thêm vào đây để tránh trùng lặp (ghost row).
+            if ($replacement->replacement_serial !== 'MEASUREMENT') continue;
+
             $replacementItem = $replacement->replacementDispatchItem;
             if (!$replacementItem) continue;
 
             $unit = $replacementItem->item_type === 'material' ? ($replacementItem->material->unit ?? 'Cái') : ($replacementItem->item_type === 'product' ? 'Cái' : ($replacementItem->good->unit ?? 'Cái'));
             $unitLower = strtolower(trim($unit));
-            $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3'];
+            $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
             $isMeasurementUnit = in_array($unitLower, $measurementUnits);
+            
+            $isImplementationMaterial = false;
+            if ($replacementItem->item_type === 'good' && $replacementItem->good) {
+                $isImplementationMaterial = (trim($replacementItem->good->category) === 'Vật tư triển khai');
+            }
             
             $itemOutgoingQty = $remainingOutgoing[$replacement->replacement_dispatch_item_id] ?? 0;
             $deduction = min((float)$replacement->quantity, (float)$itemOutgoingQty);
@@ -505,9 +569,10 @@ class ProjectController extends Controller
                 $remainingOutgoing[$replacement->replacement_dispatch_item_id] -= $deduction;
             }
 
-            $isBulkOrMeasure = $isMeasurementUnit || (empty($replacementItem->serial_numbers) && $replacement->quantity > 0);
+            // Chặt chẽ hơn: Chỉ coi là hàng đo lường nếu thực tế là đơn vị đo lường hoặc vật tư triển khai
+            $isBulkOrMeasure = $isMeasurementUnit || $isImplementationMaterial;
 
-            // Tính số lượng còn lại tại dự án (quantity - deduction - replacement_returned_quantity)
+            // Tính số lượng "đang thay thế" thực tế tại site (trừ đi phần đã thu hồi của hàng thay thế)
             $availableQtyAtSite = (float)$displayReplacementQty - (float)($replacement->replacement_returned_quantity ?? 0);
 
             if ($isBulkOrMeasure && $availableQtyAtSite > 0) {
@@ -523,7 +588,10 @@ class ProjectController extends Controller
                     'override_quantity' => $availableQtyAtSite, 
                     'is_replacement' => true, 
                     'is_used' => false,
-                    'replacement_id' => $replacement->id
+                    'replacement_id' => $replacement->id,
+                    // Thêm thông tin dùng-thu để hiển thị label "Sử dụng một phần"
+                    'used_quantity' => $itemOutgoingQty,
+                    'available_quantity' => $availableQtyAtSite
                 ]);
             }
         }
@@ -533,11 +601,20 @@ class ProjectController extends Controller
             $originalItem = $replacement->originalDispatchItem;
             if (!$originalItem) continue;
 
-            $unit = $originalItem->item_type === 'material' ? ($originalItem->material->unit ?? 'Cái') : ($originalItem->item_type === 'product' ? 'Cái' : ($originalItem->good->unit ?? 'Cái'));
-            $isMeasurementUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg']);
+            $origUnit = $originalItem->item_type === 'material' ? ($originalItem->material->unit ?? 'Cái') : ($originalItem->item_type === 'product' ? 'Cái' : ($originalItem->good->unit ?? 'Cái'));
+            $unitLower = strtolower(trim($origUnit));
+            $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
+            $isMeasurementUnit = in_array($unitLower, $measurementUnits);
             
-            // Hiển thị các bản ghi "Đã sử dụng" (hàng cũ bị thay thế)
-            $availableUsedQtyAtSite = (float)$replacement->quantity - (float)($replacement->original_returned_quantity ?? 0);
+            $isImplementationMaterial = false;
+            if ($originalItem->item_type === 'good' && $originalItem->good) {
+                $isImplementationMaterial = (trim($originalItem->good->category) === 'Vật tư triển khai');
+            }
+            
+            $isBulkOrMeasure = $isMeasurementUnit || $isImplementationMaterial || (empty($originalItem->serial_numbers) && $replacement->quantity > 0);
+            
+            // Hiển thị các bản ghi "Đã sử dụng" (hàng cũ bị thay thế) — hàng lỗi còn tại khu vực dự phòng, độc lập với việc thu hồi hàng thay thế trên hợp đồng (không tự giảm khi replacement_returned tăng).
+            $availableUsedQtyAtSite = (float) $replacement->quantity - (float) ($replacement->original_returned_quantity ?? 0);
             
             if ($isBulkOrMeasure && $availableUsedQtyAtSite > 0) {
                 $backupItems->push([
@@ -547,13 +624,173 @@ class ProjectController extends Controller
                     'serial_number' => 'MEASUREMENT',
                     'has_serial' => false,
                     'is_measurement_unit' => true,
-                    'unit' => $unit,
+                    'unit' => $origUnit,
                     'override_quantity' => $availableUsedQtyAtSite,
                     'is_used' => true, // Đánh dấu là đã sử dụng (hàng cũ bị thay thế)
                     'replacement_id' => $replacement->id
                 ]);
             }
+            // Hàng serial: KHÔNG push thêm vì replaceEquipment đã swap serial vào backup item
         }
+
+        // --- Bắt đầu phần Gộp hàng hóa đo lường trùng lặp ---
+        // 1. Gom nhóm cho hàng hóa theo hợp đồng (contractItems)
+        $groupedContractItems = collect();
+        $measurementContractGroups = [];
+
+        // Tính tổng số lượng hàng hóa gốc còn lại để hiển thị nhãn cho hàng thay thế
+        $totalOriginalAvailable = [];
+        foreach ($contractItems as $item) {
+            $itemArray = (array)$item;
+                if (!empty($itemArray['is_measurement_unit']) && empty($itemArray['is_replacement'])) {
+                $di = $itemArray['dispatch_item'];
+                $code = $di->item_type === 'material' ? ($di->material->code ?? '') : ($di->item_type === 'product' ? ($di->product->code ?? '') : ($di->good->code ?? ''));
+                if (!isset($totalOriginalAvailable[$code])) $totalOriginalAvailable[$code] = 0;
+                $totalOriginalAvailable[$code] += (float)($itemArray['available_quantity'] ?? 0);
+            }
+        }
+
+        foreach ($contractItems as $item) {
+            $itemArray = (array)$item;
+            if (!empty($itemArray['is_measurement_unit'])) {
+                $di = $itemArray['dispatch_item'];
+                $unit = $itemArray['unit'] ?? '';
+                $isReplacement = !empty($itemArray['is_replacement']) ? '1' : '0';
+                $status = 'available';
+                $overrideQty = (float)($itemArray['override_quantity'] ?? 0);
+                $replacedQty = (float)($itemArray['replaced_quantity'] ?? 0);
+                $availQty = (float)($itemArray['available_quantity'] ?? 0);
+                
+                if ($isReplacement === '1') {
+                    $code = $di->item_type === 'material' ? ($di->material->code ?? '') : ($di->item_type === 'product' ? ($di->product->code ?? '') : ($di->good->code ?? ''));
+                    $origAvail = $totalOriginalAvailable[$code] ?? 0;
+                    if ($origAvail <= 0) {
+                        $itemArray['is_fully_replaced_label'] = true;
+                    }
+                }
+
+                // Group by type, id, unit, and replacement status to show "Original" and "Replacement" rows separately
+                $key = "{$di->item_type}_{$di->item_id}_" . strtolower(trim($unit)) . "_{$isReplacement}";
+                
+                if (isset($measurementContractGroups[$key])) {
+                    $measurementContractGroups[$key]['override_quantity'] = (float)($measurementContractGroups[$key]['override_quantity'] ?? 0) + $overrideQty;
+                    $measurementContractGroups[$key]['replaced_quantity'] = (float)($measurementContractGroups[$key]['replaced_quantity'] ?? 0) + $replacedQty;
+                    $measurementContractGroups[$key]['available_quantity'] = (float)($measurementContractGroups[$key]['available_quantity'] ?? 0) + $availQty;
+                    $measurementContractGroups[$key]['returned_quantity'] = (float)($measurementContractGroups[$key]['returned_quantity'] ?? 0) + (float)($itemArray['returned_quantity'] ?? 0);
+                    $measurementContractGroups[$key]['original_quantity'] = (float)($measurementContractGroups[$key]['original_quantity'] ?? 0) + (float)($itemArray['original_quantity'] ?? 0);
+                    
+                    if (!empty($itemArray['is_partially_replaced'])) {
+                        $measurementContractGroups[$key]['is_partially_replaced'] = true;
+                    }
+                } else {
+                    $measurementContractGroups[$key] = $itemArray;
+                    $measurementContractGroups[$key]['override_quantity'] = $overrideQty;
+                    $measurementContractGroups[$key]['replaced_quantity'] = $replacedQty;
+                    $measurementContractGroups[$key]['available_quantity'] = $availQty;
+                }
+            } else {
+                // Thêm logic ẩn item không đo lường nếu đã bị thay thế hoàn toàn
+                $overrideQty = (float)($itemArray['override_quantity'] ?? 0);
+                $replacedQty = (float)($itemArray['replaced_quantity'] ?? 0);
+                $isReplacement = !empty($itemArray['is_replacement']) ? '1' : '0';
+                
+                if ($isReplacement === '0' && $overrideQty <= 0 && $replacedQty > 0) {
+                    continue; // Bỏ qua hiển thị dòng gốc không đo lường nếu đã thay thế hoàn toàn
+                }
+                
+                $groupedContractItems->push($itemArray);
+            }
+        }
+        // 2. Gom nhóm cho hàng hóa dự phòng (backupItems) trước để lấy số lượng rảnh gộp vào hợp đồng
+        $groupedBackupItems = collect();
+        $measurementBackupGroups = [];
+
+        foreach ($backupItems as $item) {
+            $itemArray = (array)$item;
+            if (!empty($itemArray['is_measurement_unit'])) {
+                $di = $itemArray['dispatch_item'];
+                $unit = $itemArray['unit'] ?? '';
+                $isUsed = !empty($itemArray['is_used']) ? '1' : '0';
+                // Hàng lỗi: mỗi replacement một dòng. Dự phòng pool: gộp cùng mã + đơn vị trong dự án (như hợp đồng); thu hồi dùng merged_dispatch_item_ids
+                if ($isUsed === '1') {
+                    $key = 'meas_bu_' . (int) ($itemArray['replacement_id'] ?? 0) . '_' . (int) $di->id;
+                } else {
+                    $key = "{$di->item_type}_{$di->item_id}_" . strtolower(trim($unit)) . '_0';
+                }
+                
+                if (isset($measurementBackupGroups[$key])) {
+                    if (isset($itemArray['override_quantity'])) {
+                        $measurementBackupGroups[$key]['override_quantity'] = (float)($measurementBackupGroups[$key]['override_quantity'] ?? 0) + (float)$itemArray['override_quantity'];
+                    }
+                    if (isset($itemArray['available_quantity'])) {
+                        $measurementBackupGroups[$key]['available_quantity'] = (float)($measurementBackupGroups[$key]['available_quantity'] ?? 0) + (float)$itemArray['available_quantity'];
+                    }
+                    if (isset($itemArray['used_quantity'])) {
+                        $measurementBackupGroups[$key]['used_quantity'] = (float)($measurementBackupGroups[$key]['used_quantity'] ?? 0) + (float)$itemArray['used_quantity'];
+                    }
+                    if (isset($itemArray['returnable_max_quantity'])) {
+                        $measurementBackupGroups[$key]['returnable_max_quantity'] = (float)($measurementBackupGroups[$key]['returnable_max_quantity'] ?? 0) + (float)$itemArray['returnable_max_quantity'];
+                    }
+                    if ($isUsed === '0') {
+                        if ((int) $di->id < (int) $measurementBackupGroups[$key]['dispatch_item']->id) {
+                            $measurementBackupGroups[$key]['dispatch_item'] = $di;
+                            $measurementBackupGroups[$key]['dispatch'] = $itemArray['dispatch'];
+                        }
+                        $measurementBackupGroups[$key]['merged_dispatch_item_ids'][] = (int) $di->id;
+                        $measurementBackupGroups[$key]['merged_dispatch_item_ids'] = array_values(array_unique($measurementBackupGroups[$key]['merged_dispatch_item_ids']));
+                    }
+                } else {
+                    $measurementBackupGroups[$key] = $itemArray;
+                    if ($isUsed === '0') {
+                        $measurementBackupGroups[$key]['merged_dispatch_item_ids'] = [(int) $di->id];
+                    }
+                }
+            } else {
+                $groupedBackupItems->push($itemArray);
+            }
+        }
+        foreach ($measurementBackupGroups as $groupedItem) {
+            $isUsedRow = !empty($groupedItem['is_used']);
+            if (!empty($groupedItem['is_measurement_unit']) && !$isUsedRow) {
+                $idle = (float)($groupedItem['override_quantity'] ?? 0);
+                $used = (float)($groupedItem['used_quantity'] ?? 0);
+                if ($idle > 0.0001) {
+                    $groupedBackupItems->push($groupedItem);
+                }
+            } elseif ((float)($groupedItem['override_quantity'] ?? 0) > 0) {
+                $groupedBackupItems->push($groupedItem);
+            }
+        }
+        $backupItems = $groupedBackupItems;
+
+        // 3. Xử lý gộp cho hàng hợp đồng (Contract) 
+        foreach ($measurementContractGroups as $groupedItem) {
+            $isReplacement = !empty($groupedItem['is_replacement']) ? '1' : '0';
+            $overrideQty = (float)($groupedItem['override_quantity'] ?? 0);
+            $replacedQty = (float)($groupedItem['replaced_quantity'] ?? 0);
+            $availQty = (float)($groupedItem['available_quantity'] ?? 0);
+            
+            // Ẩn dòng gốc chỉ khi đã thu hồi hết khỏi hợp đồng (không ẩn vì đã thay thế hết — tổng hợp đồng vẫn hiển thị)
+            if ($isReplacement === '0' && $overrideQty <= 0 && $replacedQty > 0 && $availQty <= 0) {
+                continue;
+            }
+            
+            // TÍNH TOÁN LẠI MAX QTY: Hàng hợp đồng cho phép thu hồi TỔNG (bản thân nó + dự phòng rảnh)
+            if ($isReplacement === '0') {
+                $di = $groupedItem['dispatch_item'];
+                $unit = $groupedItem['unit'] ?? '';
+                $backupKey = "{$di->item_type}_{$di->item_id}_" . strtolower(trim($unit)) . '_0';
+                
+                if (isset($measurementBackupGroups[$backupKey])) {
+                    $backupIdleQty = (float)($measurementBackupGroups[$backupKey]['override_quantity'] ?? 0);
+                    $groupedItem['returnable_max_quantity'] = (float)($groupedItem['returnable_max_quantity'] ?? 0) + $backupIdleQty;
+                }
+            }
+            
+            $groupedContractItems->push($groupedItem);
+        }
+        $contractItems = $groupedContractItems;
+        // --- Kết thúc phần Gộp hàng hóa đo lường trùng lặp ---
 
         return view('projects.show', compact('project', 'warehouses', 'backupItems', 'contractItems'));
     }

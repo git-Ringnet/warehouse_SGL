@@ -80,6 +80,7 @@ class EquipmentServiceController extends Controller
             'quantity' => 'nullable|numeric|min:0.001',
             'replacement_id' => 'nullable|exists:dispatch_replacements,id',
             'is_used' => 'nullable|boolean',
+            'merged_backup_dispatch_item_ids' => 'nullable|string|max:2000',
         ], [
             'equipment_id.required' => 'Thiết bị không được để trống',
             'equipment_id.exists' => 'Thiết bị không tồn tại',
@@ -106,45 +107,181 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Chỉ có thể thu hồi thiết bị theo hợp đồng hoặc dự phòng/bảo hành.');
             }
 
-            if ($isMeasurement) {
-                // Tính tổng số lượng thực tế tại dự án (bao gồm cả phần chưa dùng, phần đang dùng thay thế cho món khác, và phần đã bị món khác thay thế)
-                $incomingReplacementQty = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $dispatchItem->id)
-                    ->selectRaw('SUM(quantity - COALESCE(replacement_returned_quantity, 0)) as total')->value('total') ?? 0;
-                $outgoingReplacementQty = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
-                    ->selectRaw('SUM(quantity - COALESCE(original_returned_quantity, 0)) as total')->value('total') ?? 0;
-                $totalAtSite = (float)($dispatchItem->quantity + $incomingReplacementQty + $outgoingReplacementQty);
+            // Chặn thu hồi Vật tư (material) qua dự án - phải dùng luồng Thu hồi Hàng hoá/Vật phẩm khác
+            if ($dispatchItem->item_type === 'material') {
+                return redirect()->back()
+                    ->with('error', 'Vật tư không thể thu hồi bằng thao tác trong dự án. Vui lòng sử dụng chức năng Thu hồi Hàng hoá/Vật phẩm khác.');
+            }
 
-                if ($returnQty > $totalAtSite) {
-                    return redirect()->back()->with('error', "Số lượng thu hồi ({$returnQty}) vượt quá thực tế tại dự án ({$totalAtSite}).");
-                }
-
-                $isUsedRecall = filter_var($request->input('is_used'), FILTER_VALIDATE_BOOLEAN);
-                $remainingToReturn = $returnQty;
-
-                if ($isUsedRecall) {
-                    // Nếu thu hồi từ dòng "Đã sử dụng", ưu tiên trừ vào Outgoing replacements trước (để dòng bị thay thế biến mất)
-                    $remainingToReturn = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReturn, $validatedData['replacement_id'] ?? null, true);
+            // Xây dựng thông tin nguồn (Dự án / Phiếu cho thuê) cho mô tả nhật ký
+            $projectId = $validatedData['project_id'] ?? null;
+            $rentalId = $validatedData['rental_id'] ?? null;
+            $recallSourceDescription = '';
+            if ($projectId) {
+                $project = \App\Models\Project::find($projectId);
+                $recallSourceDescription = 'Thu hồi từ Dự án: ' . ($project ? $project->project_name : 'Không xác định');
+            } elseif ($rentalId) {
+                $rental = \App\Models\Rental::find($rentalId);
+                $recallSourceDescription = 'Thu hồi từ Phiếu cho thuê: ' . ($rental ? ($rental->rental_name ?: $rental->rental_code) : 'Không xác định');
+            } else {
+                // Fallback: thử lấy từ dispatch của item
+                $dispatch = $dispatchItem->dispatch;
+                if ($dispatch && $dispatch->project_id) {
+                    $project = \App\Models\Project::find($dispatch->project_id);
+                    $recallSourceDescription = 'Thu hồi từ Dự án: ' . ($project ? $project->project_name : 'Không xác định');
                 } else {
-                    // Thu hồi thông thường từ Hợp đồng:
-                    // 1. Nếu có replacement_id (thu hồi từ dòng "Hàng thay thế"), ưu tiên trừ vào bản ghi đó trước
-                    if (!empty($validatedData['replacement_id'])) {
-                        $remainingToReturn = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReturn, $validatedData['replacement_id'], false);
+                    $recallSourceDescription = 'Thu hồi thiết bị';
+                }
+            }
+
+            if ($isMeasurement) {
+                $remainingToReturn = $returnQty;
+                $dispatchReturn = null;
+                
+                // 2. Greedy return for measurement items - Prioritize Backup over Contract
+                if ($remainingToReturn > 0.0001) {
+                    $itemCode = $this->getItemCode($dispatchItem);
+                    $isUsedRecall = filter_var($request->input('is_used'), FILTER_VALIDATE_BOOLEAN);
+                    
+                    Log::info("Bắt đầu thu hồi tham lam cho {$dispatchItem->item_type} [{$itemCode}]: {$returnQty} đơn vị");
+                    
+                    // Lấy TẤT CẢ các bản ghi cùng loại tại site (bao gồm cả bản ghi vừa nhấn nút)
+                    $allItemsQuery = DispatchItem::where('item_type', $dispatchItem->item_type)
+                        ->where('item_id', $dispatchItem->item_id)
+                        ->whereIn('category', ['contract', 'backup', 'general'])
+                        ->whereHas('dispatch', function($q) use ($projectId, $rentalId) {
+                            if ($projectId) {
+                                $q->where('project_id', $projectId);
+                            } elseif ($rentalId) {
+                                $rental = \App\Models\Rental::find($rentalId);
+                                if ($rental) {
+                                    $q->where('dispatch_type', 'rental')
+                                      ->where(function($qq) use ($rental) {
+                                          $qq->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                            ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                      });
+                                } else {
+                                    $q->where('id', 0); 
+                                }
+                            }
+                        });
+
+                    if ($itemCode) {
+                        $allItemsQuery->where(function($q) use ($itemCode, $dispatchItem) {
+                            if ($dispatchItem->item_type == 'material') {
+                                $q->whereHas('material', fn($qq) => $qq->where('code', $itemCode));
+                            } elseif ($dispatchItem->item_type == 'product') {
+                                $q->whereHas('product', fn($qq) => $qq->where('code', $itemCode));
+                            } elseif ($dispatchItem->item_type == 'good') {
+                                $q->whereHas('good', fn($qq) => $qq->where('code', $itemCode));
+                            }
+                        });
                     }
 
-                    // 2. Trừ vào hàng chưa dùng (dispatch_item->quantity)
-                    if ($remainingToReturn > 0) {
-                        $reduceFromQuantity = min((float)$dispatchItem->quantity, (float)$remainingToReturn);
-                        $dispatchItem->quantity -= $reduceFromQuantity;
-                        $remainingToReturn -= $reduceFromQuantity;
+                    if (!$isUsedRecall) {
+                        $allItemsQuery->where('quantity', '>', 0.0001);
+                        // Chỉ áp dụng lọc "không phải hàng cũ" cho hạng mục DỰ PHÒNG
+                        // Hàng Hợp đồng (contract) luôn được phép thu hồi (hệ thống sẽ tự xử lý lớp thay thế bên trong)
+                        $allItemsQuery->where(function($q) {
+                            $q->where('category', '!=', 'backup')
+                              ->orWhereNotExists(function($sq) {
+                                  $sq->select(\Illuminate\Support\Facades\DB::raw(1))
+                                    ->from('dispatch_replacements')
+                                    ->whereColumn('dispatch_replacements.original_dispatch_item_id', 'dispatch_items.id');
+                              });
+                        });
+                    } else {
+                        // Khi thu hồi hàng cũ (isUsed), chỉ lấy các dòng ĐÃ bị thay thế (thường là backup)
+                        $allItemsQuery->whereExists(function($q) {
+                            $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                ->from('dispatch_replacements')
+                                ->whereColumn('dispatch_replacements.original_dispatch_item_id', 'dispatch_items.id');
+                        });
                     }
 
-                    // 3. Cuối cùng mới trừ vào các replacements khác (Incoming -> Outgoing)
-                    if ($remainingToReturn > 0) {
-                        $remainingToReturn = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReturn, null, false);
+                    // SẮP XẾP ƯU TIÊN ĐỘNG THEO NGỮ CẢNH NGƯỜI DÙNG BẤM:
+                    // - Thu hồi từ dòng hợp đồng/general => ưu tiên chính dòng đó trước để số lượng hợp đồng giảm đúng như UI kỳ vọng.
+                    // - Thu hồi từ dòng dự phòng => giữ ưu tiên dự phòng trước.
+                    // - Thu hồi hàng cũ (is_used) => ưu tiên backup để lấy hàng lỗi đã thay ra.
+                    $priorityId = $dispatchItem->id;
+                    $categoryOrder = "'backup', 'general', 'contract'";
+                    if (!$isUsedRecall) {
+                        if ($dispatchItem->category === 'contract') {
+                            $categoryOrder = "'contract', 'general', 'backup'";
+                        } elseif ($dispatchItem->category === 'general') {
+                            $categoryOrder = "'general', 'contract', 'backup'";
+                        }
+                    }
+
+                    // Dự phòng đo lường: UI gộp cùng mã — chỉ thu trên các dispatch_item trong merged_backup_dispatch_item_ids (theo thứ tự id).
+                    if ($dispatchItem->category === 'backup' && !$isUsedRecall) {
+                        $items = $this->resolveMeasurementBackupReturnTargets(
+                            $request,
+                            $dispatchItem,
+                            $projectId,
+                            $rentalId
+                        );
+                    } else {
+                        $items = $allItemsQuery
+                            ->orderByRaw("id = {$priorityId} DESC") // Ưu tiên tuyệt đối dòng được bấm
+                            ->orderByRaw("FIELD(category, {$categoryOrder})")
+                            ->orderBy('id', 'asc')
+                            ->get();
+                    }
+                    
+                    $syncBackupReturnContext = [
+                        'warehouse_id' => $warehouse->id,
+                        'user_id' => $this->getAuditUserId(),
+                        'reason' => $validatedData['reason'],
+                    ];
+
+                    foreach ($items as $targetItem) {
+                        if ($remainingToReturn <= 0) break;
+                        
+                        // Thực hiện thu hồi tham lam cho bản ghi này
+                        $priorityReplacementId = ($targetItem->id == $dispatchItem->id) ? ($validatedData['replacement_id'] ?? null) : null;
+                        $actuallyReturned = $this->returnMeasurementItemGreedy($targetItem, $remainingToReturn, $priorityReplacementId, $isUsedRecall, $syncBackupReturnContext);
+                        
+                        if ($actuallyReturned > 0) {
+                            $newReturn = DispatchReturn::create([
+                                'return_code' => DispatchReturn::generateReturnCode(),
+                                'dispatch_item_id' => $targetItem->id,
+                                'warehouse_id' => $warehouse->id,
+                                'user_id' => $this->getAuditUserId(),
+                                'return_date' => Carbon::now(),
+                                'reason_type' => 'return',
+                                'reason' => $validatedData['reason'] . ($targetItem->id != $dispatchItem->id ? " (Thu hồi tự động từ dòng tương tự)" : ""),
+                                'condition' => 'good',
+                                'status' => 'completed',
+                                'serial_number' => 'MEASUREMENT',
+                                'quantity' => $actuallyReturned,
+                            ]);
+                            
+                            if (!$dispatchReturn) $dispatchReturn = $newReturn;
+                            $remainingToReturn -= $actuallyReturned;
+
+                            try {
+                                $targetItemInfo = $this->getItemInfo($targetItem);
+                                ChangeLogHelper::thuHoi(
+                                    $targetItemInfo['code'],
+                                    $targetItemInfo['name'],
+                                    $actuallyReturned,
+                                    $newReturn->return_code,
+                                    $recallSourceDescription . ' (Hàng đo lường)',
+                                    ['dispatch_item_id' => $targetItem->id],
+                                    $validatedData['reason']
+                                );
+                            } catch (\Exception $e) {
+                                Log::error("Lỗi khi lưu nhật ký thu hồi (ID: {$targetItem->id}): " . $e->getMessage());
+                            }
+                        }
                     }
                 }
                 
-                $dispatchItem->save();
+                if ($remainingToReturn > 0.001) {
+                    // This shouldn't happen if validation was correct, but as a safety:
+                    Log::warning("Greedy return finished with {$remainingToReturn} remaining for item ID {$dispatchItem->id}");
+                }
             } else {
                 // Kiểm tra serial có tồn tại trong item không
                 $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
@@ -184,24 +321,45 @@ class EquipmentServiceController extends Controller
                         ->first();
                     if ($deviceCode) {
                         $actualSerialToReturn = trim($deviceCode->serial_main);
-                    }
+                }
+            }
+        }
+
+        // Tạo phiếu thu hồi (Chỉ tạo nếu chưa được Greedy xử lý hoặc là serial item)
+            if (!$isMeasurement) {
+                $dispatchReturn = DispatchReturn::create([
+                    'return_code' => DispatchReturn::generateReturnCode(),
+                    'dispatch_item_id' => $dispatchItem->id,
+                    'warehouse_id' => $warehouse->id,
+                    'user_id' => $this->getAuditUserId(),
+                    'return_date' => Carbon::now(),
+                    'reason_type' => 'return',
+                    'reason' => $validatedData['reason'],
+                    'condition' => 'good',
+                    'status' => 'completed',
+                    'serial_number' => $serialToReturn,
+                    'quantity' => $returnQty,
+                ]);
+
+                // Nhật ký cho serial item
+                try {
+                    $serialItemInfo = $this->getItemInfo($dispatchItem);
+                    ChangeLogHelper::thuHoi(
+                        $serialItemInfo['code'],
+                        $serialItemInfo['name'],
+                        $returnQty,
+                        $dispatchReturn->return_code,
+                        $recallSourceDescription . ' (Serial: ' . $serialToReturn . ')',
+                        ['serial_number' => $serialToReturn],
+                        $validatedData['reason']
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Lỗi khi lưu nhật ký thu hồi serial: ' . $e->getMessage());
                 }
             }
 
-            // Tạo phiếu thu hồi
-            $dispatchReturn = DispatchReturn::create([
-                'return_code' => DispatchReturn::generateReturnCode(),
-                'dispatch_item_id' => $dispatchItem->id,
-                'warehouse_id' => $warehouse->id,
-                'user_id' => $this->getAuditUserId(),
-                'return_date' => Carbon::now(),
-                'reason_type' => 'return',
-                'reason' => $validatedData['reason'],
-                'condition' => 'good',
-                'status' => 'completed',
-                'serial_number' => $serialToReturn,
-                'quantity' => $returnQty,
-            ]);
+            // Phần đo lường đã được tạo DispatchReturn trong khối Greedy ở trên
+
 
             // Cập nhật số lượng và serial trong kho
             if ($isMeasurement) {
@@ -233,6 +391,40 @@ class EquipmentServiceController extends Controller
                     $dispatchItem->serial_numbers = $newSerials;
                     $dispatchItem->quantity = count($newSerials);
                 }
+
+                // Cập nhật thông số thu hồi cho hàng hoá có Serial (đảm bảo nó biến mất khỏi bảng hiển thị sau khi thu hồi)
+                $isUsedRecall = filter_var($request->input('is_used'), FILTER_VALIDATE_BOOLEAN);
+                $replacementId = $validatedData['replacement_id'] ?? null;
+                
+                $rep = null;
+                if (!empty($replacementId)) {
+                    $rep = \App\Models\DispatchReplacement::find($replacementId);
+                }
+
+                // Nếu không tìm thấy bằng ID thì fallback tìm theo Serial (để bảo vệ dữ liệu cũ)
+                if (!$rep) {
+                    if ($isUsedRecall) {
+                        $rep = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
+                            ->where('original_serial', $serialToReturn)
+                            ->whereRaw('quantity > COALESCE(original_returned_quantity, 0)')
+                            ->first();
+                    } else {
+                        $rep = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $dispatchItem->id)
+                            ->where('replacement_serial', $serialToReturn)
+                            ->whereRaw('quantity > COALESCE(replacement_returned_quantity, 0)')
+                            ->first();
+                    }
+                }
+
+                if ($rep) {
+                    // Xác định hướng để cập nhật đúng trường
+                    if ($isUsedRecall && $rep->original_dispatch_item_id == $dispatchItem->id) {
+                        $rep->original_returned_quantity = (float)($rep->original_returned_quantity ?? 0) + 1;
+                    } elseif (!$isUsedRecall && $rep->replacement_dispatch_item_id == $dispatchItem->id) {
+                        $rep->replacement_returned_quantity = (float)($rep->replacement_returned_quantity ?? 0) + 1;
+                    }
+                    $rep->save();
+                }
             }
             
             // Cập nhật ghi chú trong dispatch_item
@@ -246,33 +438,8 @@ class EquipmentServiceController extends Controller
                 ". Kho thu hồi: " . $warehouse->name;
             $dispatchItem->save();
 
-            // Lưu nhật ký thay đổi
-            try {
-                $description = 'Thu hồi thiết bị dự phòng/bảo hành';
-                $detailedInfo = [
-                    'dispatch_return_id' => $dispatchReturn->id,
-                    'dispatch_item_id' => $dispatchItem->id,
-                    'dispatch_id' => $dispatchItem->dispatch->id,
-                    'warehouse_id' => $warehouse->id,
-                    'reason' => $validatedData['reason'],
-                    'return_date' => $dispatchReturn->return_date->toDateTimeString(),
-                    'serial_number' => $serialToReturn,
-                ];
-
-                ChangeLogHelper::thuHoi(
-                    $dispatchItem->material->code ?? $dispatchItem->product->code ?? $dispatchItem->good->code ?? 'N/A',
-                    $dispatchItem->material->name ?? $dispatchItem->product->name ?? $dispatchItem->good->name ?? 'N/A',
-                    $returnQty,
-                    $dispatchReturn->return_code,
-                    $description,
-                    $detailedInfo,
-                    "Thu hồi - Lý do: " . $validatedData['reason']
-                );
-            } catch (\Exception $logException) {
-                Log::error('Lỗi khi lưu nhật ký thu hồi: ' . $logException->getMessage());
-            }
-
             DB::commit();
+
             return redirect()->back()->with('success', 'Thiết bị đã được thu hồi thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -291,6 +458,7 @@ class EquipmentServiceController extends Controller
             'replacement_serial' => 'required|string',
             'reason' => 'required|string',
             'rental_id' => 'nullable|exists:rentals,id',
+            'project_id' => 'nullable|exists:projects,id',
             'quantity' => 'nullable|numeric|min:0.001',
         ], [
             'equipment_id.required' => 'Thiết bị cần thay thế không được để trống',
@@ -304,25 +472,77 @@ class EquipmentServiceController extends Controller
 
         DB::beginTransaction();
         try {
-            // Xử lý replacement_device_id có thể là "itemId:serialNumber"
+            // Xử lý replacement_device_id
             $replacementDeviceIdInput = $validatedData['replacement_device_id'];
-            $replacementDeviceId = $replacementDeviceIdInput;
-            if (strpos($replacementDeviceIdInput, ':') !== false) {
-                $replacementDeviceId = explode(':', $replacementDeviceIdInput)[0];
-            }
+            $isGrouped = (strpos($replacementDeviceIdInput, 'GROUPED:') === 0);
             
-            // Validate replacement_device_id sau khi parse
-            if (!DispatchItem::find($replacementDeviceId)) {
-                return redirect()->back()->with('error', 'Thiết bị thay thế không tồn tại.');
+            $backupItems = collect();
+            $itemType = null;
+            $itemId = null;
+
+            if ($isGrouped) {
+                // Parse GROUPED:item_type:item_id:MEASUREMENT
+                $parts = explode(':', $replacementDeviceIdInput);
+                $itemType = $parts[1];
+                $itemId = $parts[2];
+                
+                $projectId = $validatedData['project_id'] ?? null;
+                $rentalId = $validatedData['rental_id'] ?? null;
+                
+                $dispatches = collect();
+                if ($projectId) {
+                    $dispatches = Dispatch::where('dispatch_type', 'project')
+                        ->where('project_id', $projectId)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->get();
+                } elseif ($rentalId) {
+                    $rental = \App\Models\Rental::find($rentalId);
+                    if ($rental) {
+                        $dispatches = Dispatch::where('dispatch_type', 'rental')
+                            ->whereIn('status', ['approved', 'completed'])
+                            ->where(function($query) use ($rental) {
+                                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                            })
+                            ->get();
+                    }
+                }
+                
+                foreach ($dispatches as $dispatch) {
+                    $items = $dispatch->items()
+                        ->where('category', 'backup')
+                        ->where('item_type', $itemType)
+                        ->where('item_id', $itemId)
+                        ->where('quantity', '>', 0)
+                        ->get();
+                    $backupItems = $backupItems->concat($items);
+                }
+                
+                if ($backupItems->isEmpty()) {
+                    return redirect()->back()->with('error', 'Không tìm thấy thiết bị dự phòng nào phù hợp.');
+                }
+                
+                $backupItems = $backupItems->sortBy('id');
+            } else {
+                $replacementDeviceId = $replacementDeviceIdInput;
+                if (strpos($replacementDeviceIdInput, ':') !== false) {
+                    $replacementDeviceId = explode(':', $replacementDeviceIdInput)[0];
+                }
+                
+                $replacementItem = DispatchItem::with(['dispatch', 'material', 'product', 'good'])->findOrFail($replacementDeviceId);
+                $backupItems->push($replacementItem);
             }
 
-            // Lấy thông tin thiết bị
+            // Lấy thông tin thiết bị gốc
             $originalItem = DispatchItem::with(['dispatch', 'material', 'product', 'good'])->findOrFail($validatedData['equipment_id']);
-            $replacementItem = DispatchItem::with(['dispatch', 'material', 'product', 'good'])->findOrFail($replacementDeviceId);
+            
+            // Lấy item đầu tiên làm đại diện cho các check ban đầu (nếu là đơn lẻ)
+            $firstBackupItem = $backupItems->first();
+            $replacementItem = $firstBackupItem;
 
             // Kiểm tra mã thiết bị
             $originalCode = $this->getItemCode($originalItem);
-            $replacementCode = $this->getItemCode($replacementItem);
+            $replacementCode = $this->getItemCode($firstBackupItem);
             if ($originalCode !== $replacementCode) {
                 return redirect()->back()->with('error', 'Thiết bị thay thế phải có cùng mã thiết bị với thiết bị cần thay thế.');
             }
@@ -331,37 +551,113 @@ class EquipmentServiceController extends Controller
             $requestedReplacementSerialInput = trim((string) $validatedData['replacement_serial']);
             
             $isOrigMeasurement = ($requestedOriginalSerialInput === 'MEASUREMENT' || $this->isMeasurementItem($originalItem));
-            $isReplMeasurement = ($requestedReplacementSerialInput === 'MEASUREMENT' || $this->isMeasurementItem($replacementItem));
+            $isReplMeasurement = ($requestedReplacementSerialInput === 'MEASUREMENT' || $this->isMeasurementItem($firstBackupItem));
             $replaceQty = ($isOrigMeasurement || $isReplMeasurement) ? (float)($validatedData['quantity'] ?? 1) : 1;
 
             if ($isOrigMeasurement || $isReplMeasurement) {
-                // Logic cho hàng đo lường
-                // Tính toán số lượng có thể thay thế hiện tại
-                // Lưu ý: Đối với hàng dự phòng/thay thế, số lượng thực tế trong dự án = quantity (phần chưa dùng) + số lượng đang đóng vai trò thay thế cho hàng khác.
-                $incomingQty = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $originalItem->id)->sum('quantity');
-                $totalInProject = (float)($originalItem->quantity + $incomingQty);
-                $alreadyReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $originalItem->id)->sum('quantity');
+                // Logic cho hàng đo lường (Hỗ trợ gộp)
+                // Nghiệp vụ: Hàng trên hợp đồng (kể cả hàng đã đổi từ dự phòng lên) vẫn có thể đổi tiếp khi lỗi.
+                // Giới hạn mỗi lần: min(tổng hợp đồng − thu hồi, dự phòng còn dùng được) — không trừ dồn "đã thay" khỏi tổng hợp đồng.
 
-                $availableToReplace = max(0.0, $totalInProject - $alreadyReplaced);
+                $similarOriginalItems = DispatchItem::where('item_type', $originalItem->item_type)
+                    ->where('item_id', $originalItem->item_id)
+                    ->where('category', $originalItem->category)
+                    ->whereHas('dispatch', function($q) use ($originalItem) {
+                        if ($originalItem->dispatch->project_id) {
+                            $q->where('project_id', $originalItem->dispatch->project_id);
+                        }
+                    })->get();
 
-                if ($originalItem->id === $replacementItem->id) {
-                    return redirect()->back()->with('error', "Thiết bị không thể tự thay thế cho chính nó.");
+                $availableToReplace = 0;
+                foreach ($similarOriginalItems as $sim) {
+                    $availableToReplace += $this->contractNetMeasurementQty($sim);
                 }
 
                 if ($replaceQty > $availableToReplace) {
-                    return redirect()->back()->with('error', "Số lượng thay thế ({$replaceQty}) vượt quá số lượng còn lại có thể thay thế trong hợp đồng ({$availableToReplace}).");
-                }
-                if ($replaceQty > $replacementItem->quantity) {
-                    return redirect()->back()->with('error', "Số lượng thiết bị dự phòng ({$replacementItem->quantity}) không đủ để thay thế.");
+                    return redirect()->back()->with('error', "Số lượng thay thế ({$replaceQty}) vượt quá tổng số lượng trên hợp đồng còn tại site ({$availableToReplace}).");
                 }
 
-                $replacementItem->quantity -= $replaceQty;
-                
-                // Đảm bảo serial được ghi nhận đúng trong DB
+                $totalBackupQty = 0;
+                foreach ($backupItems as $bi) {
+                    $totalBackupQty += $this->netBackupDispatchableQty($bi);
+                }
+                if ($replaceQty > $totalBackupQty) {
+                    return redirect()->back()->with('error', "Tổng số lượng thiết bị dự phòng khả dụng ({$totalBackupQty}) không đủ để thay thế.");
+                }
+
                 $requestedOriginalSerial = 'MEASUREMENT';
                 $requestedReplacementSerial = 'MEASUREMENT';
+
+                $qtyRemainingToTake = $replaceQty;
+                $originalItemsQueue = $similarOriginalItems->filter(function ($item) {
+                    return $this->contractNetMeasurementQty($item) > 0.0001;
+                })->sortBy('id')->values();
+
+                $origIdx = 0;
+                $currentOrigItem = $originalItemsQueue[$origIdx] ?? null;
+                $currentOrigAvailable = 0;
+                if ($currentOrigItem) {
+                    $currentOrigAvailable = (float) $this->contractNetMeasurementQty($currentOrigItem);
+                }
+
+                foreach ($backupItems as $repItem) {
+                    if ($qtyRemainingToTake <= 0) break;
+                    if ($repItem->quantity <= 0) continue;
+
+                    $repItemQty = $this->netBackupDispatchableQty($repItem);
+                    while ($repItemQty > 0 && $qtyRemainingToTake > 0 && $currentOrigItem) {
+                        $take = min($repItemQty, $qtyRemainingToTake, $currentOrigAvailable);
+                        if ($take <= 0) {
+                            $origIdx++;
+                            $currentOrigItem = $originalItemsQueue[$origIdx] ?? null;
+                            if (!$currentOrigItem) {
+                                break;
+                            }
+                            $currentOrigAvailable = (float) $this->contractNetMeasurementQty($currentOrigItem);
+                            continue;
+                        }
+
+                        // Thực hiện thay thế $take đơn vị từ $repItem cho $currentOrigItem
+                        // KHÔNG trừ $repItem->quantity trong DB - việc sử dụng đã được ghi nhận
+                        // trong bảng DispatchReplacement, ProjectController sẽ tính toán từ đó.
+                        
+                        /** @var DispatchItem $repItem */
+                        /** @var DispatchItem $currentOrigItem */
+                        
+                        $repItemQty -= $take;
+                        $qtyRemainingToTake -= $take;
+                        $currentOrigAvailable -= $take;
+
+                        $originalSerialText = "Số lượng {$take}";
+                        $replacementSerialText = "Số lượng {$take}";
+                        
+                        $currentOrigItem->notes = ($currentOrigItem->notes ? $currentOrigItem->notes . "\n" : "") .
+                            "{$originalSerialText} đã được thay thế bằng {$replacementSerialText} từ " . ($repItem->dispatch->dispatch_code ?? 'dự phòng') . " ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                        $repItem->notes = ($repItem->notes ? $repItem->notes . "\n" : "") .
+                            "{$replacementSerialText} đã thay thế cho thiết bị hợp đồng ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+
+                        $repItem->save();
+                        $currentOrigItem->save();
+                        
+                        DispatchReplacement::create([
+                            'replacement_code' => DispatchReplacement::generateReplacementCode(),
+                            'original_dispatch_item_id' => $currentOrigItem->id,
+                            'replacement_dispatch_item_id' => $repItem->id,
+                            'original_serial' => 'MEASUREMENT',
+                            'replacement_serial' => 'MEASUREMENT',
+                            'user_id' => $this->getAuditUserId(),
+                            'replacement_date' => Carbon::now(),
+                            'reason' => $validatedData['reason'],
+                            'status' => 'completed',
+                            'quantity' => $take,
+                        ]);
+                    }
+                }
+                
+                $originalItem->save();
+                
             } else {
-                // Logic cho thiết bị có serial
+                // Logic cho thiết bị có serial (Logic cũ)
                 $originalSerialsRaw = is_array($originalItem->serial_numbers) ? $originalItem->serial_numbers : [];
                 $replacementSerialsRaw = is_array($replacementItem->serial_numbers) ? $replacementItem->serial_numbers : [];
 
@@ -412,33 +708,33 @@ class EquipmentServiceController extends Controller
                 $replacementItem->serial_numbers = array_values(array_unique($replacementSerials));
                 $originalItem->quantity = count($originalItem->serial_numbers);
                 $replacementItem->quantity = count($replacementItem->serial_numbers);
+
+                // Cập nhật ghi chú cho hàng serial
+                $originalSerialText = (SerialHelper::isVirtualSerial($requestedOriginalSerial) ? SerialHelper::formatSerialForDisplay($requestedOriginalSerial) : "Serial {$requestedOriginalSerial}");
+                $replacementSerialText = (SerialHelper::isVirtualSerial($requestedReplacementSerial) ? SerialHelper::formatSerialForDisplay($requestedReplacementSerial) : "Serial {$requestedReplacementSerial}");
+                
+                $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") .
+                    "{$originalSerialText} đã được thay thế bằng {$replacementSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") .
+                    "{$replacementSerialText} đã thay thế cho {$originalSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+
+                $originalItem->save();
+                $replacementItem->save();
+
+                // Tạo phiếu thay thế cho hàng serial
+                DispatchReplacement::create([
+                    'replacement_code' => DispatchReplacement::generateReplacementCode(),
+                    'original_dispatch_item_id' => $originalItem->id,
+                    'replacement_dispatch_item_id' => $replacementItem->id,
+                    'original_serial' => $requestedOriginalSerial,
+                    'replacement_serial' => $requestedReplacementSerial,
+                    'user_id' => $this->getAuditUserId(),
+                    'replacement_date' => Carbon::now(),
+                    'reason' => $validatedData['reason'],
+                    'status' => 'completed',
+                    'quantity' => $replaceQty,
+                ]);
             }
-
-            // Cập nhật ghi chú
-            $originalSerialText = $isOrigMeasurement ? "Số lượng {$replaceQty}" : (SerialHelper::isVirtualSerial($requestedOriginalSerial) ? SerialHelper::formatSerialForDisplay($requestedOriginalSerial) : "Serial {$requestedOriginalSerial}");
-            $replacementSerialText = $isReplMeasurement ? "Số lượng {$replaceQty}" : (SerialHelper::isVirtualSerial($requestedReplacementSerial) ? SerialHelper::formatSerialForDisplay($requestedReplacementSerial) : "Serial {$requestedReplacementSerial}");
-            
-            $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") .
-                "{$originalSerialText} đã được thay thế bằng {$replacementSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
-            $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") .
-                "{$replacementSerialText} đã thay thế cho {$originalSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
-
-            $originalItem->save();
-            $replacementItem->save();
-
-            // Tạo phiếu thay thế
-            $replacement = DispatchReplacement::create([
-                'replacement_code' => DispatchReplacement::generateReplacementCode(),
-                'original_dispatch_item_id' => $originalItem->id,
-                'replacement_dispatch_item_id' => $replacementItem->id,
-                'original_serial' => $requestedOriginalSerial,
-                'replacement_serial' => $requestedReplacementSerial,
-                'user_id' => $this->getAuditUserId(),
-                'replacement_date' => Carbon::now(),
-                'reason' => $validatedData['reason'],
-                'status' => 'completed',
-                'quantity' => $replaceQty,
-            ]);
 
             // Xử lý bảo hành
             $warranty = null;
@@ -585,12 +881,23 @@ class EquipmentServiceController extends Controller
                     
                     return $replacement;
                 });
+
+            // Lấy thông tin thu hồi
+            $returns = \App\Models\DispatchReturn::with(['user'])
+                ->where('dispatch_item_id', $dispatchItem->id)
+                ->get()
+                ->map(function ($ret) {
+                    $ret->employee_name = $ret->user ? $ret->user->name : 'Không xác định';
+                    return $ret;
+                });
             
             return response()->json([
                 'success' => true,
                 'dispatchItem' => $dispatchItem,
                 'replacements' => $replacements,
+                'returns' => $returns,
             ]);
+
         } catch (\Exception $e) {
             Log::error('Error getting equipment history: ' . $e->getMessage());
             return response()->json([
@@ -872,8 +1179,18 @@ class EquipmentServiceController extends Controller
                             return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
                         }));
                         
+                        // Tính toán số lượng khả dụng cho hàng đo lường (bulk items)
+                        if ($this->isMeasurementItem($item)) {
+                            $usedQtyIn = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->sum('quantity');
+                            $usedQtyOut = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->sum('quantity');
+                            $returnQty = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->sum('quantity');
+                            // Avail = Gốc - (Đã dùng để thay cho dòng khác) + (Được dòng khác thay thế cho mình) - (Đã thu hồi)
+                            $item->available_quantity = max(0.0, (float)$item->quantity - (float)$usedQtyIn + (float)$usedQtyOut - (float)$returnQty);
+                        } else {
+                            $item->available_quantity = count($availableSerials);
+                        }
+                        
                         $item->serial_numbers = $availableSerials;
-                        $item->available_quantity = 0; // Không cần nữa vì đã có virtual serial trong DB
                         
                         return $item;
                     });
@@ -1022,10 +1339,213 @@ class EquipmentServiceController extends Controller
             return empty($dispatchItem->serial_numbers) && $dispatchItem->quantity > 1;
         }
         
-        $isMeasureUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'gram', 'kg', 'mét ', 'mét ']);
+        $isMeasureUnit = in_array(strtolower(trim($unit)), ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới']);
         
-        // Nếu là đơn vị đo lường HOẶC là hàng không serial với số lượng > 1
-        return $isMeasureUnit || (empty($dispatchItem->serial_numbers) && $dispatchItem->quantity > 1);
+        $isImplementationMaterial = false;
+        if ($dispatchItem->material && trim($dispatchItem->material->category) === 'Vật tư triển khai') {
+            $isImplementationMaterial = true;
+        } elseif ($dispatchItem->product && trim($dispatchItem->product->category) === 'Vật tư triển khai') {
+            $isImplementationMaterial = true;
+        } elseif ($dispatchItem->good && trim($dispatchItem->good->category) === 'Vật tư triển khai') {
+            $isImplementationMaterial = true;
+        }
+
+        // Nếu là đơn vị đo lường HOẶC là hàng không serial với số lượng > 1 HOẶC là Vật tư triển khai
+        return $isMeasureUnit || $isImplementationMaterial || (empty($dispatchItem->serial_numbers) && $dispatchItem->quantity > 1);
+    }
+
+    /**
+     * Helper logic for greedy return of a measurement item
+     * Xử lý trừ số lượng đo lường tham lam
+     * Returns the amount actually reduced from THIS item.
+     */
+    private function returnMeasurementItemGreedy($dispatchItem, $amountToReduceRequested, $priorityReplacementId = null, $isUsedRecallInput = null, ?array $syncBackupReturnContext = null): float
+    {
+        // ... (Tính toán totalAtSite giữ nguyên như bước trước)
+        $incomingReplacementAtSiteQty = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $dispatchItem->id)
+            ->selectRaw('SUM(quantity - COALESCE(replacement_returned_quantity, 0)) as total')->value('total') ?? 0;
+            
+        $outgoingReplacementAtSiteQty = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
+            ->selectRaw('SUM(quantity - COALESCE(original_returned_quantity, 0)) as total')->value('total') ?? 0;
+            
+        $outgoingReplacementSumQuantity = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
+            ->sum('quantity') ?? 0;
+
+        $returnedSoFar = \App\Models\DispatchReturn::where('dispatch_item_id', $dispatchItem->id)
+            ->where('serial_number', 'MEASUREMENT')
+            ->sum('quantity');
+        // dispatch_items.quantity không bị trừ khi thu hồi đo lường — phải trừ dispatch_returns để tính đúng còn tại site
+        $netQuantity = max(0.0, (float) $dispatchItem->quantity - (float) $returnedSoFar);
+
+        $isUsedRecall = filter_var($isUsedRecallInput, FILTER_VALIDATE_BOOLEAN);
+
+        // Thu hồi từ dòng hợp đồng/general:
+        // phải cho phép thu hồi theo số lượng đang hiển thị trên hợp đồng (netQuantity),
+        // sau đó mới đồng bộ phần deployment thay thế tương ứng (replacement_returned_quantity).
+        if (
+            !$isUsedRecall
+            && in_array($dispatchItem->category, ['contract', 'general'], true)
+        ) {
+            $totalAtSite = (float) $netQuantity;
+            if ($totalAtSite <= 0) {
+                return 0;
+            }
+
+            $canReturnFromThis = min((float) $totalAtSite, (float) $amountToReduceRequested);
+            $remainingToReduceNow = $canReturnFromThis;
+
+            $deployedReplacementAtSite = (float) DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
+                ->selectRaw('SUM(quantity - COALESCE(replacement_returned_quantity, 0)) as total')
+                ->value('total');
+            $unreplacedAtSite = max(0.0, (float) $netQuantity - $deployedReplacementAtSite);
+
+            // 1) Thu hồi phần chưa bị thay thế trước (không chạm dispatch_replacements)
+            if ($remainingToReduceNow > 0) {
+                $reduceFromUnreplaced = min($unreplacedAtSite, (float) $remainingToReduceNow);
+                $remainingToReduceNow -= $reduceFromUnreplaced;
+            }
+
+            // 2) Phần còn lại thu hồi vào các đơn vị đang là "hàng thay thế tại site"
+            if ($remainingToReduceNow > 0) {
+                $remainingToReduceNow = $this->reduceOutgoingReplacementDeploymentForContractReturn(
+                    $dispatchItem,
+                    $remainingToReduceNow,
+                    $priorityReplacementId,
+                    $syncBackupReturnContext
+                );
+            }
+
+            $dispatchItem->save();
+            return (float) ($canReturnFromThis - $remainingToReduceNow);
+        }
+
+        if ($isUsedRecall) {
+            $totalAtSite = (float) $outgoingReplacementAtSiteQty;
+        } elseif (
+            $dispatchItem->category === 'backup'
+            && (float) $outgoingReplacementSumQuantity < 0.0001
+        ) {
+            // Dự phòng thường: không cộng netQuantity + incoming (trùng tồn); tối đa thu = còn gắn phiếu
+            $totalAtSite = (float) $netQuantity;
+        } else {
+            $totalAtSite = max(0.0, (float) ($netQuantity - (float) $outgoingReplacementSumQuantity + (float) $incomingReplacementAtSiteQty));
+        }
+
+        if ($totalAtSite <= 0) return 0;
+
+        $canReturnFromThis = min((float)$totalAtSite, (float)$amountToReduceRequested);
+        $remainingToReduceNow = $canReturnFromThis;
+
+        if ($isUsedRecall) {
+            $remainingToReduceNow = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReduceNow, $priorityReplacementId, true);
+        } else {
+            // 1. Priority replacement
+            if (!empty($priorityReplacementId)) {
+                $remainingToReduceNow = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReduceNow, $priorityReplacementId, false);
+            }
+
+            // 2. Main quantity (un-replaced)
+            if ($remainingToReduceNow > 0) {
+                $alreadyReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)->sum('quantity');
+                $unReplaced = max(0.0, (float) $netQuantity - (float) $alreadyReplaced);
+                
+                $reduceFromQuantity = min($unReplaced, (float)$remainingToReduceNow);
+                // KHÔNG trừ $dispatchItem->quantity trong DB - việc thu hồi đã được ghi nhận
+                // trong bảng dispatch_returns, ProjectController sẽ tính toán từ đó.
+                $remainingToReduceNow -= $reduceFromQuantity;
+            }
+
+            // 3. General replacements
+            if ($remainingToReduceNow > 0) {
+                $remainingToReduceNow = $this->reduceReplacementsForReturn($dispatchItem, $remainingToReduceNow, null, false);
+            }
+        }
+
+        $dispatchItem->save();
+        return (float)($canReturnFromThis - $remainingToReduceNow);
+    }
+
+    /**
+     * Giảm deployment thay thế đang nằm trên hợp đồng khi thu hồi từ contract/general.
+     * Ưu tiên replacement_id nếu user bấm ở dòng thay thế cụ thể.
+     */
+    private function reduceOutgoingReplacementDeploymentForContractReturn($dispatchItem, $qtyToReduce, $priorityReplacementId = null, ?array $syncBackupReturnContext = null): float
+    {
+        $totalToReduce = (float) $qtyToReduce;
+
+        if (!empty($priorityReplacementId) && $totalToReduce > 0) {
+            $priorityRep = DispatchReplacement::find($priorityReplacementId);
+            if ($priorityRep && (int) $priorityRep->original_dispatch_item_id === (int) $dispatchItem->id) {
+                $available = (float) $priorityRep->quantity - (float) ($priorityRep->replacement_returned_quantity ?? 0);
+                if ($available > 0.0001) {
+                    $canReduce = min($available, $totalToReduce);
+                    $priorityRep->replacement_returned_quantity = (float) ($priorityRep->replacement_returned_quantity ?? 0) + $canReduce;
+                    $priorityRep->save();
+                    $this->createBackupDispatchReturnForReplacementRecall($priorityRep, $canReduce, $syncBackupReturnContext);
+                    $totalToReduce -= $canReduce;
+                }
+            }
+        }
+
+        if ($totalToReduce <= 0) {
+            return 0.0;
+        }
+
+        $reps = DispatchReplacement::where('original_dispatch_item_id', $dispatchItem->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        foreach ($reps as $rep) {
+            if ($totalToReduce <= 0) {
+                break;
+            }
+            if (!empty($priorityReplacementId) && (int) $rep->id === (int) $priorityReplacementId) {
+                continue;
+            }
+
+            $available = (float) $rep->quantity - (float) ($rep->replacement_returned_quantity ?? 0);
+            if ($available <= 0.0001) {
+                continue;
+            }
+
+            $canReduce = min($available, $totalToReduce);
+            $rep->replacement_returned_quantity = (float) ($rep->replacement_returned_quantity ?? 0) + $canReduce;
+            
+            /** @var DispatchReplacement $rep */
+            $rep->save();
+            $this->createBackupDispatchReturnForReplacementRecall($rep, $canReduce, $syncBackupReturnContext);
+            $totalToReduce -= $canReduce;
+        }
+
+        return (float) max(0, $totalToReduce);
+    }
+
+    /**
+     * Ghi nhận thu hồi trên dòng dự phòng (nguồn xuất thay thế) tương ứng replacement_returned,
+     * để idle dự phòng không nhảy (hàng đã về kho, không còn nằm idle trên phiếu dự phòng).
+     */
+    private function createBackupDispatchReturnForReplacementRecall(DispatchReplacement $rep, float $qty, ?array $syncBackupReturnContext): void
+    {
+        if ($qty <= 0.0001 || $syncBackupReturnContext === null) {
+            return;
+        }
+        $backupItemId = (int) $rep->replacement_dispatch_item_id;
+        if ($backupItemId <= 0) {
+            return;
+        }
+        DispatchReturn::create([
+            'return_code' => DispatchReturn::generateReturnCode(),
+            'dispatch_item_id' => $backupItemId,
+            'warehouse_id' => (int) $syncBackupReturnContext['warehouse_id'],
+            'user_id' => (int) $syncBackupReturnContext['user_id'],
+            'return_date' => Carbon::now(),
+            'reason_type' => 'return',
+            'reason' => ($syncBackupReturnContext['reason'] ?? '') . ' — Đồng bộ: phần xuất từ dự phòng để thay thế đã về kho (thu hồi hàng thay thế trên hợp đồng)',
+            'condition' => 'good',
+            'status' => 'completed',
+            'serial_number' => 'MEASUREMENT',
+            'quantity' => $qty,
+        ]);
     }
 
     /**
@@ -1035,25 +1555,34 @@ class EquipmentServiceController extends Controller
     {
         $totalToReduce = (float)$qtyToReduce;
         
+        $isUsedRecallContext = $prioritizeOutgoing;
+
         // 1. Ưu tiên trừ vào replacement_id cụ thể nếu có
         if (!empty($priorityReplacementId)) {
             $priorityRep = \App\Models\DispatchReplacement::find($priorityReplacementId);
-            if ($priorityRep && ($priorityRep->replacement_dispatch_item_id == $dispatchItem->id || $priorityRep->original_dispatch_item_id == $dispatchItem->id)) {
-                // Phải xác định hướng thu hồi cho priorityRep
-                $isOutgoing = ($priorityRep->original_dispatch_item_id == $dispatchItem->id);
+            $isValid = false;
+            $isItemTheOriginal = false;
+
+            if ($priorityRep) {
+                if ($isUsedRecallContext && $priorityRep->original_dispatch_item_id == $dispatchItem->id) {
+                    $isValid = true;
+                    $isItemTheOriginal = true;
+                } elseif (!$isUsedRecallContext && $priorityRep->replacement_dispatch_item_id == $dispatchItem->id) {
+                    $isValid = true;
+                    $isItemTheOriginal = false;
+                }
+            }
+
+            if ($isValid) {
+                $returnedField = $isItemTheOriginal ? 'original_returned_quantity' : 'replacement_returned_quantity';
                 
-                $availableToReturn = (float)$priorityRep->quantity - (float)($isOutgoing ? ($priorityRep->original_returned_quantity ?? 0) : ($priorityRep->replacement_returned_quantity ?? 0));
+                $availableToReturn = (float)$priorityRep->quantity - (float)($priorityRep->$returnedField ?? 0);
                 
                 if ($availableToReturn > 0) {
                     $canReduce = min($availableToReturn, $totalToReduce);
-                    
-                    if ($isOutgoing) {
-                        $priorityRep->original_returned_quantity = (float)($priorityRep->original_returned_quantity ?? 0) + $canReduce;
-                    } else {
-                        $priorityRep->replacement_returned_quantity = (float)($priorityRep->replacement_returned_quantity ?? 0) + $canReduce;
-                    }
-                    
+                    $priorityRep->$returnedField = (float)($priorityRep->$returnedField ?? 0) + $canReduce;
                     $totalToReduce -= $canReduce;
+                    /** @var \App\Models\DispatchReplacement $priorityRep */
                     $priorityRep->save();
                 }
             }
@@ -1061,10 +1590,11 @@ class EquipmentServiceController extends Controller
         
         if ($totalToReduce <= 0) return (float)$totalToReduce;
 
-        // Định nghĩa thứ tự ưu tiên: incoming (món này đi thay thế món khác) và outgoing (món này bị món khác thay thế)
-        $order = $prioritizeOutgoing ? ['outgoing', 'incoming'] : ['incoming', 'outgoing'];
 
-        foreach ($order as $type) {
+        // Xử lý đúng luồng theo ngữ cảnh (Chỉ outgoing nếu là hàng cũ, Chỉ incoming nếu là hàng hợp đồng)
+        $targets = $isUsedRecallContext ? ['outgoing'] : ['incoming'];
+
+        foreach ($targets as $type) {
             if ($totalToReduce <= 0) break;
 
             if ($type === 'incoming') {
@@ -1081,23 +1611,119 @@ class EquipmentServiceController extends Controller
                 if ($totalToReduce <= 0) break;
                 if (!empty($priorityReplacementId) && $rep->id == $priorityReplacementId) continue;
 
-                // Tính số lượng còn lại có thể thu hồi dựa trên hướng thu hồi
-                $availableToReturn = (float)$rep->quantity - (float)($prioritizeOutgoing ? ($rep->original_returned_quantity ?? 0) : ($rep->replacement_returned_quantity ?? 0));
-                if ($availableToReturn <= 0) continue;
+                // Xác định hướng cho từng record cụ thể
+                $isItemTheOriginal = ($rep->original_dispatch_item_id == $dispatchItem->id);
+                $returnedField = $isItemTheOriginal ? 'original_returned_quantity' : 'replacement_returned_quantity';
+
+                $availableToReturn = (float)$rep->quantity - (float)($rep->$returnedField ?? 0);
+                if ($availableToReturn <= 0.0001) continue;
 
                 $canReduce = min($availableToReturn, $totalToReduce);
-                
-                if ($prioritizeOutgoing) {
-                    $rep->original_returned_quantity = (float)($rep->original_returned_quantity ?? 0) + $canReduce;
-                } else {
-                    $rep->replacement_returned_quantity = (float)($rep->replacement_returned_quantity ?? 0) + $canReduce;
-                }
-                
+                $rep->$returnedField = (float)($rep->$returnedField ?? 0) + $canReduce;
                 $totalToReduce -= $canReduce;
+                
+                /** @var DispatchReplacement $rep */
                 $rep->save();
             }
         }
 
-        return (float)$totalToReduce;
+        return (float)max(0, $totalToReduce);
+    }
+
+    /**
+     * Tổng đơn vị đo lường đã thu hồi trên dispatch_item (phiếu MEASUREMENT).
+     */
+    private function measurementReturnedQtyForDispatchItem(int $dispatchItemId): float
+    {
+        return (float) DispatchReturn::where('dispatch_item_id', $dispatchItemId)
+            ->where('serial_number', 'MEASUREMENT')
+            ->sum('quantity');
+    }
+
+    /**
+     * Số lượng hợp đồng còn gắn phiếu (trừ thu hồi) — mọi đơn vị trên line đều có thể đổi tiếp khi lỗi (kể cả hàng đã đổi từ dự phòng).
+     */
+    private function contractNetMeasurementQty(DispatchItem $item): float
+    {
+        return max(0.0, (float) $item->quantity - $this->measurementReturnedQtyForDispatchItem($item->id));
+    }
+
+    /**
+     * Dự phòng còn lấy được để thay (đã trừ đã dùng thay thế & thu hồi từ dự phòng).
+     */
+    private function netBackupDispatchableQty(DispatchItem $bi): float
+    {
+        $usedOut = DispatchReplacement::where('replacement_dispatch_item_id', $bi->id)
+            ->get()
+            ->sum(function ($r) {
+                return (float) $r->quantity - (float) ($r->replacement_returned_quantity ?? 0);
+            });
+        $ret = $this->measurementReturnedQtyForDispatchItem($bi->id);
+
+        return max(0.0, (float) $bi->quantity - $usedOut - $ret);
+    }
+
+    /**
+     * Dự phòng đo lường có thể gộp nhiều dispatch_item cùng mã; khi thu hồi chỉ trừ đúng các dòng trong merged_backup_dispatch_item_ids.
+     *
+     * @return \Illuminate\Support\Collection<int, DispatchItem>
+     */
+    private function resolveMeasurementBackupReturnTargets(Request $request, DispatchItem $dispatchItem, ?int $projectId, ?int $rentalId): \Illuminate\Support\Collection
+    {
+        $with = ['dispatch', 'material', 'product', 'good'];
+        $raw = (string) $request->input('merged_backup_dispatch_item_ids', '');
+        $mergedIds = array_values(array_unique(array_filter(array_map('intval', preg_split('/\s*,\s*/', $raw) ?: []))));
+        // Lọc theo context Idle/Used của nút bấm
+        if (count($mergedIds) === 0 || !in_array((int) $dispatchItem->id, $mergedIds, true)) {
+            $initial = collect([DispatchItem::with($with)->findOrFail($dispatchItem->id)]);
+        } else {
+            $initial = DispatchItem::with($with)->whereIn('id', $mergedIds)->get();
+        }
+
+        $isUsedReq = filter_var($request->input('is_used'), FILTER_VALIDATE_BOOLEAN);
+        
+        $itemContextIds = $initial->filter(function($i) use ($isUsedReq) {
+            $hasReplacements = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $i->id)->exists();
+            return $isUsedReq ? $hasReplacements : !$hasReplacements;
+        })->pluck('id')->toArray();
+
+        if (empty($itemContextIds)) {
+            return collect([]);
+        }
+
+        $q = DispatchItem::with($with)
+            ->whereIn('id', $itemContextIds)
+            ->where('item_type', $dispatchItem->item_type)
+            ->where('item_id', $dispatchItem->item_id)
+            ->where('category', 'backup');
+
+        if ($projectId) {
+            $q->whereHas('dispatch', fn ($dq) => $dq->where('project_id', $projectId));
+        } elseif ($rentalId) {
+            $rental = \App\Models\Rental::find($rentalId);
+            if ($rental) {
+                $q->whereHas('dispatch', function ($dq) use ($rental) {
+                    $dq->where('dispatch_type', 'rental')
+                        ->where(function ($qq) use ($rental) {
+                            $qq->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                        });
+                });
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        } else {
+            $q->whereRaw('1 = 0');
+        }
+
+        $found = $q->orderBy('id')->get();
+        $expectedSorted = collect($mergedIds)->sort()->values()->all();
+        $gotSorted = $found->pluck('id')->sort()->values()->all();
+
+        if ($found->count() !== count($mergedIds) || $expectedSorted !== $gotSorted) {
+            return collect([DispatchItem::with($with)->findOrFail($dispatchItem->id)]);
+        }
+
+        return $found;
     }
 }
