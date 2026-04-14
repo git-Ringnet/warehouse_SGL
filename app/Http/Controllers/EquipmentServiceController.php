@@ -107,14 +107,39 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Chỉ có thể thu hồi thiết bị theo hợp đồng hoặc dự phòng/bảo hành.');
             }
 
+            // Chặn thu hồi Vật tư (material) qua dự án - phải dùng luồng Thu hồi Hàng hoá/Vật phẩm khác
+            if ($dispatchItem->item_type === 'material') {
+                return redirect()->back()
+                    ->with('error', 'Vật tư không thể thu hồi bằng thao tác trong dự án. Vui lòng sử dụng chức năng Thu hồi Hàng hoá/Vật phẩm khác.');
+            }
+
+            // Xây dựng thông tin nguồn (Dự án / Phiếu cho thuê) cho mô tả nhật ký
+            $projectId = $validatedData['project_id'] ?? null;
+            $rentalId = $validatedData['rental_id'] ?? null;
+            $recallSourceDescription = '';
+            if ($projectId) {
+                $project = \App\Models\Project::find($projectId);
+                $recallSourceDescription = 'Thu hồi từ Dự án: ' . ($project ? $project->project_name : 'Không xác định');
+            } elseif ($rentalId) {
+                $rental = \App\Models\Rental::find($rentalId);
+                $recallSourceDescription = 'Thu hồi từ Phiếu cho thuê: ' . ($rental ? ($rental->rental_name ?: $rental->rental_code) : 'Không xác định');
+            } else {
+                // Fallback: thử lấy từ dispatch của item
+                $dispatch = $dispatchItem->dispatch;
+                if ($dispatch && $dispatch->project_id) {
+                    $project = \App\Models\Project::find($dispatch->project_id);
+                    $recallSourceDescription = 'Thu hồi từ Dự án: ' . ($project ? $project->project_name : 'Không xác định');
+                } else {
+                    $recallSourceDescription = 'Thu hồi thiết bị';
+                }
+            }
+
             if ($isMeasurement) {
                 $remainingToReturn = $returnQty;
                 $dispatchReturn = null;
                 
                 // 2. Greedy return for measurement items - Prioritize Backup over Contract
                 if ($remainingToReturn > 0.0001) {
-                    $projectId = $validatedData['project_id'] ?? null;
-                    $rentalId = $validatedData['rental_id'] ?? null;
                     $itemCode = $this->getItemCode($dispatchItem);
                     $isUsedRecall = filter_var($request->input('is_used'), FILTER_VALIDATE_BOOLEAN);
                     
@@ -236,13 +261,15 @@ class EquipmentServiceController extends Controller
                             $remainingToReturn -= $actuallyReturned;
 
                             try {
+                                $targetItemInfo = $this->getItemInfo($targetItem);
                                 ChangeLogHelper::thuHoi(
-                                    $targetItem->item_code,
-                                    $targetItem->item_name,
+                                    $targetItemInfo['code'],
+                                    $targetItemInfo['name'],
                                     $actuallyReturned,
                                     $newReturn->return_code,
-                                    'Thu hồi thiết bị (Hàng đo lường)',
-                                    ['dispatch_item_id' => $targetItem->id]
+                                    $recallSourceDescription . ' (Hàng đo lường)',
+                                    ['dispatch_item_id' => $targetItem->id],
+                                    $validatedData['reason']
                                 );
                             } catch (\Exception $e) {
                                 Log::error("Lỗi khi lưu nhật ký thu hồi (ID: {$targetItem->id}): " . $e->getMessage());
@@ -316,13 +343,15 @@ class EquipmentServiceController extends Controller
 
                 // Nhật ký cho serial item
                 try {
+                    $serialItemInfo = $this->getItemInfo($dispatchItem);
                     ChangeLogHelper::thuHoi(
-                        $dispatchItem->item_code,
-                        $dispatchItem->item_name,
+                        $serialItemInfo['code'],
+                        $serialItemInfo['name'],
                         $returnQty,
                         $dispatchReturn->return_code,
-                        'Thu hồi thiết bị dự phòng/bảo hành (Serial)',
-                        ['serial_number' => $serialToReturn]
+                        $recallSourceDescription . ' (Serial: ' . $serialToReturn . ')',
+                        ['serial_number' => $serialToReturn],
+                        $validatedData['reason']
                     );
                 } catch (\Exception $e) {
                     Log::error('Lỗi khi lưu nhật ký thu hồi serial: ' . $e->getMessage());

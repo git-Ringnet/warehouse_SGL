@@ -418,7 +418,7 @@
                         class="warranty-btn text-blue-500 hover:text-blue-700">
                         <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                     </button>
-                    @if(!$isReturned || !empty($itemData['is_measurement_unit']))
+                    @if((!$isReturned || !empty($itemData['is_measurement_unit'])) && $item->item_type !== 'material')
                     @php
                         $itemCode = '';
                         if ($item->item_type == 'material' && $item->material) {
@@ -443,6 +443,8 @@
                         class="return-btn text-red-500 hover:text-red-700">
                         <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                     </button>
+                    @elseif($item->item_type === 'material')
+                    <span class="text-xs text-gray-400 italic" title="Vật tư không thu hồi qua dự án. Sử dụng chức năng Thu hồi Hàng hoá/Vật phẩm khác.">Không thu hồi tại đây</span>
                     @endif
                 </div>
             </td>
@@ -672,7 +674,7 @@
                                                         $showReturnBtn = !$isReturned;
                                                     }
                                                 @endphp
-                                                @if($showReturnBtn)
+                                                @if($showReturnBtn && $item->item_type !== 'material')
                                         <button type="button" 
                                             data-id="{{ $item->id }}" 
                                             data-serial="{{ $originalSerial }}" 
@@ -686,6 +688,8 @@
                                             class="return-btn text-red-500 hover:text-red-700">
                                             <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                         </button>
+                                        @elseif($item->item_type === 'material')
+                                        <span class="text-xs text-gray-400 italic" title="Vật tư không thu hồi qua dự án. Sử dụng chức năng Thu hồi Hàng hoá/Vật phẩm khác.">Không thu hồi tại đây</span>
                                         @endif
                                     </td>
                                 </tr>
