@@ -840,30 +840,51 @@ class RentalController extends Controller
 
     /**
      * Đồng bộ bảo hành điện tử khi cập nhật phiếu cho thuê
+     * 
+     * @param Rental $rental
+     * @param bool $syncEndDate Nếu true (gia hạn), cập nhật cả warranty_end_date. Mặc định false (chỉ đồng bộ tên/khách hàng).
      */
-    private function syncWarrantiesFromRental(Rental $rental)
+    private function syncWarrantiesFromRental(Rental $rental, bool $syncEndDate = false)
     {
-        $warranties = \App\Models\Warranty::whereIn('item_type', ['rental', 'project'])
-            ->where('item_id', $rental->id)
+        // Chỉ lấy warranty liên kết qua dispatch rental
+        $warranties = \App\Models\Warranty::where('item_type', 'rental')
+            ->whereHas('dispatch', function ($query) use ($rental) {
+                $query->where('project_id', $rental->id)
+                      ->where('dispatch_type', 'rental');
+            })
             ->get();
 
         if ($warranties->isEmpty()) {
             return;
         }
 
-        $customerName = optional($rental->customer)->name;
-        $startDate = \Carbon\Carbon::parse($rental->rental_date);
-        $endDate = \Carbon\Carbon::parse($rental->due_date);
-        $periodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
+        $customerName = optional($rental->customer)->company_name ?: optional($rental->customer)->name;
 
         foreach ($warranties as $warranty) {
-            $warranty->update([
-                'project_name' => $rental->rental_name,
+            // Đồng bộ project_name theo format chuẩn: Mã - Tên (Khách hàng)
+            $customerDisplay = optional($rental->customer)->company_name ?: optional($rental->customer)->name;
+            $projectNameFormatted = \App\Models\Warranty::formatProjectName(
+                $rental->rental_code,
+                $rental->rental_name,
+                $customerDisplay
+            );
+
+            $updateData = [
+                'project_name' => $projectNameFormatted,
                 'customer_name' => $customerName,
-                'warranty_start_date' => $startDate->toDateString(),
-                'warranty_end_date' => $endDate->toDateString(),
-                'warranty_period_months' => $periodMonths,
-            ]);
+            ];
+
+            // Chỉ cập nhật ngày hết hạn khi gia hạn, không ghi đè khi chỉ sửa thông tin
+            if ($syncEndDate) {
+                $startDate = \Carbon\Carbon::parse($rental->rental_date);
+                $endDate = \Carbon\Carbon::parse($rental->due_date);
+                $periodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
+
+                $updateData['warranty_end_date'] = $endDate->toDateString();
+                $updateData['warranty_period_months'] = $periodMonths;
+            }
+
+            $warranty->update($updateData);
         }
     }
 
@@ -962,8 +983,8 @@ class RentalController extends Controller
                 'notes' => trim($notes),
             ]);
 
-            // Đồng bộ thông tin warranty khi rental gia hạn
-            $this->syncWarrantiesFromRental($rental);
+            // Đồng bộ thông tin warranty khi rental gia hạn (cập nhật cả ngày hết hạn)
+            $this->syncWarrantiesFromRental($rental, true);
 
             // Ghi nhật ký gia hạn phiếu cho thuê
             if (Auth::check()) {

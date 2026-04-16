@@ -5526,62 +5526,62 @@
                             throw new Error(result.message || 'Lỗi khi lưu thông tin');
                         }
 
-                        // Lưu trữ serials từ modal trước khi đóng
-                        const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
-                        const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
-
-                        // Làm mới dữ liệu ngay sau khi lưu để hiển thị tên mới tức thì
-                        try {
-                            const type = getCurrentModalType();
-                            // Tải lại device codes từ DB để có serial vừa đổi tên
-                            await loadDeviceCodesFromDatabase(type);
-                            // Áp lại serial về giao diện chính theo mapping (ưu tiên tên mới)
-                            updateMainInterfaceSerials(type);
-                        } catch (e) {
-                            console.warn('Post-save refresh error:', e);
-                        }
-
-                        // Kích hoạt sync ngắn để đồng bộ lựa chọn vào dropdown chính
-                        enableSync();
-                        syncFromModalToMain();
-                        disableAllSync();
-
-                        // Làm mới options và ép display đúng giá trị
-                        if (typeof loadAvailableSerials === 'function') {
-                            await loadAvailableSerials();
-                        }
-                        if (typeof enforceSelectedSerials === 'function') {
-                            enforceSelectedSerials();
-                        }
-
-                        // Load lại device codes từ database để đảm bảo dữ liệu mới nhất
-                        setTimeout(async () => {
-                            const currentType = getCurrentModalType();
-
-                            try {
-                                // Load lại device codes từ database
-                                await loadDeviceCodesFromDatabase(currentType);
-
-                                // Cập nhật lại giao diện chính
-                                updateMainInterfaceSerials(currentType);
-
-                                // Cập nhật lại window.deviceCodesData để modal hiển thị đúng
-                                const response = await fetch(`/api/device-codes/${dispatchId}?type=${currentType}`);
-                                const data = await response.json();
-                                if (data.success) {
-                                    window.deviceCodesData = window.deviceCodesData || {};
-                                    window.deviceCodesData[currentType] = data.deviceCodes;
-                                }
-                            } catch (error) {
-                                console.error(`Error reloading device codes for type ${currentType}:`, error);
-                            }
-
-                            // Vô hiệu hóa sync sau khi hoàn tất
-                            disableAllSync();
-                        }, 500);
-
+                        // Lưu thành công - hiển thị thông báo ngay lập tức
                         alert('Đã lưu thông tin mã thiết bị thành công!');
                         deviceCodeModal.classList.add('hidden');
+
+                        // Post-save refresh operations (optional, wrapped in try/catch)
+                        try {
+                            // Lưu trữ serials từ modal trước khi đóng
+                            const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
+                            const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
+
+                            // Làm mới dữ liệu ngay sau khi lưu để hiển thị tên mới tức thì
+                            const type = getCurrentModalType();
+                            if (typeof loadDeviceCodesFromDatabase === 'function') {
+                                await loadDeviceCodesFromDatabase(type);
+                            }
+                            if (typeof updateMainInterfaceSerials === 'function') {
+                                updateMainInterfaceSerials(type);
+                            }
+
+                            // Kích hoạt sync ngắn để đồng bộ lựa chọn vào dropdown chính
+                            if (typeof enableSync === 'function') enableSync();
+                            if (typeof syncFromModalToMain === 'function') syncFromModalToMain(type);
+                            if (typeof disableAllSync === 'function') disableAllSync();
+
+                            // Làm mới options và ép display đúng giá trị
+                            if (typeof loadAvailableSerials === 'function') {
+                                await loadAvailableSerials();
+                            }
+                            if (typeof enforceSelectedSerials === 'function') {
+                                enforceSelectedSerials();
+                            }
+
+                            // Load lại device codes từ database để đảm bảo dữ liệu mới nhất
+                            setTimeout(async () => {
+                                try {
+                                    const currentType = getCurrentModalType();
+                                    if (typeof loadDeviceCodesFromDatabase === 'function') {
+                                        await loadDeviceCodesFromDatabase(currentType);
+                                    }
+                                    if (typeof updateMainInterfaceSerials === 'function') {
+                                        updateMainInterfaceSerials(currentType);
+                                    }
+
+                                    const response = await fetch(`/api/device-codes/${dispatchId}?type=${currentType}`);
+                                    const data = await response.json();
+                                    if (data.success) {
+                                        window.deviceCodesData = window.deviceCodesData || {};
+                                        window.deviceCodesData[currentType] = data.deviceCodes;
+                                    }
+                                } catch (error) {
+                                    console.warn('Post-save delayed refresh error:', error);
+                                }
+                            }, 500);
+                        } catch (e) {
+                            console.warn('Post-save refresh error (non-critical):', e);
+                        }
 
                     } catch (error) {
                         console.error('Error saving device codes:', error);
@@ -5683,6 +5683,31 @@
                             const matchedRows = new Set();
                             let unmatchedIndex = 0;
 
+                            // Build product code -> product ID mapping from rows with _product_info input
+                            // (Only the first row of each product has this input due to rowspan)
+                            const productCodeToIdMap = new Map();
+                            const productIdToRowsMap = new Map();
+                            allRows.forEach(row => {
+                                const productId = row.getAttribute('data-product-id');
+                                if (productId) {
+                                    if (!productIdToRowsMap.has(productId)) {
+                                        productIdToRowsMap.set(productId, []);
+                                    }
+                                    productIdToRowsMap.get(productId).push(row);
+
+                                    // Check for product_info input (only on first row of product group)
+                                    const nameInput = row.querySelector('input[name*="_product_info"]');
+                                    if (nameInput && nameInput.value) {
+                                        const codeMatch = nameInput.value.match(/^(.+?)\s+-\s+/);
+                                        const code = codeMatch ? codeMatch[1].trim() : nameInput.value.trim();
+                                        if (code) {
+                                            productCodeToIdMap.set(code.toLowerCase(), productId);
+                                        }
+                                    }
+                                }
+                            });
+                            console.log('Product code to ID map:', Object.fromEntries(productCodeToIdMap));
+
                             // Update rows with imported data
                             if (result.data && result.data.length > 0) {
                                 console.log('Importing', result.data.length, 'items');
@@ -5707,13 +5732,47 @@
                                         }
                                     }
 
-                                    // Strategy 2: Use first unmatched row (for new serials or empty serial_main rows)
-                                    if (!matchedRow && unmatchedIndex < unmatchedRows.length) {
-                                        matchedRow = unmatchedRows[unmatchedIndex];
-                                        unmatchedIndex++;
+                                    // EXTRACT PRODUCT CODE FROM EXCEL
+                                    let itemProductCode = '';
+                                    if (item.product_name) {
+                                        const codeMatch = item.product_name.match(/^(.+?)\s+-\s+/);
+                                        if (codeMatch) {
+                                            itemProductCode = codeMatch[1].trim();
+                                        } else {
+                                            itemProductCode = item.product_name.trim();
+                                        }
                                     }
 
-                                    // Strategy 3: If still no match, find any unmatched row (fallback)
+                                    // Strategy 2: Match by PRODUCT CODE across ALL rows using product ID
+                                    // Uses pre-built productCodeToIdMap to find the product ID, then
+                                    // searches productIdToRowsMap for an unmatched row of that product
+                                    if (!matchedRow && itemProductCode) {
+                                        const targetProductId = productCodeToIdMap.get(itemProductCode.toLowerCase());
+                                        if (targetProductId && productIdToRowsMap.has(targetProductId)) {
+                                            const productRows = productIdToRowsMap.get(targetProductId);
+                                            for (const candidateRow of productRows) {
+                                                if (!matchedRows.has(candidateRow)) {
+                                                    matchedRow = candidateRow;
+                                                    console.log(`Strategy 2: Matched by product code "${itemProductCode}" -> product ID ${targetProductId}`);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Strategy 3: Legacy fallback for unmatchedRows (rows without any serial)
+                                    if (!matchedRow && unmatchedIndex < unmatchedRows.length) {
+                                        // Skip rows that were already matched by Strategy 1 or Strategy 2
+                                        while (unmatchedIndex < unmatchedRows.length && matchedRows.has(unmatchedRows[unmatchedIndex])) {
+                                            unmatchedIndex++;
+                                        }
+                                        if (unmatchedIndex < unmatchedRows.length) {
+                                            matchedRow = unmatchedRows[unmatchedIndex];
+                                            unmatchedIndex++;
+                                        }
+                                    }
+
+                                    // Strategy 4: If still no match anywhere, try all rows (fallback)
                                     if (!matchedRow) {
                                         for (const row of allRows) {
                                             if (!matchedRows.has(row)) {

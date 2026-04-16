@@ -1509,6 +1509,7 @@
 
             if (updateDeviceCodesBtn) {
                 updateDeviceCodesBtn.addEventListener('click', function() {
+                    updateSelectedProducts();
                     currentDeviceCodeType = 'main';
                     renderDeviceCodeTable('main');
                     deviceCodeModal.classList.remove('hidden');
@@ -1528,6 +1529,31 @@
                     currentDeviceCodeType = 'backup';
                     renderDeviceCodeTable('backup');
                     deviceCodeModal.classList.remove('hidden');
+                });
+            }
+
+            // Define selectedProducts array that combines contract and backup when dispatch_detail is 'all'
+            let selectedProducts = [];
+
+            function updateSelectedProducts() {
+                const dispatchDetail = document.getElementById('dispatch_detail')?.value;
+                if (dispatchDetail === 'all') {
+                    // Combine contract and backup products for 'all' type
+                    selectedProducts = [...selectedContractProducts, ...selectedBackupProducts];
+                } else if (dispatchDetail === 'contract') {
+                    selectedProducts = [...selectedContractProducts];
+                } else if (dispatchDetail === 'backup') {
+                    selectedProducts = [...selectedBackupProducts];
+                } else {
+                    selectedProducts = [];
+                }
+                console.log('updateSelectedProducts - dispatch_detail:', dispatchDetail, 'count:', selectedProducts.length);
+            }
+
+            // Update selectedProducts whenever dispatch_detail changes
+            if (dispatchDetailSelect) {
+                dispatchDetailSelect.addEventListener('change', function() {
+                    updateSelectedProducts();
                 });
             }
 
@@ -1893,21 +1919,76 @@
                                 
                                 if (result.success) {
                                     // Populate the form with imported data
+                                    console.log('Import result data:', result.data);
                                     const tbody = document.getElementById('device-code-tbody');
                                     const rows = tbody.querySelectorAll('tr');
+                                    console.log('Table rows count:', rows.length);
+                                    console.log('Excel data count:', result.data.length);
+                                    const excelRowCount = result.data.length;
+                                    const tableRowCount = rows.length;
                                     
+                                    // Validate row count match
+                                    if (excelRowCount !== tableRowCount) {
+                                        const diff = tableRowCount - excelRowCount;
+                                        let warningMsg = `Cảnh báo: Số dòng trong file Excel (${excelRowCount}) không khớp với số sản phẩm trong phiếu (${tableRowCount}).`;
+                                        if (diff > 0) {
+                                            warningMsg += `\n${diff} sản phẩm cuối sẽ không được cập nhật serial.`;
+                                        } else {
+                                            warningMsg += `\n${Math.abs(diff)} dòng Excel sẽ bị bỏ qua.`;
+                                        }
+                                        warningMsg += `\n\nBạn có muốn tiếp tục import?`;
+                                        if (!confirm(warningMsg)) {
+                                            return;
+                                        }
+                                    }
+                                    
+                                    // EXTRACT PRODUCT CODE FROM EXCEL
+                                    // Collect all available serial inputs across all product rows
+                                    const availableInputs = [];
+                                    rows.forEach(row => {
+                                        const mainInputs = Array.from(row.querySelectorAll('input[name*="_serial_main"]'));
+                                        const componentContainer = row.querySelector('.flex.flex-col:nth-child(2)'); // Second column
+                                        const otherInputs = Array.from(row.querySelectorAll('input')).filter(inp => !inp.name.includes('_serial_main') && !inp.name.includes('_serial_components'));
+                                        
+                                        // Pair them up
+                                        mainInputs.forEach((mainInput, i) => {
+                                             availableInputs.push({
+                                                 row,
+                                                 mainInput,
+                                                 componentContainer,
+                                                 otherInputs
+                                             });
+                                        });
+                                    });
+
+                                    let unmatchedIndex = 0;
+
                                     result.data.forEach((item, index) => {
-                                        if (rows[index]) {
-                                            const inputs = rows[index].querySelectorAll('input');
-                                            if (inputs[0]) inputs[0].value = item.main_serial;
+                                        // Basic fallback: just map to the sequential available input slot
+                                        if (unmatchedIndex < availableInputs.length) {
+                                            const slot = availableInputs[unmatchedIndex];
+                                            unmatchedIndex++;
                                             
+                                            if (slot.mainInput) {
+                                                slot.mainInput.value = item.serial_main || '';
+                                            }
+
                                             // Handle component serials
-                                            const componentSerials = item.component_serials.split(',').map(s => s.trim());
-                                            const componentContainer = rows[index].querySelector('.flex.flex-col');
-                                            if (componentContainer) {
+                                            let componentSerials = [];
+                                            try {
+                                                if (typeof item.serial_components === 'string') {
+                                                    componentSerials = JSON.parse(item.serial_components);
+                                                } else if (Array.isArray(item.serial_components)) {
+                                                    componentSerials = item.serial_components;
+                                                }
+                                            } catch (e) {
+                                                componentSerials = [];
+                                            }
+
+                                            if (slot.componentContainer && componentSerials.length > 0) {
                                                 // Clear existing component inputs except the "Add" button
-                                                const addButton = componentContainer.querySelector('.add-component-serial');
-                                                componentContainer.innerHTML = '';
+                                                const addButton = slot.componentContainer.querySelector('.add-component-serial');
+                                                slot.componentContainer.innerHTML = '';
                                                 
                                                 // Add new component inputs
                                                 componentSerials.forEach((serial, idx) => {
@@ -1917,20 +1998,22 @@
                                                         input.name = `${currentDeviceCodeType}_serial_components[${index}][${idx}]`;
                                                         input.value = serial;
                                                         input.placeholder = `Nhập seri vật tư ${idx + 1}...`;
-                                                        input.className = 'w-full border border-gray-300 rounded px-2 py-1 text-sm';
-                                                        componentContainer.appendChild(input);
+                                                        input.className = 'w-full border border-gray-300 rounded px-2 py-1 text-sm mb-1';
+                                                        slot.componentContainer.appendChild(input);
                                                     }
                                                 });
                                                 
-                                                // Re-add the "Add" button
-                                                componentContainer.appendChild(addButton);
+                                                // Re-add the "Add" button if it exists
+                                                if (addButton) {
+                                                    slot.componentContainer.appendChild(addButton);
+                                                }
                                             }
                                             
-                                            if (inputs[2]) inputs[2].value = item.sim_serial;
-                                            if (inputs[3]) inputs[3].value = item.access_code;
-                                            if (inputs[4]) inputs[4].value = item.iot_id;
-                                            if (inputs[5]) inputs[5].value = item.mac_4g;
-                                            if (inputs[6]) inputs[6].value = item.note;
+                                            if (slot.otherInputs[0]) slot.otherInputs[0].value = item.serial_sim || '';
+                                            if (slot.otherInputs[1]) slot.otherInputs[1].value = item.access_code || '';
+                                            if (slot.otherInputs[2]) slot.otherInputs[2].value = item.iot_id || '';
+                                            if (slot.otherInputs[3]) slot.otherInputs[3].value = item.mac_4g || '';
+                                            if (slot.otherInputs[4]) slot.otherInputs[4].value = item.note || '';
                                         }
                                     });
                                     

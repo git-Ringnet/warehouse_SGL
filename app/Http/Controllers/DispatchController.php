@@ -3083,7 +3083,7 @@ class DispatchController extends Controller
             ]);
 
             // For rental dispatches, share warranty across all dispatches of the same rental
-            $existingWarranty = Warranty::where('item_type', 'project')
+            $existingWarranty = Warranty::where('item_type', 'rental')
                 ->whereHas('dispatch', function ($query) use ($dispatch) {
                     $query->where('project_id', $dispatch->project_id)
                         ->where('dispatch_type', 'rental'); // Only rental dispatches share warranty
@@ -3119,7 +3119,7 @@ class DispatchController extends Controller
             Log::info('No project_id, checking within same dispatch only');
 
             // For non-project dispatches, check only within the same dispatch
-            $existingWarranty = Warranty::where('item_type', 'project')
+            $existingWarranty = Warranty::where('item_type', ($dispatch->dispatch_type === 'rental' ? 'rental' : 'project'))
                 ->where('dispatch_id', $dispatch->id)
                 ->first();
         }
@@ -3129,6 +3129,15 @@ class DispatchController extends Controller
 
             // Lấy tất cả item cần bảo hành: bao gồm 'contract' và 'general', loại trừ 'backup'
             $contractItems = $dispatch->items()->where('category', '!=', 'backup')->get();
+            
+            // Không tạo warranty nếu không có item nào (phiếu xuất trống)
+            if ($contractItems->isEmpty()) {
+                Log::info('Skipping warranty creation - dispatch has no items to warranty');
+                return [
+                    'action' => 'skipped',
+                    'reason' => 'no_items',
+                ];
+            }
             $allItemsInfo = [];
             $allSerialNumbers = [];
 
@@ -3189,10 +3198,20 @@ class DispatchController extends Controller
             if ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
                 $rental = Rental::find($dispatch->project_id);
                 if ($rental) {
-                    $projectNameForWarranty = $rental->rental_name;
+                    $customerDisplay = optional($rental->customer)->company_name ?: optional($rental->customer)->name ?: '';
+                    $projectNameForWarranty = Warranty::formatProjectName(
+                        $rental->rental_code,
+                        $rental->rental_name,
+                        $customerDisplay
+                    );
                     $notesExtra = " - Cho thuê: {$rental->rental_name}";
                 }
             } elseif ($dispatch->project_id && $dispatch->project) {
+                $projectNameForWarranty = Warranty::formatProjectName(
+                    $dispatch->project->project_code,
+                    $dispatch->project->project_name,
+                    $dispatch->project_receiver
+                );
                 $notesExtra = " - Dự án: {$dispatch->project->project_name}";
             }
 
@@ -3200,7 +3219,7 @@ class DispatchController extends Controller
                 'warranty_code' => Warranty::generateWarrantyCode(),
                 'dispatch_id' => $dispatch->id,
                 'dispatch_item_id' => $dispatchItem->id, // Keep reference to first item for compatibility
-                'item_type' => 'project', // Mark as project-wide warranty
+                'item_type' => ($dispatch->dispatch_type === 'rental' ? 'rental' : 'project'), // Phân biệt Project và Rental
                 'item_id' => $dispatch->project_id ?? 0, // Use project_id as item_id
                 'serial_number' => !empty($allSerialNumbers) ? implode(', ', array_unique($allSerialNumbers)) : null,
                 'customer_name' => $dispatch->project_receiver,
@@ -3786,7 +3805,7 @@ class DispatchController extends Controller
         $itemType = $request->get('item_type');
         $itemId = $request->get('item_id');
         $warehouseId = $request->get('warehouse_id');
-        $currentDispatchId = $request->get('current_dispatch_id'); // For edit mode
+        $currentDispatchId = $request->get('current_dispatch_id') ? (int) $request->get('current_dispatch_id') : null; // For edit mode - cast to int
 
         if (!$itemType || !$itemId || !$warehouseId) {
             return response()->json([
@@ -3858,14 +3877,18 @@ class DispatchController extends Controller
                         }
                     }
 
-                    // Remove duplicates and empty values
+                    // Remove duplicates and empty values and SORT numerically
                     $serials = array_values(array_unique(array_filter($serials)));
+                    usort($serials, function($a, $b) {
+                        return is_numeric($a) && is_numeric($b) ? (int)$a - (int)$b : strcmp($a, $b);
+                    });
                 } else {
                     // MATERIALS: use Serial table (keeps existing behavior)
                     $serials = \App\Models\Serial::where('type', $itemType)
                         ->where('product_id', $itemId)
                         ->where('warehouse_id', $warehouseId)
                         ->where('status', 'active')
+                        ->orderByRaw('CAST(serial_number AS UNSIGNED)')
                         ->pluck('serial_number')
                         ->toArray();
                 }
@@ -3885,6 +3908,7 @@ class DispatchController extends Controller
                 $query->where('status', 'approved');
                 // Exclude current dispatch when editing
                 if ($currentDispatchId) {
+                    Log::info('Excluding current dispatch from used serials', ['currentDispatchId' => $currentDispatchId]);
                     $query->where('id', '!=', $currentDispatchId);
                 }
             })
@@ -3898,8 +3922,22 @@ class DispatchController extends Controller
                 ->filter()
                 ->toArray();
 
+            Log::info('Used serials calculation:', [
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'currentDispatchId' => $currentDispatchId,
+                'used_serials_count' => count($usedSerials),
+                'used_serials' => $usedSerials
+            ]);
+
             // Also exclude any old_serial values recorded in device_codes for approved dispatches
             $approvedDispatchIds = $approvedDispatchItemsQuery->pluck('dispatch_id')->unique()->toArray();
+
+            Log::info('Device codes query check:', [
+                'approvedDispatchIds' => $approvedDispatchIds,
+                'item_id' => $itemId,
+                'item_type' => $itemType
+            ]);
 
             if (!empty($approvedDispatchIds)) {
                 $oldSerials = \App\Models\DeviceCode::whereIn('dispatch_id', $approvedDispatchIds)
@@ -3912,6 +3950,11 @@ class DispatchController extends Controller
                     ->filter()
                     ->toArray();
 
+                Log::info('Old serials from device_codes:', [
+                    'oldSerials' => $oldSerials,
+                    'count' => count($oldSerials)
+                ]);
+
                 // QUAN TRỌNG: Cũng lấy serial_main từ device_codes để loại bỏ serial thực đã xuất
                 // NHƯNG chỉ lấy nếu old_serial (N/A-*) vẫn còn trong dispatch_items
                 // Nếu old_serial đã bị xóa (thu hồi), thì serial_main cũng không còn được dùng
@@ -3923,6 +3966,11 @@ class DispatchController extends Controller
                     })
                     ->get();
                 
+                Log::info('Device codes found:', [
+                    'count' => $deviceCodes->count(),
+                    'device_codes' => $deviceCodes->pluck('serial_main')->toArray()
+                ]);
+                
                 foreach ($deviceCodes as $dc) {
                     // Chỉ thêm serial_main nếu old_serial vẫn còn trong usedSerials
                     // Điều này đảm bảo nếu N/A-* đã được thu hồi (xóa khỏi dispatch_items),
@@ -3930,6 +3978,10 @@ class DispatchController extends Controller
                     if (!empty($dc->old_serial) && in_array($dc->old_serial, $usedSerials)) {
                         if (!empty($dc->serial_main)) {
                             $realSerials[] = $dc->serial_main;
+                            Log::info('Adding real serial from device_code:', [
+                                'old_serial' => $dc->old_serial,
+                                'serial_main' => $dc->serial_main
+                            ]);
                         }
                     }
                 }

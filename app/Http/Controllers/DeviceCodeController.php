@@ -324,6 +324,7 @@ class DeviceCodeController extends Controller
 
             // Tìm các cột trong header
             $serialMainCol = -1;
+            $productNameCol = -1;
             $serialSimCol = -1;
             $accessCodeCol = -1;
             $iotIdCol = -1;
@@ -336,10 +337,11 @@ class DeviceCodeController extends Controller
             foreach ($headerRow as $colIndex => $header) {
                 $headerStr = trim(strtolower((string) $header));
 
-                // Strict matching for known system columns
                 // Expected headers: Serial chính, Seri SIM, Mã truy cập, ID IOT, MAC 4G, Chú thích
                 if ($headerStr === 'serial chính' || $headerStr === 'serial main' || strpos($headerStr, 'serial ch') === 0) {
                     $serialMainCol = $colIndex;
+                } else if ($headerStr === 'mã - tên thiết bị' || $headerStr === 'mã sản phẩm' || $headerStr === 'tên sản phẩm' || strpos($headerStr, 'mã - tên') === 0) {
+                    $productNameCol = $colIndex;
                 } else if ($headerStr === 'seri sim' || $headerStr === 'serial sim' || $headerStr === 'sim') {
                     $serialSimCol = $colIndex;
                 } else if ($headerStr === 'mã truy cập' || $headerStr === 'access code' || $headerStr === 'access_code') {
@@ -391,11 +393,20 @@ class DeviceCodeController extends Controller
 
             $grouped = [];
             $lastSerialMain = null;
+            $lastProductName = ''; // Track product name from merged cells
 
             foreach ($rows as $rowIndex => $row) {
                 if ($rowIndex <= $headerRowIndex)
                     continue; // Skip header and pre-header rows
                 $serialMain = isset($row[$serialMainCol]) ? trim((string) $row[$serialMainCol]) : '';
+
+                // Propagate product name from merged cells
+                $currentProductName = $productNameCol >= 0 && isset($row[$productNameCol]) ? trim((string) $row[$productNameCol]) : '';
+                if ($currentProductName !== '') {
+                    $lastProductName = $currentProductName;
+                } else {
+                    $currentProductName = $lastProductName;
+                }
 
                 if ($serialMain === '' && $lastSerialMain !== null) {
                     $serialMain = $lastSerialMain;
@@ -409,9 +420,12 @@ class DeviceCodeController extends Controller
                     $lastSerialMain = $serialMain;
                 }
 
+                $productNameValue = $currentProductName;
+
                 if (!isset($grouped[$serialMain])) {
                     $grouped[$serialMain] = [
                         'serial_main' => $serialMain,
+                        'product_name' => $productNameValue,
                         'serial_components' => [],
                         'serial_components_map' => [], // Object với key là tên vật tư
                         'serial_sim' => '',
@@ -721,20 +735,19 @@ class DeviceCodeController extends Controller
                     }
 
                     // Kiểm tra trùng serial với device codes khác (không cùng product_id)
-                    // Loại trừ device codes của cùng dispatch và type (vì sẽ bị xóa)
+                    // Chỉ kiểm tra trong cùng dispatch (loại khác, ví dụ: contract vs backup)
+                    // KHÔNG kiểm tra cross-dispatch vì serial có thể được tái sử dụng qua các phiếu xuất khác nhau
                     $conflictingDeviceCodes = DeviceCode::where('serial_main', $newSerial)
                         ->where('product_id', '!=', $productId)
-                        ->where(function ($query) use ($dispatch_id, $type) {
-                            $query->where('dispatch_id', '!=', $dispatch_id)
-                                ->orWhere('type', '!=', $type);
-                        })
+                        ->where('dispatch_id', $dispatch_id)
+                        ->where('type', '!=', $type)
                         ->get();
 
                     if ($conflictingDeviceCodes->isNotEmpty()) {
-                        Log::info('Serial ' . $newSerial . ' conflicts with existing device codes:', $conflictingDeviceCodes->toArray());
+                        Log::info('Serial ' . $newSerial . ' conflicts with existing device codes in same dispatch:', $conflictingDeviceCodes->toArray());
                         return response()->json([
                             'success' => false,
-                            'message' => 'Serial "' . $newSerial . '" đã được sử dụng cho thiết bị khác (Product ID: ' . $conflictingDeviceCodes->first()->product_id . ').'
+                            'message' => 'Serial "' . $newSerial . '" đã được sử dụng cho thiết bị khác trong cùng phiếu xuất (Product ID: ' . $conflictingDeviceCodes->first()->product_id . ').'
                         ], 422);
                     }
 

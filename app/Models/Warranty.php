@@ -68,6 +68,51 @@ class Warranty extends Model
     }
 
     /**
+     * Standardize project/rental name into a consistent format: [Code] - [Name] ([Customer])
+     */
+    public static function formatProjectName($code, $name, $customerName)
+    {
+        // 1. Clean up components
+        $code = trim((string)$code);
+        $name = trim((string)$name);
+        $customerName = trim((string)$customerName);
+
+        if (empty($code) && empty($name)) return $customerName;
+
+        // 2. Identify if the name already contains the code to avoid duplication
+        // Example: Code="PRJ-123", Name="PRJ-123 - Project ABC"
+        $nameWithoutCode = $name;
+        if (!empty($code)) {
+            // Check if name starts with code followed by " - " or just the code
+            if (strpos($name, $code) === 0) {
+                $nameWithoutCode = trim(substr($name, strlen($code)));
+                if (strpos($nameWithoutCode, '-') === 0) {
+                    $nameWithoutCode = trim(substr($nameWithoutCode, 1));
+                }
+            }
+        }
+
+        // 3. Identify if the name already contains the customer
+        // Example: Name="Project ABC (Customer XYZ)"
+        if (!empty($customerName) && strpos($nameWithoutCode, "({$customerName})") !== false) {
+            // Remove it from nameWithoutCode so we can re-add it in standard position
+            $nameWithoutCode = trim(str_replace("({$customerName})", "", $nameWithoutCode));
+        }
+
+        // 4. Construct the standard format
+        $result = $nameWithoutCode;
+        if (!empty($code)) {
+            $result = "{$code} - {$result}";
+        }
+        
+        if (!empty($customerName)) {
+            $result = "{$result} ({$customerName})";
+        }
+
+        return $result;
+    }
+
+    /**
      * Relationships
      */
     public function dispatch()
@@ -134,6 +179,19 @@ class Warranty extends Model
                     return (object) [
                         'name' => 'Bảo hành dự án: ' . $this->project_name,
                         'code' => 'PROJECT-' . ($this->item_id ?: 'NA'),
+                    ];
+                case 'rental':
+                    // Cho bảo hành toàn bộ phiếu thuê
+                    $rental = Rental::find($this->item_id);
+                    if ($rental) {
+                        return (object) [
+                            'name' => 'Bảo hành cho thuê: ' . $rental->rental_name,
+                            'code' => $rental->rental_code,
+                        ];
+                    }
+                    return (object) [
+                        'name' => 'Bảo hành cho thuê: ' . $this->project_name,
+                        'code' => 'RENTAL-' . ($this->item_id ?: 'NA'),
                     ];
             }
         }

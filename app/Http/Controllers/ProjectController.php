@@ -1204,18 +1204,29 @@ class ProjectController extends Controller
         $endDate = $startDate->copy()->addMonths($warrantyPeriod);
 
         // Cập nhật tất cả warranty liên quan đến project này
-        $warranties = \App\Models\Warranty::where('project_name', 'like', '%' . $project->project_name . '%')
-            ->orWhereHas('dispatch', function ($q) use ($project) {
-                $q->where('project_id', $project->id);
+        $warranties = \App\Models\Warranty::where('item_type', 'project')
+            ->where(function($q) use ($project) {
+                $q->where('project_name', 'like', '%' . $project->project_name . '%')
+                  ->orWhereHas('dispatch', function ($subQ) use ($project) {
+                      $subQ->where('project_id', $project->id)
+                           ->where('dispatch_type', '!=', 'rental');
+                  });
             })
             ->get();
+
+        $customerDisplay = optional($project->customer)->name ?? '';
+        $standardProjectName = \App\Models\Warranty::formatProjectName(
+            $project->project_code,
+            $project->project_name,
+            $customerDisplay
+        );
 
         foreach ($warranties as $warranty) {
             $warranty->update([
                 'warranty_start_date' => $startDate->toDateString(),
                 'warranty_end_date' => $endDate->toDateString(),
                 'warranty_period_months' => $warrantyPeriod,
-                'project_name' => $project->project_name,
+                'project_name' => $standardProjectName,
             ]);
         }
 
@@ -1245,7 +1256,7 @@ class ProjectController extends Controller
                         'customer_phone' => $project->customer->phone ?? '',
                         'customer_email' => $project->customer->email ?? '',
                         'customer_address' => $project->customer->address ?? '',
-                        'project_name' => $project->project_name,
+                        'project_name' => $standardProjectName,
                         'purchase_date' => $dispatch->dispatch_date,
                         'warranty_start_date' => $startDate->toDateString(),
                         'warranty_end_date' => $endDate->toDateString(),
@@ -1262,7 +1273,7 @@ class ProjectController extends Controller
                         'warranty_start_date' => $startDate->toDateString(),
                         'warranty_end_date' => $endDate->toDateString(),
                         'warranty_period_months' => $warrantyPeriod,
-                        'project_name' => $project->project_name,
+                        'project_name' => $standardProjectName,
                         'customer_name' => $project->customer->name ?? '',
                         'customer_phone' => $project->customer->phone ?? '',
                         'customer_email' => $project->customer->email ?? '',

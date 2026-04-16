@@ -1025,7 +1025,7 @@ class EquipmentServiceController extends Controller
             'warranty_code' => $warrantyCode,
             'dispatch_id' => $originalItem->dispatch_id,
             'dispatch_item_id' => $originalItem->id, // tham chiếu item đầu tiên (giữ tương thích)
-            'item_type' => 'project',
+            'item_type' => ($originalItem->dispatch->dispatch_type === 'rental' ? 'rental' : 'project'),
             'item_id' => $originalItem->dispatch->project_id ?? 0,
             'serial_number' => is_array($originalItem->serial_numbers) ? implode(', ', $originalItem->serial_numbers) : null,
             'customer_name' => $originalItem->dispatch->project_receiver,
