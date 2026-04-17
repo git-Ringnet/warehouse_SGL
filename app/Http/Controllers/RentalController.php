@@ -230,9 +230,6 @@ class RentalController extends Controller
                 });
             });
 
-        // Danh sách các Item ID đang đóng vai trò là "Thiết bị thay thế"
-        $replacementDispatchItemIds = $replacements->pluck('replacement_dispatch_item_id')->unique()->toArray();
-
         // Lấy danh sách tất cả Item IDs để tính toán thu hồi
         $allItemIds = array_unique(array_merge(
             $allItemIdsRaw,
@@ -262,14 +259,31 @@ class RentalController extends Controller
                     continue;
                 }
                 
-                // Skip if this item is actually a replacement (added in the second loop)
-                if (in_array($item->id, $replacementDispatchItemIds)) {
-                    continue;
-                }
-                
                 $processedDispatchItemIds[] = $item->id;
 
                 $serialNumbers = $item->serial_numbers ?? [];
+                $rawSerialNumbers = array_values(array_filter(array_map(function ($s) {
+                    return trim((string) $s);
+                }, is_array($item->serial_numbers) ? $item->serial_numbers : [])));
+                $serialNumbersFromDeviceCodes = false;
+
+                // Fallback: chỉ lấy serial từ device_codes khi dispatch_items.serial_numbers thực sự rỗng.
+                // Nếu item đang chứa virtual serial (N/A-xxx), đó là trạng thái active sau thay thế
+                // và KHÔNG được map ngược sang serial cũ từ device_codes.
+                $quantity = (int) ($item->quantity ?? 1);
+                if (empty($serialNumbers) && $quantity > 0) {
+                    $deviceCodeSerials = \App\Models\DeviceCode::where('dispatch_id', $dispatch->id)
+                        ->where('item_id', $item->item_id)
+                        ->where('item_type', $item->item_type)
+                        ->pluck('serial_main')
+                        ->filter()
+                        ->values()
+                        ->toArray();
+                    if (!empty($deviceCodeSerials)) {
+                        $serialNumbers = $deviceCodeSerials;
+                        $serialNumbersFromDeviceCodes = true;
+                    }
+                }
 
                 $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
                 $unitLower = strtolower(trim($unit));
@@ -324,6 +338,45 @@ class RentalController extends Controller
                 foreach ($serialNumbers as $i => $serial) {
                     $serial = trim($serial);
                     if (!empty($serial)) {
+                        // Bỏ qua nếu serial này đã bị thu hồi
+                        $isAlreadyReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                            ->where(function($q) use ($serial, $dispatch, $item, $serialNumbersFromDeviceCodes) {
+                                $q->where('serial_number', $serial);
+                                
+                                // Cũng check virtual serial tương ứng (trường hợp serial thực từ device_codes)
+                                if (!$serialNumbersFromDeviceCodes && !\App\Helpers\SerialHelper::isVirtualSerial((string)$serial)) {
+                                    $dc = DB::table('device_codes')
+                                        ->where('dispatch_id', $dispatch->id)
+                                        ->where('item_id', $item->item_id)
+                                        ->where('item_type', $item->item_type)
+                                        ->where('serial_main', $serial)
+                                        ->first();
+                                    if ($dc && !empty($dc->old_serial)) {
+                                        $q->orWhere('serial_number', $dc->old_serial);
+                                    }
+                                }
+
+                                // Ngược lại: nếu serial hiện tại là virtual nhưng trong DB có thể đã lưu serial thực
+                                if (!$serialNumbersFromDeviceCodes && \App\Helpers\SerialHelper::isVirtualSerial((string)$serial)) {
+                                    $dc = DB::table('device_codes')
+                                        ->where('dispatch_id', $dispatch->id)
+                                        ->where('item_id', $item->item_id)
+                                        ->where('item_type', $item->item_type)
+                                        ->where('old_serial', $serial)
+                                        ->first();
+                                    if (is_object($dc) && isset($dc->serial_main) && !empty($dc->serial_main)) {
+                                        $q->orWhere('serial_number', $dc->serial_main);
+                                    }
+                                }
+                            })
+                            ->exists();
+                        // Nếu serial vẫn đang nằm trong serial_numbers gốc của item,
+                        // coi như serial đang active tại hợp đồng (tránh ẩn nhầm do lịch sử virtual serial cũ).
+                        if ($isAlreadyReturned && in_array($serial, $rawSerialNumbers, true)) {
+                            $isAlreadyReturned = false;
+                        }
+                        if ($isAlreadyReturned) continue;
+
                         $isVirtual = strpos($serial, 'N/A-') === 0;
 
                         $contractItems->push([

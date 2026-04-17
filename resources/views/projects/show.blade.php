@@ -297,10 +297,33 @@
                         $q->where('project_id', $project->id);
                     })->exists();
                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                    ->where('serial_number', $originalSerial)
+                    ->where(function($q) use ($originalSerial, $displaySerial, $dispatch, $item) {
+                        $q->where('serial_number', $originalSerial);
+                        if ($displaySerial && $displaySerial !== $originalSerial) {
+                            $q->orWhere('serial_number', $displaySerial);
+                        }
+                        // Tra cứu serial ảo (N/A-xxx) từ device_codes nếu serial hiện tại là serial thực
+                        if (!\App\Helpers\SerialHelper::isVirtualSerial($originalSerial)) {
+                            $dcReverse = \Illuminate\Support\Facades\DB::table('device_codes')
+                                ->where('dispatch_id', $dispatch->id)
+                                ->where('item_id', $item->item_id)
+                                ->where('item_type', $item->item_type)
+                                ->where('serial_main', $originalSerial)
+                                ->first();
+                            if ($dcReverse && !empty($dcReverse->old_serial)) {
+                                $q->orWhere('serial_number', $dcReverse->old_serial);
+                            }
+                        }
+                    })
                     ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                         $q->where('project_id', $project->id);
                     })->exists();
+                
+                // Nếu serial đã bị thu hồi nhưng VẪN CÒN trong serial_numbers hiện tại,
+                // nghĩa là serial đã được thêm lại qua thay thế (replacement) → không coi là đã thu hồi
+                if ($isReturned && in_array($originalSerial, $item->serial_numbers ?? [], true)) {
+                    $isReturned = false;
+                }
                 
                 // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
                 $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
@@ -506,8 +529,21 @@
                                     }
 
                                     // Kiểm tra serial cụ thể chưa được thu hồi - chỉ xem xét records từ cùng project
+                                    // Cũng check virtual serial tương ứng qua device_codes
+                                    $serialsToCheck = [$serialNumber];
+                                    if (!\App\Helpers\SerialHelper::isVirtualSerial($serialNumber)) {
+                                        $dc = \Illuminate\Support\Facades\DB::table('device_codes')
+                                            ->where('dispatch_id', $itemData['dispatch']->id)
+                                            ->where('item_id', $item->item_id)
+                                            ->where('item_type', $item->item_type)
+                                            ->where('serial_main', $serialNumber)
+                                            ->first();
+                                        if ($dc && !empty($dc->old_serial)) {
+                                            $serialsToCheck[] = $dc->old_serial;
+                                        }
+                                    }
                                     $isSerialReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                        ->where('serial_number', $serialNumber)
+                                        ->whereIn('serial_number', $serialsToCheck)
                                         ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                                             $q->where('project_id', $project->id);
                                         })->exists();
@@ -547,13 +583,21 @@
                                             })->exists();
                                         
                                         // Cũng kiểm tra nếu serial này là serial gốc bị swap sang backup (replaceEquipment swap serial)
+                                        // Chỉ match nếu dispatch_item hiện tại THỰC SỰ là một bên trong replacement đó
+                                        // (tránh match stale records khi serial đã bị thu hồi rồi xuất kho lại trên dispatch_item mới)
                                         if (!$isUsed) {
                                             $isUsed = \App\Models\DispatchReplacement::where(function($q) use ($originalSerial, $displaySerial) {
                                                 $q->where('original_serial', $originalSerial)
                                                   ->orWhere('original_serial', $displaySerial);
                                             })->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
                                                 $q->where('project_id', $project->id);
-                                            })->exists();
+                                            })
+                                            // Scope: chỉ coi là "đã sử dụng" khi dispatch_item hiện tại chính là item liên quan
+                                            ->where(function($q) use ($item) {
+                                                $q->where('original_dispatch_item_id', $item->id)
+                                                  ->orWhere('replacement_dispatch_item_id', $item->id);
+                                            })
+                                            ->exists();
                                         }
                                         $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)
                                             ->where(function($q) use ($originalSerial, $displaySerial) {
@@ -561,9 +605,21 @@
                                                   ->orWhere('original_serial', $displaySerial);
                                             })->exists();
                                         $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                            ->where(function($q) use ($originalSerial, $displaySerial) {
+                                            ->where(function($q) use ($originalSerial, $displaySerial, $dispatch, $item) {
                                                 $q->where('serial_number', $originalSerial)
                                                   ->orWhere('serial_number', $displaySerial);
+                                                // Tra cứu serial ảo (N/A-xxx) từ device_codes nếu serial hiện tại là serial thực
+                                                if (!\App\Helpers\SerialHelper::isVirtualSerial($originalSerial)) {
+                                                    $dcReverse = \Illuminate\Support\Facades\DB::table('device_codes')
+                                                        ->where('dispatch_id', $dispatch->id)
+                                                        ->where('item_id', $item->item_id)
+                                                        ->where('item_type', $item->item_type)
+                                                        ->where('serial_main', $originalSerial)
+                                                        ->first();
+                                                    if ($dcReverse && !empty($dcReverse->old_serial)) {
+                                                        $q->orWhere('serial_number', $dcReverse->old_serial);
+                                                    }
+                                                }
                                             })
                                             ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                                                 $q->where('project_id', $project->id);

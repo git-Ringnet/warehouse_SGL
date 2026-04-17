@@ -128,7 +128,7 @@
                             Thông tin thiết bị
                         </h3>
 
-                        @if ($warranty->item_type === 'project')
+                        @if (in_array($warranty->item_type, ['project', 'rental']))
                             <!-- Project-wide warranty - show all items -->
                             <div class="mb-6">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-4">

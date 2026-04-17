@@ -310,6 +310,23 @@ class ProjectController extends Controller
                 $serialNumbers = $item->serial_numbers ?? [];
                 $quantity = (int) ($item->quantity ?? 1);
 
+                // Fallback: lấy serial từ device_codes nếu dispatch_items.serial_numbers rỗng
+                // HOẶC tất cả serial đều là virtual (N/A-xxx) — trường hợp xuất kho không serial
+                // rồi cập nhật serial thực qua Excel import (chỉ lưu vào device_codes)
+                $allVirtual = !empty($serialNumbers) && collect($serialNumbers)->every(fn($s) => \App\Helpers\SerialHelper::isVirtualSerial((string)$s));
+                if (($allVirtual || empty($serialNumbers)) && $quantity > 0) {
+                    $deviceCodeSerials = \App\Models\DeviceCode::where('dispatch_id', $dispatch->id)
+                        ->where('item_id', $item->item_id)
+                        ->where('item_type', $item->item_type)
+                        ->pluck('serial_main')
+                        ->filter()
+                        ->values()
+                        ->toArray();
+                    if (!empty($deviceCodeSerials)) {
+                        $serialNumbers = $deviceCodeSerials;
+                    }
+                }
+
                 $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
                 $unitLower = strtolower(trim($unit));
                 $measurementUnits = ['cm', 'mét', 'm', 'kg', 'g', 'gram', 'lít', 'l', 'm2', 'm3', 'mm', 'km', 'lit', 'ml', 'dm', 'cuộn', 'cuon', 'hộp', 'hop', 'thùng', 'thung', 'bộ', 'bo', 'túi', 'goi', 'gói', 'tấm', 'mét tới'];
@@ -322,6 +339,7 @@ class ProjectController extends Controller
 
                 // Coi là hàng đo lường/bulk nếu đơn vị thuộc danh sách HOẶC là Vật tư triển khai HOẶC không có serial và số lượng > 1
                 $isBulkOrMeasure = $isMeasurementUnit || $isImplementationMaterial || (empty($serialNumbers) && $quantity > 1);
+
 
                 if ($isBulkOrMeasure) {
                     // Skip if quantity is 0 (removed or fully recalled)
@@ -336,6 +354,7 @@ class ProjectController extends Controller
                     $displayQty = max(0.0, (float)$item->quantity - (float)$returnQty);
                     // Phần còn có thể thao tác (thay thế tiếp / thu hồi phần chưa thay) — dùng cho data-max-qty
                     $remainingAtSiteQty = max(0.0, (float)$item->quantity - (float)$returnQty - (float)$replacementQty);
+
 
                     if ($displayQty <= 0.0001) {
                         continue;
@@ -369,8 +388,44 @@ class ProjectController extends Controller
                         if (!empty($serial)) {
                             // Bỏ qua nếu serial này đã bị thu hồi (để hỗ trợ Lựa chọn B: mất dòng khi thu hồi hết)
                             $isAlreadyReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                ->where('serial_number', $serial)
+                                ->where(function($q) use ($serial, $dispatch, $item) {
+                                    $q->where('serial_number', $serial);
+                                    
+                                    // Cũng check virtual serial tương ứng (trường hợp serial thực từ device_codes)
+                                    if (!\App\Helpers\SerialHelper::isVirtualSerial($serial)) {
+                                        $dc = DB::table('device_codes')
+                                            ->where('dispatch_id', $dispatch->id)
+                                            ->where('item_id', $item->item_id)
+                                            ->where('item_type', $item->item_type)
+                                            ->where('serial_main', $serial)
+                                            ->first();
+                                        if ($dc && isset($dc->old_serial) && !empty($dc->old_serial)) {
+                                            $q->orWhere('serial_number', $dc->old_serial);
+                                        }
+                                    }
+
+                                    // Ngược lại: nếu serial hiện tại là virtual nhưng trong DB có thể đã lưu serial thực
+                                    if (\App\Helpers\SerialHelper::isVirtualSerial($serial)) {
+                                        $dc = DB::table('device_codes')
+                                            ->where('dispatch_id', $dispatch->id)
+                                            ->where('item_id', $item->item_id)
+                                            ->where('item_type', $item->item_type)
+                                            ->where('old_serial', $serial)
+                                            ->first();
+                                        if (is_object($dc) && isset($dc->serial_main) && !empty($dc->serial_main)) {
+                                            $q->orWhere('serial_number', $dc->serial_main);
+                                        }
+                                    }
+                                })
                                 ->exists();
+                            
+                            // Nếu serial đã bị thu hồi trước đó nhưng VẪN CÒN trong serial_numbers hiện tại,
+                            // nghĩa là nó đã được thêm lại qua thay thế (replacement) → không ẩn
+                            if ($isAlreadyReturned && in_array($serial, $item->serial_numbers ?? [], true)) {
+                                // Serial vẫn còn trong dispatch_items.serial_numbers → đã được thay thế/thêm lại
+                                $isAlreadyReturned = false;
+                            }
+
                             if ($isAlreadyReturned) continue;
 
                             $isVirtual = strpos($serial, 'N/A-') === 0;
@@ -431,6 +486,21 @@ class ProjectController extends Controller
 
                 $serialNumbers = $item->serial_numbers ?? [];
                 $quantity = (int) ($item->quantity ?? 1);
+
+                // Fallback: lấy serial từ device_codes nếu serial rỗng hoặc tất cả virtual
+                $allVirtual = !empty($serialNumbers) && collect($serialNumbers)->every(fn($s) => \App\Helpers\SerialHelper::isVirtualSerial((string)$s));
+                if (($allVirtual || empty($serialNumbers)) && $quantity > 0) {
+                    $deviceCodeSerials = \App\Models\DeviceCode::where('dispatch_id', $dispatch->id)
+                        ->where('item_id', $item->item_id)
+                        ->where('item_type', $item->item_type)
+                        ->pluck('serial_main')
+                        ->filter()
+                        ->values()
+                        ->toArray();
+                    if (!empty($deviceCodeSerials)) {
+                        $serialNumbers = $deviceCodeSerials;
+                    }
+                }
 
                 $unit = $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái'));
                 $unitLower = strtolower(trim($unit));

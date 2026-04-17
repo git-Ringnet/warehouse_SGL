@@ -73,7 +73,7 @@ class WarrantyController extends Controller
         $projectItems = [];
         $productMaterials = [];
 
-        if ($warranty->item_type === 'project' && $warranty->item_id) {
+        if (in_array($warranty->item_type, ['project', 'rental']) && $warranty->item_id) {
             // Load tất cả dispatches của project một lần
             // Loại trừ phiếu xuất vật tư từ lắp ráp, chỉ lấy phiếu thành phẩm từ kiểm thử
             $projectDispatches = \App\Models\Dispatch::where('project_id', $warranty->item_id)
