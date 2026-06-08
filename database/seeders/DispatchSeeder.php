@@ -103,14 +103,16 @@ class DispatchSeeder extends Seeder
         ];
 
         foreach ($dispatches as $dispatchData) {
+            $warehouseId = $dispatchData['warehouse_id'];
+            unset($dispatchData['warehouse_id']);
             $dispatch = Dispatch::create($dispatchData);
 
             // Tạo các items cho mỗi dispatch tùy theo loại
-            $this->createDispatchItems($dispatch);
+            $this->createDispatchItems($dispatch, $warehouseId);
         }
     }
 
-    private function createDispatchItems(Dispatch $dispatch)
+    private function createDispatchItems(Dispatch $dispatch, $warehouseId)
     {
         // Tạo items khác nhau tùy theo dispatch_detail
         switch ($dispatch->dispatch_detail) {
@@ -151,6 +153,7 @@ class DispatchSeeder extends Seeder
         foreach ($items as $item) {
             DispatchItem::create([
                 'dispatch_id' => $dispatch->id,
+                'warehouse_id' => $warehouseId,
                 'item_type' => $item['type'],
                 'item_id' => $item['id'],
                 'quantity' => $item['quantity'],
