@@ -25,9 +25,9 @@ class AdminSeeder extends Seeder
             'username' => 'admin',
             'password' => Hash::make('admin123'), // Mật khẩu mặc định
             'name' => 'Administrator',
-            'email' => 'admin@sgl.com',
+            'email' => 'admin@wms.com',
             'phone' => '0123456789',
-            'address' => 'Trụ sở chính SGL',
+            'address' => 'Trụ sở chính WMS',
             'role' => 'admin',
             'status' => 'active',
             'department' => 'IT',

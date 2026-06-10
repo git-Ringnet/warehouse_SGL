@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý khách hàng - SGL</title>
+    <title>Quản lý khách hàng - WMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -640,8 +640,8 @@
                         
                         // Thêm tiêu đề chính ở trên cùng
                         const titleWs = XLSX.utils.aoa_to_sheet([
-                            ['DANH SÁCH KHÁCH HÀNG - SGL'],
-                            ['Công ty: SGL - Hệ thống quản lý kho'],
+                            ['DANH SÁCH KHÁCH HÀNG - WMS'],
+                            ['Công ty: WMS - Hệ thống quản lý kho'],
                             [`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
                             ['']  // Dòng trống
                         ]);
@@ -815,7 +815,7 @@
             footerDiv.style.justifyContent = 'space-between';
             
             const footerLeft = document.createElement('div');
-            footerLeft.textContent = 'SGL - Hệ thống quản lý kho';
+            footerLeft.textContent = 'WMS - Hệ thống quản lý kho';
             footerLeft.style.fontSize = '10px';
             
             const footerRight = document.createElement('div');

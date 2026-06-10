@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Trang chủ khách hàng - SGL')
+@section('title', 'Trang chủ khách hàng - WMS')
 
 @section('content')
 <div class="container-fluid px-6 py-4">

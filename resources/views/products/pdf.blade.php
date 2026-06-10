@@ -79,7 +79,7 @@
     </table>
     
     <div style="margin-top: 30px; text-align: center; font-size: 11px; color: #666;">
-        <p>Báo cáo được tạo từ hệ thống quản lý kho SGL</p>
+        <p>Báo cáo được tạo từ hệ thống quản lý kho WMS</p>
     </div>
 </body>
 </html> 

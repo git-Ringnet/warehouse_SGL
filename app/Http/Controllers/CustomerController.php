@@ -271,7 +271,7 @@ class CustomerController extends Controller
 
         if (empty($emailToUse)) {
             // Tạo email giả từ số điện thoại
-            $emailToUse = $customer->phone . '@customer.sgl.local';
+            $emailToUse = $customer->phone . '@customer.wms.local';
             $isGeneratedEmail = true;
         }
 

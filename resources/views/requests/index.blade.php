@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Quản lý phiếu yêu cầu - SGL')
+@section('title', 'Quản lý phiếu yêu cầu - WMS')
 
 @section('content')
     @php

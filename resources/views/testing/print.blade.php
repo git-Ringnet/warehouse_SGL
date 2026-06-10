@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>In phiếu kiểm thử {{ $testing->test_code }} - SGL</title>
+    <title>In phiếu kiểm thử {{ $testing->test_code }} - WMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,9 +25,9 @@
     <!-- Print Header -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-300 pb-4">
         <div class="flex items-center">
-            <img src="{{ asset('images/logo.png') }}" alt="SGL Logo" class="h-16 mr-4">
+            <img src="{{ asset('images/logo.png') }}" alt="WMS Logo" class="h-16 mr-4">
         <div>
-                <h1 class="text-xl font-bold">CÔNG TY CỔ PHẦN CÔNG NGHỆ SGL</h1>
+                <h1 class="text-xl font-bold">CÔNG TY CỔ PHẦN CÔNG NGHỆ WMS</h1>
                 <p class="text-gray-600">Địa chỉ: 123 Đường XYZ, Quận ABC, TP. HCM</p>
             </div>
         </div>

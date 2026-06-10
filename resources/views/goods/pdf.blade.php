@@ -87,7 +87,7 @@
 <body>
     <div class="header">
         <div class="title">DANH SÁCH HÀNG HÓA</div>
-        <div class="subtitle">Hệ thống quản lý kho SGL</div>
+        <div class="subtitle">Hệ thống quản lý kho WMS</div>
         <div class="date">Ngày xuất: {{ date('d/m/Y H:i:s') }}</div>
     </div>
 

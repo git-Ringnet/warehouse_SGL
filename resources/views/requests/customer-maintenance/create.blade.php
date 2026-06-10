@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Tạo phiếu khách yêu cầu bảo trì - SGL')
+@section('title', 'Tạo phiếu khách yêu cầu bảo trì - WMS')
 
 @section('content')
 <div class="container-fluid px-6 py-4">

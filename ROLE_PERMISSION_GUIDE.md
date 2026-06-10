@@ -1,7 +1,7 @@
-# Hướng dẫn hệ thống phân quyền nhóm - Warehouse SGL
+# Hướng dẫn hệ thống phân quyền nhóm - Warehouse WMS
 
 ## Tổng quan
-Hệ thống warehouse SGL đã được cập nhật với tính năng phân quyền nhóm mà **chỉ có tài khoản admin mới có quyền tạo, chỉnh sửa và xóa nhóm phân quyền**. Điều này đảm bảo an toàn hệ thống và tránh việc cấp quyền không phù hợp.
+Hệ thống warehouse WMS đã được cập nhật với tính năng phân quyền nhóm mà **chỉ có tài khoản admin mới có quyền tạo, chỉnh sửa và xóa nhóm phân quyền**. Điều này đảm bảo an toàn hệ thống và tránh việc cấp quyền không phù hợp.
 
 ## Tính năng mới
 

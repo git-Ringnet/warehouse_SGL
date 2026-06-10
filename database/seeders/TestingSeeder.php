@@ -77,7 +77,7 @@ class TestingSeeder extends Seeder
         // Create sample products if none exist
         if (Product::count() == 0) {
             $products = [
-                ['name' => 'Bộ điều khiển SGL-500', 'code' => 'PRD-SGL500', 'description' => 'Bộ điều khiển SGL-500', 'unit' => 'Bộ', 'hidden' => false],
+                ['name' => 'Bộ điều khiển WMS-500', 'code' => 'PRD-WMS500', 'description' => 'Bộ điều khiển WMS-500', 'unit' => 'Bộ', 'hidden' => false],
                 ['name' => 'Thiết bị đo nhiệt độ', 'code' => 'PRD-TEMP', 'description' => 'Thiết bị đo nhiệt độ', 'unit' => 'Cái', 'hidden' => false],
             ];
             
@@ -89,8 +89,8 @@ class TestingSeeder extends Seeder
         // Create sample goods if none exist
         if (Good::count() == 0) {
             $goods = [
-                ['name' => 'SGL SmartBox', 'code' => 'GD-SMARTBOX', 'notes' => 'Thiết bị SmartBox', 'unit' => 'Bộ', 'status' => 'active', 'category' => 'Thiết bị'],
-                ['name' => 'Bộ thu phát SGL-4G-Premium', 'code' => 'GD-SGL4GP', 'notes' => 'Bộ thu phát 4G Premium', 'unit' => 'Bộ', 'status' => 'active', 'category' => 'Thiết bị'],
+                ['name' => 'WMS SmartBox', 'code' => 'GD-WMSBOX', 'notes' => 'Thiết bị SmartBox', 'unit' => 'Bộ', 'status' => 'active', 'category' => 'Thiết bị'],
+                ['name' => 'Bộ thu phát WMS-4G-Premium', 'code' => 'GD-WMS4GP', 'notes' => 'Bộ thu phát 4G Premium', 'unit' => 'Bộ', 'status' => 'active', 'category' => 'Thiết bị'],
             ];
             
             foreach ($goods as $good) {

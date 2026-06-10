@@ -5,7 +5,7 @@
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
         <div class="flex items-center">
             <i class="fas fa-warehouse text-2xl mr-3" style="color: #fff"></i>
-            <span class="logo-text text-xl font-bold">SGL WMS</span>
+            <span class="logo-text text-xl font-bold">WMS System</span>
         </div>
         <button id="toggleSidebar" class="text-white focus:outline-none md:hidden">
             <i class="fas fa-bars"></i>
