@@ -852,7 +852,7 @@ class RentalController extends Controller
             }
 
             // Đồng bộ thông tin warranty khi rental thay đổi
-            $this->syncWarrantiesFromRental($rental);
+            $this->syncWarrantiesFromRental($rental, true);
 
             // Tạo thông báo khi cập nhật phiếu cho thuê
             if ($rental->employee_id) {
@@ -933,6 +933,7 @@ class RentalController extends Controller
                 $endDate = \Carbon\Carbon::parse($rental->due_date);
                 $periodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
 
+                $updateData['warranty_start_date'] = $startDate->toDateString();
                 $updateData['warranty_end_date'] = $endDate->toDateString();
                 $updateData['warranty_period_months'] = $periodMonths;
             }

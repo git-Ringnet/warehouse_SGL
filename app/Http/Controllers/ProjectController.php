@@ -978,15 +978,15 @@ class ProjectController extends Controller
                 );
             }
 
-            // Kiểm tra và gửi thông báo về bảo hành nếu thông tin bảo hành đã thay đổi
-            if ($startDateChanged || $warrantyPeriodChanged) {
-                // Đồng bộ thông tin warranty khi project thay đổi
-                $this->syncWarrantiesFromProject($project);
+        }
 
-                // Sử dụng ProjectObserver để kiểm tra và gửi thông báo
+        // Đồng bộ thông tin warranty khi project thay đổi
+        if ($startDateChanged || $warrantyPeriodChanged) {
+            $this->syncWarrantiesFromProject($project);
+
+            // Kiểm tra và gửi thông báo về bảo hành nếu dự án có người phụ trách
+            if ($project->employee_id) {
                 $observer = new \App\Observers\ProjectObserver();
-
-                // Gọi phương thức protected thông qua Reflection API
                 $reflection = new \ReflectionClass(get_class($observer));
                 $method = $reflection->getMethod('checkWarrantyStatus');
                 $method->setAccessible(true);
@@ -1275,13 +1275,7 @@ class ProjectController extends Controller
 
         // Cập nhật tất cả warranty liên quan đến project này
         $warranties = \App\Models\Warranty::where('item_type', 'project')
-            ->where(function($q) use ($project) {
-                $q->where('project_name', 'like', '%' . $project->project_name . '%')
-                  ->orWhereHas('dispatch', function ($subQ) use ($project) {
-                      $subQ->where('project_id', $project->id)
-                           ->where('dispatch_type', '!=', 'rental');
-                  });
-            })
+            ->where('item_id', $project->id)
             ->get();
 
         $customerDisplay = optional($project->customer)->name ?? '';

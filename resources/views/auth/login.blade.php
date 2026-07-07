@@ -12,7 +12,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="bg-gray-50" x-data="{ tab: 'login', showSuccessModal: false }" @register-success.window="showSuccessModal = true; tab = 'login'">
+<body class="bg-gray-50" x-data="{ tab: 'login', showSuccessModal: false }"
+    @register-success.window="showSuccessModal = true; tab = 'login'">
     <div class="min-h-screen flex items-center justify-center relative">
         <div class="max-w-md w-full bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="bg-blue-600 py-4">
@@ -39,7 +40,8 @@
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
                         <div class="mb-4">
-                            <label for="username" class="block text-gray-700 text-sm font-medium mb-2">Tên đăng nhập / Số
+                            <label for="username" class="block text-gray-700 text-sm font-medium mb-2">Tên đăng nhập /
+                                Số
                                 điện thoại</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -80,7 +82,7 @@
                         </div>
 
                         <!-- Toggle Link to Register -->
-                        <div class="mt-6 pt-6 border-t border-gray-100 text-center text-sm text-gray-600">
+                        <div class="mt-6 pt-6 border-t border-gray-100 text-center text-sm text-gray-600 hidden">
                             Chưa có tài khoản?
                             <a href="#" @click.prevent="tab = 'register'"
                                 class="font-semibold text-blue-600 hover:text-blue-500 underline focus:outline-none">
@@ -96,7 +98,8 @@
                     <form id="register-form" class="space-y-4">
                         <!-- Name (Username) -->
                         <div>
-                            <label for="register_username" class="block text-gray-700 text-sm font-medium mb-2">Tên đăng nhập</label>
+                            <label for="register_username" class="block text-gray-700 text-sm font-medium mb-2">Tên đăng
+                                nhập</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <i class="fas fa-user text-gray-400"></i>
@@ -109,7 +112,8 @@
 
                         <!-- Email Address -->
                         <div class="mt-4">
-                            <label for="register_email" class="block text-gray-700 text-sm font-medium mb-2">Email</label>
+                            <label for="register_email"
+                                class="block text-gray-700 text-sm font-medium mb-2">Email</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <i class="fas fa-envelope text-gray-400"></i>
@@ -122,7 +126,8 @@
 
                         <!-- Phone Number -->
                         <div class="mt-4">
-                            <label for="register_phone" class="block text-gray-700 text-sm font-medium mb-2">Số điện thoại</label>
+                            <label for="register_phone" class="block text-gray-700 text-sm font-medium mb-2">Số điện
+                                thoại</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <i class="fas fa-phone text-gray-400"></i>
@@ -160,70 +165,67 @@
         </div>
 
         <!-- Success Modal -->
-        <div x-show="showSuccessModal" 
-             class="fixed inset-0 z-50 overflow-y-auto" 
-             style="display: none;"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0">
-             
-             <!-- Backdrop -->
-             <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+        <div x-show="showSuccessModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;"
+            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
 
-             <!-- Modal Container -->
-             <div class="flex min-h-full items-center justify-center p-4 text-center">
-                 <div class="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all w-full max-w-md"
-                      x-transition:enter="transition ease-out duration-300"
-                      x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                      x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                      x-transition:leave="transition ease-in duration-200"
-                      x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-                      x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
-                      
-                      <!-- Success Icon -->
-                      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
-                          <i class="fas fa-check text-2xl text-green-600"></i>
-                      </div>
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
 
-                      <!-- Content -->
-                      <div class="text-center">
-                          <h3 class="text-xl font-bold text-gray-900 mb-2">Đăng ký thành công!</h3>
-                          <p class="text-sm text-gray-600 mb-4">Thông tin đăng ký của bạn đã được ghi nhận. Vui lòng dùng tài khoản demo dưới đây để trải nghiệm:</p>
-                          
-                          <!-- Credentials Box -->
-                          <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-5 text-left space-y-2">
-                              <div class="flex justify-between text-sm">
-                                  <span class="text-gray-500 font-medium">Tên đăng nhập:</span>
-                                  <span class="text-gray-900 font-bold">admin</span>
-                              </div>
-                              <div class="flex justify-between text-sm">
-                                  <span class="text-gray-500 font-medium">Mật khẩu:</span>
-                                  <span class="text-gray-900 font-bold">password</span>
-                              </div>
-                              <div class="flex justify-between text-sm border-t border-gray-200/50 pt-2">
-                                  <span class="text-gray-500 font-medium">Vai trò:</span>
-                                  <span class="text-green-600 font-semibold">Admin hệ thống</span>
-                              </div>
-                          </div>
+            <!-- Modal Container -->
+            <div class="flex min-h-full items-center justify-center p-4 text-center">
+                <div class="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all w-full max-w-md"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
 
-                          <p class="text-xs text-gray-500 italic mb-6">
-                              *(Hệ thống có sẵn tài khoản nhân viên dùng thử: <strong class="text-gray-700">nhanvien</strong> / <strong class="text-gray-700">password</strong>)
-                          </p>
-                      </div>
+                    <!-- Success Icon -->
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+                        <i class="fas fa-check text-2xl text-green-600"></i>
+                    </div>
 
-                      <!-- Button -->
-                      <div>
-                          <button type="button" 
-                                  @click="showSuccessModal = false"
-                                  class="inline-flex w-full justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all">
-                              Trải nghiệm ngay
-                          </button>
-                      </div>
-                 </div>
-             </div>
+                    <!-- Content -->
+                    <div class="text-center">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Đăng ký thành công!</h3>
+                        <p class="text-sm text-gray-600 mb-4">Thông tin đăng ký của bạn đã được ghi nhận. Vui lòng dùng
+                            tài khoản demo dưới đây để trải nghiệm:</p>
+
+                        <!-- Credentials Box -->
+                        <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-5 text-left space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500 font-medium">Tên đăng nhập:</span>
+                                <span class="text-gray-900 font-bold">admin</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500 font-medium">Mật khẩu:</span>
+                                <span class="text-gray-900 font-bold">password</span>
+                            </div>
+                            <div class="flex justify-between text-sm border-t border-gray-200/50 pt-2">
+                                <span class="text-gray-500 font-medium">Vai trò:</span>
+                                <span class="text-green-600 font-semibold">Admin hệ thống</span>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-gray-500 italic mb-6">
+                            *(Hệ thống có sẵn tài khoản nhân viên dùng thử: <strong
+                                class="text-gray-700">nhanvien</strong> / <strong
+                                class="text-gray-700">password</strong>)
+                        </p>
+                    </div>
+
+                    <!-- Button -->
+                    <div>
+                        <button type="button" @click="showSuccessModal = false"
+                            class="inline-flex w-full justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all">
+                            Trải nghiệm ngay
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -284,7 +286,7 @@
 
                         // 4. Reset form đăng ký
                         registerForm.reset();
-                        
+
                         // 5. Gửi event báo thành công để AlpineJS bật modal và chuyển tab đăng nhập
                         window.dispatchEvent(new CustomEvent('register-success'));
                     } else {
